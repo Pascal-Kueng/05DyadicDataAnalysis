@@ -1,9 +1,0 @@
-cff-version: 1.1.0
-message: "You can cite these slides"
-authors:
-- family-names: Küng
-  given-names: Pascal
-orcid: https://orcid.org/0000-0001-7346-9414
-title:Dyadic Data Analysis Tutorial v.1.0.1
-version: 1.1.0
-date-released: 2025-10-20
