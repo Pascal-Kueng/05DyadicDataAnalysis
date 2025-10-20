@@ -3,9 +3,15 @@
 
 ## View Presentation
 
-You can **download and open the prebuilt DyadicDataAnalysis.html** presentation in your browser to view the slides. 
+## View Presentation
+
+You can view or download the prebuilt **DyadicDataAnalysis.html** presentation:
+
+- 🔗 **[Open in browser](https://raw.githubusercontent.com/Pascal-Kueng/05DyadicDataAnalysis/main/DyadicDataAnalysis.html)**  
+- 💾 **[Download file](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/raw/main/DyadicDataAnalysis.html)**
 
 ---
+
 
 ## Reproduce everything locally
 
