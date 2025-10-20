@@ -24,9 +24,9 @@ format:
     transition-speed: fast
     link-external-newwindow: true
     footer: "<span>Dyadic Mulitlevel Modelling • brms/cmdstanr • Pascal Küng</span>"
-    css: /Embed/styles.css
-bibliography: /Embed/Temp.bib
-csl: /Embed/apa.csl
+    css: Embed/styles.css
+bibliography: Embed/Temp.bib
+csl: Embed/apa.csl
 ---
 
 ```{r setup, include=FALSE}
@@ -99,7 +99,7 @@ df <- df[df_filt$gender_actor != df_filt$gender_partner ,]
 
 ## Distinguishable Dyads - Cross-Sectional APIM
 
-![Distinguishable APIM](APIM_dist.png)
+![Distinguishable APIM](Embed/APIM_dist.png)
 
 
 
@@ -202,6 +202,8 @@ model_dist_apim <- brm(
 
 ## Distinguishable Dyads - Check Model Convergence and Fit
 
+Check Rhats and Effective Sample Sizes (ESS_tail and ESS_bulk) directly from the brms summary. Additionally you can:
+
 ```{r cache = TRUE, message=TRUE}
 rstan::check_hmc_diagnostics(model_dist_apim$fit)
 loo::pareto_k_table(loo(model_dist_apim))
@@ -238,6 +240,7 @@ pp_check(model_dist_apim, type = "loo_pit_overlay")
 ---
 
 ```{r cache = TRUE}
+# Custum function to make DHARMa work with brms (see file 'Functions')
 DHARMa.check_brms(model_dist_apim)
 ```
 
@@ -517,12 +520,12 @@ DiagrammeR::grViz(glue("
 
 ```
 
-![Exchangeable APIM](APIM_ind_1.png)
+![Exchangeable APIM](Embed/APIM_ind_1.png)
 
 
 ## Exchangeable Dyads - Cross-Sectional APIM
 
-![Exchangeable APIM](APIM_ind_3.png)
+![Exchangeable APIM](Embed/APIM_ind_3.png)
 
 
 ```{r, echo=FALSE, fig.width=7, fig.align='center', include = FALSE}
@@ -812,7 +815,7 @@ print_df(
 
 ## Equivalence APIM and DIM
 
-![APIM (left) vs. DIM (right)](croppedResults1.png)
+![APIM (left) vs. DIM (right)](Embed/croppedResults1.png)
 
 $$b_{actor\_gmc} + b_{partner\_gmc} = b_{cbc}$$
 $$b_{actor\_gmc} - b_{partner\_gmc} = b_{cwc}$$ 
@@ -821,7 +824,7 @@ $$b_{actor\_gmc} - b_{partner\_gmc} = b_{cwc}$$
 
 
 ```{=html}
-<img src="croppedResults1_shallow.png" alt="Results"
+<img src="Embed/croppedResults1_shallow.png" alt="Results"
      style="display:block; margin:1.5rem auto; max-width:800px; width:100%; height:auto;">
 
 <section data-background-color="#ffffff">
@@ -1136,7 +1139,7 @@ a <- hypothesis(
 a$hypothesis[,c(2,3,4,5)]
 ```
 
-![APIM (left) vs. DIM (right)](croppedResults1.png)
+![APIM (left) vs. DIM (right)](Embed/croppedResults1.png)
 
 
 
@@ -1368,7 +1371,7 @@ Exchangeability is retained, if partners are flipped, the result is the same.
 
 Comparing APIM (left) and DIM (right) output
 
-![APIM (left) vs. DIM (right) APIM](croppedResults2.png)
+![APIM (left) vs. DIM (right) APIM](Embed/croppedResults2.png)
 
 Equivalence holds on both levels
 
