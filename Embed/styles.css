@@ -1,0 +1,36 @@
+
+
+@import url('https://fonts.googleapis.com/css2?family=STIX+Two+Text:wght@400;600;700&display=swap');
+
+/* Slight overall reduction (cleaner without being tiny) */
+.reveal { 
+  font-size: 2em; 
+  line-height: 1.4;
+}
+
+/* Headings tuned for balance */
+.reveal h1 { font-size: 2.2em; }
+.reveal h2 { font-size: 1.2em; }
+.reveal h3 { font-size: 1em; }
+
+/* Paragraph spacing */
+.reveal p {
+  font-size: 0.9em;
+  margin-bottom: 1em;    /* adds small space between paragraphs */
+}
+
+.reveal li {
+  font-size: 0.9em;
+}
+
+/* Slightly smaller code text for readability */
+.reveal pre code { 
+  font-size: 1.3em; 
+  line-height: 1.4;
+}
+
+/* Tables slightly smaller to fit comfortably */
+.reveal table {
+  font-size: 0.7em;
+  margin-bottom: 1em;      /* space below tables too */
+}
