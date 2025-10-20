@@ -23,7 +23,7 @@ format:
     transition: slide
     transition-speed: fast
     link-external-newwindow: true
-    footer: "<span>Dyadic Mulitlevel Modelling • brms/cmdstanr • Pascal Küng</span>"
+    footer: "<span>Dyadic Multilevel Modelling • brms/cmdstanr • Pascal Küng</span>"
     css: Embed/styles.css
 bibliography: Embed/Temp.bib
 csl: Embed/apa.csl
@@ -44,12 +44,12 @@ library(glue)
   
 * Exchangeable Dyads
   * Cross-Sectional APIM
-  * Cross-Secional DIM
+  * Cross-Sectional DIM
   * Equivalence between APIM and DIM
   * Longitudinal DIM
   * Longitudinal APIM
   
-## Loading Libraries and setting cmdstan Backend
+## Loading Libraries and setting CmdStan Backend
 
 ```{r, results='hide', message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -85,7 +85,7 @@ print_df(head(df))
 
 
 ```{r results='hide', echo=FALSE, message=FALSE}
-# subseting distinguishable dyads
+# subsetting distinguishable dyads
 df_filt <- df %>%
   reshape_dyadic_data(
     person_id = 'userID',
@@ -93,7 +93,7 @@ df_filt <- df %>%
     vars_to_reshape = c('communication', 'gender')
   )  
 
-df <- df[df_filt$gender_actor != df_filt$gender_partner ,]
+df <- df[df_filt$gender_actor != df_filt$gender_partner, ]
 
 ```
 
@@ -217,7 +217,7 @@ plot(model_dist_apim, ask = FALSE)
 
 ```{r echo=FALSE}
 p1 <- plot(model_dist_apim, ask=FALSE, nvariables = 3, plot = FALSE)
-p1[[2]]
+p1[[2]] # Look at ALL parameters, here only a subset of 3 is printed for slides
 ```
 --- 
 
@@ -240,7 +240,7 @@ pp_check(model_dist_apim, type = "loo_pit_overlay")
 ---
 
 ```{r cache = TRUE}
-# Custum function to make DHARMa work with brms (see file 'Functions')
+# Custom function to make DHARMa work with brms (see file 'Functions')
 DHARMa.check_brms(model_dist_apim)
 ```
 
@@ -426,7 +426,7 @@ formula <- bf(
     (1 | coupleID:diaryday) +
     
     
-    # Modelling Residuals as auto correlated within each person (order 1)
+    # Modelling residuals as autocorrelated within each person (order 1)
     ar(time = diaryday, gr = coupleID:userID, p = 1),
     
   sigma ~ 0 + is_male + is_female   # heteroscedastic residuals
@@ -604,7 +604,7 @@ formula <- bf(
     cosy(gr = coupleID)
   
   # Note: no need to model separate sigmas for each partner.
-  # Homogenous residual variance is estimated: 
+  # Homogeneous residual variance is estimated: 
   # Implied: sigma = ~ 1
 )
 
@@ -653,7 +653,7 @@ print_df(
 
 ## Exchangeable Dyads - Cross-Sectional APIM: Test for Distinguishability
 
-Leave-one-out (loo) cross validation for model comparison (even if not nested).
+Leave-one-out (loo) cross-validation for model comparison (even if not nested).
 
 ```{r eval=FALSE}
 a <- loo_compare(
@@ -736,7 +736,7 @@ print_df(head(df_apim2))
 Decompose `communication` variance into:
 
 * **Between-couple** (cbc): Couple-mean communication skills in relation to other couples
-* **Within-couple** (cwc): Individuals communication skills in relation to their couple-mean
+* **Within-couple** (cwc): Individuals’ communication skills in relation to their couple-mean
 
 Same assumption about exchangeability as in the APIM
 
@@ -1156,18 +1156,20 @@ a$hypothesis[,c(2,3,4,5)]
 In the **distinguishable** case, the **Dyadic Score Model (DSM)** [e.g., @stadlerHowCompanionshipRelated2023] is equivalent to the APIM! [@Bolger2025Unified; @iidaModelsInterdependentIndividuals2018]
 
 
-## Exchangeable Dyads - Longuitudinal APIM/DIM: Data
+## Exchangeable Dyads - Longitudinal APIM/DIM: Data
 
 ```{r}
 df_long_apim2 <- df_long_apim %>%
-  select('coupleID', 'userID', 'diaryday', 'daily_closeness', 'provided_support_actor_cwp', 'provided_support_partner_cwp', 'provided_support_actor_cbp', , 'provided_support_partner_cbp')
+  select('coupleID', 'userID', 'diaryday', 'daily_closeness', 
+         'provided_support_actor_cwp', 'provided_support_partner_cwp', 
+         'provided_support_actor_cbp', 'provided_support_partner_cbp')
 
 print_df(print_couple_preview(df_long_apim2, couple_id = "31"))  
 
 ```
 
 
-## Exchangeable Dyads - Longuitudinal DIM/APIM
+## Exchangeable Dyads - Longitudinal DIM/APIM
 
 * We need an APIM or DIM on both the between person level and the within-person level.
 * Due to equivalence, we could have a DIM on one level and an APIM on the other. 
@@ -1190,7 +1192,7 @@ df_long_dim <- df_long_apim2 %>%
 
 ```
 
-## Exchangeable Dyads - Longuitudinal DIM/APIM: Preparing the sum and difference approach
+## Exchangeable Dyads - Longitudinal DIM/APIM: Preparing the sum and difference approach
 
 We need to randomly assign -1 and +1 for each Partner within each couple. 
 This will be needed for contrast coding the intercept. 
@@ -1216,7 +1218,7 @@ print_df(print_couple_preview(df_long_dim, couple_id = "31"))
 ```
 
 
-## Exchangeable Dyads - Longuitudinal DIM/APIM: Preparing the Sum and Difference Approach
+## Exchangeable Dyads - Longitudinal DIM/APIM: Preparing the Sum and Difference Approach
 
 ```{r echo=FALSE}
 
@@ -1236,7 +1238,7 @@ print_df(print_couple_preview(df_long_dim, couple_id = "31"))
 
 ```
 
-## Exchangeable Dyads - Longuitudinal APIM/DIM: Model
+## Exchangeable Dyads - Longitudinal APIM/DIM: Model
 
 ```{r }
 
@@ -1355,19 +1357,19 @@ model_dim_ind_long <- brm(
 ```
 
 
-## Exchangeable Dyads - Longuitudinal APIM/DIM: Explanation Idiff
+## Exchangeable Dyads - Longitudinal APIM/DIM: Explanation Idiff
 
 For appropriate random effects, we can use the Sum and Difference approach [@delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]: 
 
 * Randomly give one partner a constant of -1 and the other a constant of 1
-* The couple level intercept represents the mean (or sum) of both partners intercepts `(1 | coupleID)`
+* The couple level intercept represents the mean (or sum) of both partners’ intercepts. `(1 | coupleID)`
 * A column of 1s and -1s represent deviations (difference) of each partner from the couple intercept with each partner contributing equally in one direction (+1 and -1)
 
-Exchangeability is retained, if partners are flipped, the result is the same.
+Exchangeability is retained: if partners are flipped, the result is the same.
 
-(@delrosarioPracticalGuideSpecifying2025 provided practical guidance on how to reduce the random effects structure in case of non-convergence.)
+(@delrosarioPracticalGuideSpecifying2025 provide practical guidance on how to reduce the random effects structure in case of non-convergence.)
 
-## Exchangeable Dyads - Longuitudinal APIM/DIM: Results
+## Exchangeable Dyads - Longitudinal APIM/DIM: Results
 
 Comparing APIM (left) and DIM (right) output
 
@@ -1375,7 +1377,7 @@ Comparing APIM (left) and DIM (right) output
 
 Equivalence holds on both levels
 
-## Exchangeable Dyads - Longuitudinal APIM/DIM: Results
+## Exchangeable Dyads - Longitudinal APIM/DIM: Results
 
 APIM Results in Detail:
 
