@@ -6,7 +6,7 @@ Cross-Sectional and Intensive Longitudinal APIM and DIM
 You can view or download the prebuilt **DyadicDataAnalysis.html** presentation:
 
 - ✅ **[Open in browser (Ctr+Click for new tab)](https://pascal-kueng.github.io/05DyadicDataAnalysis/DyadicDataAnalysis.html)**
-- 💾 **[Download file (rightclick --> save link as html)](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/raw/main/DyadicDataAnalysis.html)**
+- 💾 **[Download zip folder with HTML file included](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/archive/refs/tags/Slides_2.zip)**
 
 ---
 
@@ -15,7 +15,7 @@ You can view or download the prebuilt **DyadicDataAnalysis.html** presentation:
 
 If you want to run all analyses or rebuild the slides locally:
 
-1. **Clone** the repo to your computer (e.g., [using GitHub Desktop](https://desktop.github.com/download/)).
+1. [Download zip folder](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/archive/refs/tags/Slides_2.zip)** or clone the repository
 2. **Open** the `Dyadic Multilevel Modelling.Rproj`.
 3. **Open** the presentation `.Rmd`.
 4. Install project packages:
