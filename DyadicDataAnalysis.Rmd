@@ -6,6 +6,7 @@ date: "last-modified"
 format:
   revealjs:
     embed-resources: true
+    mathjax: embed
     theme: default
     slide-number: "c/t"
     progress: true
@@ -820,6 +821,8 @@ print_df(
 $$b_{actor\_gmc} + b_{partner\_gmc} = b_{cbc}$$
 $$b_{actor\_gmc} - b_{partner\_gmc} = b_{cwc}$$ 
 [@Bolger2025Unified]
+
+
 ## Equivalence APIM and DIM
 
 
