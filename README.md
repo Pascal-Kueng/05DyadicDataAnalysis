@@ -3,8 +3,6 @@
 
 ## View Presentation
 
-## View Presentation
-
 You can view or download the prebuilt **DyadicDataAnalysis.html** presentation:
 
 - 🔗 **[Open in browser](https://raw.githubusercontent.com/Pascal-Kueng/05DyadicDataAnalysis/main/DyadicDataAnalysis.html)**  
