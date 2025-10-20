@@ -1,4 +1,5 @@
-# Dyadic Multilevel Modelling 
+# Distinguishable and Exchangeable Dyads: Multilevel Modelling
+Cross-Sectional and Intensive Longitudinal APIM and DIM
 
 ## View Presentation
 
