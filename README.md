@@ -19,7 +19,7 @@ You can view or download the prebuilt **DyadicDataAnalysis.html** presentation:
 
 If you want to run all analyses or rebuild the slides locally:
 
-1. [Download zip folder](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/releases/latest)** or clone the repository
+1. [Download zip folder](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/releases/latest) or clone the repository
 2. **Open** the `Dyadic Multilevel Modelling.Rproj`.
 3. **Open** the presentation `.Rmd`.
 4. Install project packages:
