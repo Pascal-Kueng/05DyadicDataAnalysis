@@ -34,3 +34,13 @@
   font-size: 0.7em;
   margin-bottom: 1em;      /* space below tables too */
 }
+
+
+/* Add spacing between bibliography entries */
+.reveal .slides .csl-entry {
+  font-size: 0.8em;
+  line-height: 2em;
+}
+
+
+.nocite { display: none; }
