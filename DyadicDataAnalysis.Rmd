@@ -1,6 +1,6 @@
 ---
-title: "Dyadic Multilevel Modelling"
-subtitle: "Distinguishable and Exchangeable Dyads"
+title: "Distinguishable and Exchangeable Dyads: Multilevel Modelling"
+subtitle: "Cross-Sectional and Intensive Longitudinal APIM and DIM"
 author: "Pascal Küng"
 date: "last-modified"
 format:
