@@ -4,6 +4,7 @@ Cross-Sectional and Intensive Longitudinal APIM and DIM
 ## View Presentation
 
 You can view or download the prebuilt **DyadicDataAnalysis.html** presentation:
+<a href="https://example.com" target="_blank">Open in browser</a>
 
 - ✅ **[Open in browser](https://pascal-kueng.github.io/05DyadicDataAnalysis/DyadicDataAnalysis.html)**
 - 💾 **[Download file](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/raw/main/DyadicDataAnalysis.html)**
