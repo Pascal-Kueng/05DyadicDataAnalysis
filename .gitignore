@@ -32,6 +32,11 @@ vignettes/*.pdf
 *_cache/
 /cache/
 
+# other cached chunks
+/brms_cache
+/DyadicDataAnalysis_cache
+/DyadicDataAnalysis_files
+
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
