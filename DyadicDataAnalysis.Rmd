@@ -26,8 +26,13 @@ format:
     link-external-newwindow: true
     footer: "<span>Dyadic Multilevel Modelling • brms/cmdstanr • Pascal Küng</span>"
     css: Embed/styles.css
-bibliography: Embed/Temp.bib
+bibliography:
+  - Embed/Temp.bib
+  - Embed/Rpackages.bib
 csl: Embed/apa.csl
+nocite: |
+  @R-brms, @R-bmlm, @R-easystats, @R-DHARMa, @R-tidyverse, @R-cmdstanr, @R-loo, @R-rstan
+
 ---
 
 ```{r setup, include=FALSE}
@@ -58,7 +63,6 @@ library(brms)
 library(bmlm)
 library(easystats)
 library(DiagrammeR)
-library(glue)
 library(DHARMa)
 source(file.path('00_R_Functions', 'ReportModels.R'))
 source(file.path('00_R_Functions', 'PrettyTables.R'))
@@ -101,7 +105,7 @@ df <- df[df_filt$gender_actor != df_filt$gender_partner, ]
 ## Distinguishable Dyads - Cross-Sectional APIM
 
 ![Distinguishable APIM](Embed/APIM_dist.png)
-
+[e.g., @kenny2006dyadic; @kennyPartnerEffectsRelationship1999; @kennyDyadicDataAnalysis2011]
 
 
 ## Distinguishable Dyads - Preparing Data
@@ -357,6 +361,7 @@ With repeated measures we need to center variables in order to not conflate leve
 
 While it may seem like we have 3-levels (couple/person/day), by including the means of both partners and their correlations in the model, all information about the couple-level (level 3) is included. This will become clear when comparing the exchangeable APIM to the DIM. We thus use a 2-level model with the dyad as the level of analysis. 
 
+
 ## Distinguishable Dyads - L-APIM - Centering 
 
 ```{r}
@@ -376,7 +381,6 @@ df_long_apim <- bmlm::isolate(
 
 
 ## Distinguishable Dyads - L-APIM - Model 
-
 
 
 ```{r}
@@ -457,7 +461,7 @@ model_dist_apim_long <- brm(
 ```
 
 
-## Results
+## Distinguishable Dyads - L-APIM - Results (scrollable) 
 
 ```{r echo=FALSE}
 
@@ -522,12 +526,12 @@ DiagrammeR::grViz(glue("
 ```
 
 ![Exchangeable APIM](Embed/APIM_ind_1.png)
-
+[e.g., @delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]
 
 ## Exchangeable Dyads - Cross-Sectional APIM
 
 ![Exchangeable APIM](Embed/APIM_ind_3.png)
-
+[e.g., @delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]
 
 ```{r, echo=FALSE, fig.width=7, fig.align='center', include = FALSE}
 
@@ -576,6 +580,8 @@ Partners are exchangeable, i.e., not *systematically* different.
 * Equal residual variances
 
 But they should still be allowed to vary within each couple, while being correlated.
+
+[e.g., @delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]
 
 ## Exchangeable Dyads - Cross-Sectional APIM: Data
 
@@ -820,6 +826,7 @@ print_df(
 
 $$b_{actor\_gmc} + b_{partner\_gmc} = b_{cbc}$$
 $$b_{actor\_gmc} - b_{partner\_gmc} = b_{cwc}$$ 
+
 [@Bolger2025Unified]
 
 
@@ -1161,6 +1168,8 @@ In the **distinguishable** case, the **Dyadic Score Model (DSM)** [e.g., @stadle
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: Data
 
+Data is from @hohenerEffectivenessDyadicInterventions2024
+
 ```{r}
 df_long_apim2 <- df_long_apim %>%
   select('coupleID', 'userID', 'diaryday', 'daily_closeness', 
@@ -1405,8 +1414,19 @@ print_df(
 
 ## Extract Full APIM Random Effects Variance-Covariance Matrix
 
-We can rotate the random effects structure back to obtain the full APIM Random effects variance-covariance matrix. 
+We can rotate the random effects structure back to obtain the full APIM Random effects variance-covariance matrix [@kenny_ackerman_2023]. 
 Just as we would in a SEM model with equality constraints!
+
+For example, the within-person variance of the intercept is:
+
+$$var(Intercept) + var(Idiff)$$ 
+
+and the cross-person covariance of both partners' intercepts is:
+
+$$var(Intercept) - var(Idiff)$$
+
+
+## Extract Full APIM Random Effects Variance-Covariance Matrix
 
 ```{r}
 # Custom function 
@@ -1468,6 +1488,14 @@ print_df(a$full_covariance_matrix)
 
 
 ## References
+
+```{r echo=FALSE, results='hide'}
+
+pkgs <- c("brms","bmlm","easystats","DHARMa","tidyverse","cmdstanr","loo","rstan")
+
+knitr::write_bib(pkgs, "Embed/Rpackages.bib")
+
+```
 
 
 
