@@ -1,4 +1,3 @@
-
 # Dyadic Multilevel Modelling 
 
 ## View Presentation
@@ -15,7 +14,7 @@ You can view or download the prebuilt **DyadicDataAnalysis.html** presentation:
 
 If you want to run all analyses or rebuild the slides locally:
 
-1. **Clone** the repo.
+1. **Clone** the repo to your computer (e.g., [using GitHub Desktop](https://desktop.github.com/download/)).
 2. **Open** the `Dyadic Multilevel Modelling.Rproj`.
 3. **Open** the presentation `.Rmd`.
 4. Install project packages:
