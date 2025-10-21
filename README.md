@@ -24,6 +24,9 @@ If you want to run all analyses or rebuild the slides locally:
 3. **Open** the presentation `DyadicDataAnalysis.Rmd`.
 4. Install project packages:
 
+Please feel free to use slides, functions, and code. If you do, a reference is appreciated
+Küng, P. (2025). Distinguishable and Exchangeable Dyads: Multilevel Modelling. Zenodo. https://doi.org/10.5281/zenodo.17400655
+
    ```r
    renv::restore()
    ```
