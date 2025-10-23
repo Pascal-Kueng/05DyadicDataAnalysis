@@ -64,16 +64,209 @@ library(bmlm)
 library(easystats)
 library(DiagrammeR)
 library(DHARMa)
+library(MASS)
 source(file.path('00_R_Functions', 'ReportModels.R'))
 source(file.path('00_R_Functions', 'PrettyTables.R'))
 source(file.path('00_R_Functions', 'PrepareData.R'))
-
-set.seed(123)
 
 options(
   brms.backend = 'cmdstan',
   brms.file_refit = 'on_change'
 )
+```
+
+
+```{r simulating data, echo=FALSE, results='hide'}
+# --- Packages (explicit namespacing avoids conflicts) ---
+# library(dplyr); library(tidyr); library(tibble); library(MASS)
+set.seed(123)
+
+# --- 1. Define Simulation Parameters ---
+# Sample Size
+n_het <- 550 # Number of heterosexual couples
+n_ss  <- 400 # Number of same-sex couples
+n_total <- n_het + n_ss
+
+# Residual SDs by gender / dyad type (unchanged)
+sd_e_het_female <- 1.1
+sd_e_het_male   <- 1.4
+sd_e_ss_female  <- 0.9   # (SS individuals coded female in this example)
+# sd_e_ss_male <- ...    # if you add male–male couples
+
+# --- NEW: Residual correlations by dyad type (compound symmetry) ---
+rho_e_het <- 0.30
+rho_e_ss  <- 0.40
+
+# Fixed Effects (the "true" values we want to recover)
+gamma_0_het_female <- 5.5
+gamma_0_het_male   <- 4.5
+gamma_0_ss_person  <- 5.35
+
+gamma_a_het_female <- 1.6
+gamma_a_het_male   <- 1.8
+gamma_a_ss_person  <- 0.2
+
+gamma_p_het_female <- 0.3
+gamma_p_het_male   <- 0.2
+gamma_p_ss_person  <- 0.25
+
+# Variance Components
+sd_x <- 1.5      # SD of the predictor (communication)
+r_x  <- 0.4      # Correlation between partners' communication
+
+# --- UPDATED: smaller, more realistic random slope SDs ---
+# (Feel free to tweak; these are modest to reflect heterogeneity without dominating)
+sd_u0j <- 0.8    # baseline random intercept SD (unused directly below; see group-specific)
+sd_uaj <- 0.15   # (legacy overall; using group-specific below)
+sd_upj <- 0.12
+cor_u0a <- 0.20
+cor_u0p <- 0.15
+cor_uap <- -0.10
+sd_e    <- 1.2   # legacy scalar residual SD (not used now that we do sex-specific)
+
+# --- 2. Simulate Dyad-Level Variables ---
+dyad_data <- tibble::tibble(coupleID = 1:n_total)
+
+# -- 2a: SEPARATE variance components for each group (UPDATED slopes) --
+
+# Heterosexual couples
+sd_u0j_het <- 0.8
+sd_uaj_het <- 0.15   # was 0.3
+sd_upj_het <- 0.12   # was 0.2
+cor_u0a_het <- 0.20  # was 0.25
+cor_u0p_het <- 0.15  # same
+cor_uap_het <- -0.10 # same
+
+# Same-sex couples
+sd_u0j_ss <- 1.0
+sd_uaj_ss <- 0.12   # was 0.2
+sd_upj_ss <- 0.15   # was 0.25
+cor_u0a_ss <- 0.10
+cor_u0p_ss <- -0.05
+cor_uap_ss <- 0.00
+
+# -- 2b: Variance-covariance matrices --
+cov_matrix_u_het <- matrix(c(
+  sd_u0j_het^2,                      cor_u0a_het*sd_u0j_het*sd_uaj_het, cor_u0p_het*sd_u0j_het*sd_upj_het,
+  cor_u0a_het*sd_u0j_het*sd_uaj_het, sd_uaj_het^2,                      cor_uap_het*sd_uaj_het*sd_upj_het,
+  cor_u0p_het*sd_u0j_het*sd_upj_het, cor_uap_het*sd_uaj_het*sd_upj_het, sd_upj_het^2
+), nrow = 3, byrow = TRUE)
+
+cov_matrix_u_ss <- matrix(c(
+  sd_u0j_ss^2,                     cor_u0a_ss*sd_u0j_ss*sd_uaj_ss, cor_u0p_ss*sd_u0j_ss*sd_upj_ss,
+  cor_u0a_ss*sd_u0j_ss*sd_uaj_ss,  sd_uaj_ss^2,                   cor_uap_ss*sd_uaj_ss*sd_upj_ss,
+  cor_u0p_ss*sd_u0j_ss*sd_upj_ss,  cor_uap_ss*sd_uaj_ss*sd_upj_ss, sd_upj_ss^2
+), nrow = 3, byrow = TRUE)
+
+# -- 2c: Generate random effects separately for each group --
+random_effects_het <- MASS::mvrnorm(n = n_het, mu = c(0, 0, 0), Sigma = cov_matrix_u_het)
+random_effects_ss  <- MASS::mvrnorm(n = n_ss,  mu = c(0, 0, 0), Sigma = cov_matrix_u_ss)
+
+# -- 2d: Combine into one dataframe --
+het_df_re <- tibble::tibble(
+  coupleID = 1:n_het,
+  u_0j = random_effects_het[, 1],
+  u_aj = random_effects_het[, 2],
+  u_pj = random_effects_het[, 3]
+)
+
+ss_df_re <- tibble::tibble(
+  coupleID = (n_het + 1):n_total,
+  u_0j = random_effects_ss[, 1],
+  u_aj = random_effects_ss[, 2],
+  u_pj = random_effects_ss[, 3]
+)
+
+combined_re <- dplyr::bind_rows(het_df_re, ss_df_re)
+
+# Generate correlated predictor scores for partners (same as before)
+cov_matrix_x <- matrix(c(sd_x^2, r_x*sd_x^2, r_x*sd_x^2, sd_x^2), nrow = 2)
+partner_scores <- MASS::mvrnorm(n = n_total, mu = c(5, 5), Sigma = cov_matrix_x)
+
+# Join combined RE with main dyad data
+dyad_data <- dyad_data %>%
+  dplyr::mutate(
+    communication_p1 = partner_scores[, 1],
+    communication_p2 = partner_scores[, 2]
+  ) %>%
+  dplyr::left_join(combined_re, by = "coupleID")
+
+# --- 3. Create Person-Level (Long) Dataframe ---
+person1 <- dyad_data %>% dplyr::select(coupleID, communication = communication_p1) %>% dplyr::mutate(p_num = 1)
+person2 <- dyad_data %>% dplyr::select(coupleID, communication = communication_p2) %>% dplyr::mutate(p_num = 2)
+
+df <- dplyr::bind_rows(person1, person2) %>%
+  dplyr::arrange(coupleID, p_num) %>%
+  dplyr::mutate(userID = paste0(coupleID, "_", p_num)) %>%
+  dplyr::select(userID, coupleID, communication, p_num)
+
+# Assign gender (1 = female, 2 = male)
+het_couples <- 1:n_het
+ss_couples  <- (n_het + 1):n_total
+
+df <- df %>%
+  dplyr::mutate(
+    gender = dplyr::case_when(
+      coupleID %in% het_couples & p_num == 1 ~ 1,
+      coupleID %in% het_couples & p_num == 2 ~ 2,
+      coupleID %in% ss_couples               ~ 1
+    )
+  )
+
+temp_df_for_outcome <- df %>%
+  dplyr::group_by(coupleID) %>%
+  dplyr::mutate(
+    communication_actor   = communication,
+    communication_partner = communication[2:1]
+  ) %>%
+  dplyr::ungroup() %>%
+  dplyr::left_join(dyad_data, by = "coupleID") %>%
+  dplyr::mutate(
+    # Center predictors before generating outcome (grand-mean)
+    c_comm_actor   = communication_actor   - mean(communication_actor),
+    c_comm_partner = communication_partner - mean(communication_partner),
+
+    # Deterministic part
+    satisfaction_deterministic = dplyr::case_when(
+      gender == 1 & coupleID <= n_het ~ gamma_0_het_female + gamma_a_het_female * c_comm_actor + gamma_p_het_female * c_comm_partner,
+      gender == 2 & coupleID <= n_het ~ gamma_0_het_male   + gamma_a_het_male   * c_comm_actor + gamma_p_het_male   * c_comm_partner,
+      gender == 1 & coupleID >  n_het ~ gamma_0_ss_person  + gamma_a_ss_person  * c_comm_actor + gamma_p_ss_person  * c_comm_partner
+    )
+  )
+
+# --- NEW: Residuals with compound symmetry (per dyad) & sex-specific SDs -------
+resid_pairs <- tibble::tibble(coupleID = 1:n_total) %>%
+  dplyr::mutate(
+    sd1 = ifelse(coupleID <= n_het, sd_e_het_female, sd_e_ss_female),  # p1: het=female, ss=female
+    sd2 = ifelse(coupleID <= n_het, sd_e_het_male,   sd_e_ss_female),  # p2: het=male,   ss=female
+    rho = ifelse(coupleID <= n_het, rho_e_het,       rho_e_ss)
+  ) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(
+    e_pair = list(MASS::mvrnorm(
+      n = 1, mu = c(0, 0),
+      Sigma = matrix(c(sd1^2, rho*sd1*sd2,
+                       rho*sd1*sd2, sd2^2), nrow = 2)
+    ))
+  ) %>%
+  dplyr::ungroup() %>%
+  tidyr::unnest_wider(e_pair, names_sep = "") %>%
+  dplyr::rename(e1 = e_pair1, e2 = e_pair2)
+
+# Attach residuals and finish outcome
+temp_df_for_outcome <- temp_df_for_outcome %>%
+  dplyr::left_join(resid_pairs, by = "coupleID") %>%
+  dplyr::mutate(
+    e_i = ifelse(p_num == 1, e1, e2),
+    satisfaction = satisfaction_deterministic +
+      u_0j + (u_aj * c_comm_actor) + (u_pj * c_comm_partner) + e_i
+  ) %>%
+  dplyr::select(-e1, -e2)
+
+# Finalize: ORIGINAL OUTPUT FORMAT
+df <- temp_df_for_outcome %>%
+  dplyr::select(userID, coupleID, gender, communication, satisfaction)
+
 ```
 
 
@@ -84,7 +277,6 @@ options(
 ## Distinguishable Dyads - Data: Simulated Dyads
 
 ```{r}
-df <- readRDS('Embed/simulatedCrossSectionalDyadicData.rds')
 print_df(head(df))
 ```
 
@@ -124,8 +316,8 @@ df_apim <- df %>%
     communication_partner_gmc = communication_partner - mean(communication_partner),
     
     # Create Dummy-Variables for male and female
-    is_male = ifelse(gender == 1, 1, 0),
-    is_female = ifelse(gender == 2, 1, 0),
+    is_female = ifelse(gender == 1, 1, 0),
+    is_male = ifelse(gender == 2, 1, 0),
   ) 
 
 print_df(head(df_apim))
@@ -151,9 +343,13 @@ print_df(head(df_apim))
 
 ## Distinguishable Dyads - Fitting the Model in BRMS
 
+Model non-indepencence either via a shared random intercept or correlated residuals (not both). 
+Posterior predictive checks, residual diagnostics and leave one out cross validation (e.g., via `loo_compare()`) may help inform which one to use.
 
 ```{r }
 #| code-line-numbers: "1-13|15-26|28-33|35-46"
+
+# Option A: Random-intercept model for non-independence
 
 formula <- bf(
   satisfaction ~ 
@@ -169,13 +365,62 @@ formula <- bf(
     communication_partner_gmc:is_male + 
     communication_partner_gmc:is_female +
     
-    # Option 1: Random intercept for male and female (correlated), not identifiable in the cross-sectional case:
+    # Option 0: Random intercept for male and female (correlated), not identifiable in the cross-sectional case:
     # (0 + is_male + is_female | coupleID)
     
-    # Option 2: Too restrictive, basically modelling Exchangeable dyads with perfect correlation
-    # (1 | coupleID) 
+    # Option A: Shared dyad effect - interpretable dyad-level random intercept. 
+    (1 | coupleID), 
+  
+  # Two distinct residual variances for males vs females:
+  sigma = ~ 0 + is_male + is_female
+)
+
+priors <- c(
+  # prior(normal(2, 3), class = "Intercept"),
+  prior(normal(0, 5), class = "b"),
+  prior(student_t(3, 0, 1.5), class = "b", dpar = "sigma"),
+  prior(student_t(3, 0, 2.5), class = "sd")
+)
+
+model_dist_apim_a <- brm(
+  formula = formula, 
+  data = df_apim,
+  family = gaussian(link = identity),
+  prior = priors,
+  chains = 4,
+  cores = 4,
+  iter = 2000,
+  warmup = 1000, 
+  seed = 123,
+  file = file.path('brms_cache', 'example1_dist_apim_a') # Cache the model
+)
+
+
+```
+
+## Distinguishable Dyads - Fitting the Model in BRMS
+
+
+```{r }
+#| code-line-numbers: "1-13|15-26|28-33|35-46"
+
+# Option B: Residual CS for non-independence (no random intercept)
+
+formula <- bf(
+  satisfaction ~ 
     
-    # Solution: use compound symmetry of the residuals
+    # Remove global intercept, introduce male and female intercepts.
+    0 + is_male + is_female +
+    
+    # Actor effect for male and female
+    communication_actor_gmc:is_male + 
+    communication_actor_gmc:is_female + 
+    
+    # Partner effect for male and female
+    communication_partner_gmc:is_male + 
+    communication_partner_gmc:is_female +
+  
+    # Option B: Model non-independence by using compound symmetry of the residuals. Works and provides interpretable...
     cosy(gr = coupleID),
   
   # Two distinct residual variances for males vs females:
@@ -189,7 +434,7 @@ priors <- c(
   prior(beta(1, 3), class = "cosy")
 )
 
-model_dist_apim <- brm(
+model_dist_apim_b <- brm(
   formula = formula, 
   data = df_apim,
   family = gaussian(link = identity),
@@ -199,54 +444,55 @@ model_dist_apim <- brm(
   iter = 2000,
   warmup = 1000, 
   seed = 123,
-  file = file.path('brms_cache', 'example1_dist_apim') # Cache the model
+  file = file.path('brms_cache', 'example1_dist_apim_b') # Cache the model
 )
 
 
 ```
 
+
 ## Distinguishable Dyads - Check Model Convergence and Fit
 
-Check Rhats and Effective Sample Sizes (ESS_tail and ESS_bulk) directly from the brms summary. Additionally you can:
+Check Rhats and Effective Sample Sizes (ESS_tail and ESS_bulk) directly from the brms summary. Additionally you can (using Model B as an example):
 
 ```{r cache = TRUE, message=TRUE}
-rstan::check_hmc_diagnostics(model_dist_apim$fit)
-loo::pareto_k_table(loo(model_dist_apim))
+rstan::check_hmc_diagnostics(model_dist_apim_b$fit)
+loo::pareto_k_table(loo(model_dist_apim_b))
 ```
 
 --- 
 
 ```{r eval=FALSE}
-plot(model_dist_apim, ask = FALSE)
+plot(model_dist_apim_b, ask = FALSE)
 ```
 
 ```{r echo=FALSE}
-p1 <- plot(model_dist_apim, ask=FALSE, nvariables = 3, plot = FALSE)
+p1 <- plot(model_dist_apim_b, ask=FALSE, nvariables = 3, plot = FALSE)
 p1[[2]] # Look at ALL parameters, here only a subset of 3 is printed for slides
 ```
 --- 
 
 ```{r cache = TRUE}
-pp_check(model_dist_apim, 'dens_overlay_grouped', group = 'is_male')
+pp_check(model_dist_apim_b, 'dens_overlay_grouped', group = 'is_male')
 ```
 
 ---
 
 ```{r cache = TRUE}
-pp_check(model_dist_apim, 'ecdf_overlay_grouped', group = 'is_male')
+pp_check(model_dist_apim_b, 'ecdf_overlay_grouped', group = 'is_male')
 ```
 
 ---
 
 ```{r cache = TRUE}
-pp_check(model_dist_apim, type = "loo_pit_overlay")
+pp_check(model_dist_apim_b, type = "loo_pit_overlay")
 ```
 
 ---
 
 ```{r cache = TRUE}
 # Custom function to make DHARMa work with brms (see file 'Functions')
-DHARMa.check_brms(model_dist_apim)
+DHARMa.check_brms(model_dist_apim_b)
 ```
 
 ---
@@ -254,7 +500,7 @@ DHARMa.check_brms(model_dist_apim)
 ```{r echo = FALSE}
 
 summary_apim <- summarize_brms(
-    model_dist_apim, 
+    model_dist_apim_b, 
     stats_to_report = c('CI', 'Rhat', 'ESS')
     )
 
@@ -267,6 +513,8 @@ print_df(
   )
 
 ```
+
+Note that sigma is reported on the log scale (see ?brmsfamily). Using exp(value) retrieves the simulated values well. 
 
 ## Distinguishable Dyads - (Intensive) Longitudinal APIM
 
