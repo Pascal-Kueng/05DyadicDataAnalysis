@@ -65,6 +65,7 @@ library(easystats)
 library(DiagrammeR)
 library(DHARMa)
 library(MASS)
+library(purrr)
 source(file.path('00_R_Functions', 'ReportModels.R'))
 source(file.path('00_R_Functions', 'PrettyTables.R'))
 source(file.path('00_R_Functions', 'PrepareData.R'))
@@ -520,37 +521,265 @@ Note that sigma is reported on the log scale (see ?brmsfamily). Using exp(value)
 
 ## Distinguishable Dyads - L-APIM - Data: Time and Ties
 
-```{r echo = FALSE, results='hide', warning=FALSE, message=FALSE}
-df_long <- readRDS('Embed/df_long_pilot.rds')
+```{r echo = FALSE, results='hide'}
 
-df_long <- df_long %>% 
+set.seed(123)
+
+# ===============================
+# 1) Design
+# ===============================
+n_couples <- 60
+days      <- 0:55
+T_per     <- length(days)
+
+# People per couple: p1 = female, p2 = male
+persons <- tibble(
+  coupleID  = rep(1:n_couples, each = 2),
+  p_num     = rep(1:2, times = n_couples),
+  gender    = ifelse(p_num == 1, 1, 2),     # 1=female, 2=male
+  is_female = as.integer(gender == 1),
+  is_male   = as.integer(gender == 2),
+  userID    = paste0(coupleID, "_", p_num)
+)
+
+# ===============================
+# 2) Fixed effects (edit as desired)
+# ===============================
+b0_female <- 5.5; b0_male <- 4.7
+b_time_female <-  0.010; b_time_male <- -0.005
+
+# Between-person APIM (effects of person means)
+b_bp_actor_f <- 0.40; b_bp_partner_f <- 0.25
+b_bp_actor_m <- 0.35; b_bp_partner_m <- 0.20
+
+# Within-person APIM (effects of daily deviations)
+b_wp_actor_f <- 0.30; b_wp_partner_f <- 0.15
+b_wp_actor_m <- 0.32; b_wp_partner_m <- 0.12
+
+# ===============================
+# 3) Couple-level random effects (full var-cov)
+#    Vector: [b0_m, b0_f, time_m, time_f, wpA_m, wpP_m, wpA_f, wpP_f]
+# ===============================
+sd_re <- c(0.70, 0.80, 0.015, 0.015, 0.10, 0.08, 0.10, 0.08)
+R     <- matrix(0.15, 8, 8); diag(R) <- 1
+Sigma_re <- diag(sd_re) %*% R %*% diag(sd_re)
+
+RE <- MASS::mvrnorm(n_couples, mu = rep(0, 8), Sigma = Sigma_re) |>
+  as_tibble(.name_repair = ~c("re_b0_m","re_b0_f","re_time_m","re_time_f",
+                              "re_wpA_m","re_wpP_m","re_wpA_f","re_wpP_f")) |>
+  mutate(coupleID = 1:n_couples)
+
+# ===============================
+# 4) Provided support (predictor)
+#    - Person means are correlated within couple
+#    - Daily AR(1) within person; partner innovations correlated same day
+# ===============================
+mu_sup_f <- 5.0; sd_mu_f <- 0.8
+mu_sup_m <- 4.8; sd_mu_m <- 0.8
+rho_couple_mean <- 0.50
+Sigma_mu <- matrix(c(sd_mu_f^2, rho_couple_mean*sd_mu_f*sd_mu_m,
+                     rho_couple_mean*sd_mu_f*sd_mu_m, sd_mu_m^2), 2)
+
+mu_pairs <- MASS::mvrnorm(n_couples, mu = c(mu_sup_f, mu_sup_m), Sigma = Sigma_mu)
+mu_df <- tibble(
+  coupleID = rep(1:n_couples, each = 2),
+  p_num    = rep(1:2, times = n_couples),
+  mu_sup   = c(rbind(mu_pairs[,1], mu_pairs[,2]))
+)
+
+phi_sup <- 0.50
+sd_sup_wp <- 0.9
+sd_eta_sup <- sqrt(sd_sup_wp^2 * (1 - phi_sup^2))
+rho_sup_day <- 0.35
+Sigma_eta_day <- matrix(c(sd_eta_sup^2, rho_sup_day*sd_eta_sup^2,
+                          rho_sup_day*sd_eta_sup^2, sd_eta_sup^2), 2)
+
+sim_support_one_couple <- function(cid) {
+  eta <- MASS::mvrnorm(T_per, mu = c(0,0), Sigma = Sigma_eta_day)
+  sup <- matrix(NA_real_, nrow = T_per, ncol = 2)
+  sup[1,] <- eta[1,] / sqrt(1 - phi_sup^2)   # stationary init
+  for (t in 2:T_per) sup[t,] <- phi_sup * sup[t-1,] + eta[t,]
+  tibble(coupleID = cid, diaryday = days, sup_f = sup[,1], sup_m = sup[,2])
+}
+
+support_time <- purrr::map_dfr(1:n_couples, sim_support_one_couple)
+
+support_long <- support_time |>
+  pivot_longer(c(sup_f, sup_m), names_to = "who", values_to = "sup_cwp") |>
+  mutate(p_num = ifelse(who == "sup_f", 1, 2)) |>
+  dplyr::select(-who) |>
+  left_join(mu_df, by = c("coupleID","p_num")) |>
+  mutate(provided_support = mu_sup + sup_cwp) |>
+  dplyr::select(coupleID, diaryday, p_num, provided_support, sup_cwp)
+
+# ===============================
+# 5) Assemble panel & partner lookups (safe keys)
+# ===============================
+panel <- expand_grid(coupleID = 1:n_couples, diaryday = days, p_num = 1:2) |>
+  left_join(persons, by = c("coupleID","p_num")) |>
+  left_join(support_long, by = c("coupleID","diaryday","p_num"))
+
+# Partner same-day values
+panel <- panel |>
+  group_by(coupleID, diaryday) |>
   mutate(
-    provided_support = (ss_emo_comf + ss_emo_pleasure + ss_emo_reass) / 3,
-    daily_closeness = ss_closeness,
-    diaryday = day, 
-    is_male = ifelse(gender == 1, 1, 0), 
-    is_female = ifelse(gender == 2, 1, 0)
-  ) %>%
-  select(
-    c('userID', 'coupleID', 'diaryday', 'gender', 'is_male', 'is_female', 'daily_closeness', 
-      'provided_support')
+    provided_support_partner = provided_support[3 - p_num],
+    sup_cwp_partner          = sup_cwp[3 - p_num]
+  ) |>
+  ungroup()
+
+# Couple means via clean joins
+mu_actor_tbl   <- mu_df |> rename(mu_actor = mu_sup)
+mu_partner_tbl <- mu_df |> mutate(p_num = 3 - p_num) |> rename(mu_partner = mu_sup)
+
+panel <- panel |>
+  left_join(mu_actor_tbl,   by = c("coupleID","p_num")) |>
+  left_join(mu_partner_tbl, by = c("coupleID","p_num"))
+
+# ===============================
+# 6) Same-day couple×day random effect (common shocks)
+# ===============================
+use_day_RE <- TRUE     # set FALSE if you don't want (1 | coupleID:diaryday)
+sd_day <- 0.40
+if (use_day_RE) {
+  day_shock <- expand_grid(coupleID = 1:n_couples, diaryday = days) |>
+    mutate(z_day = rnorm(n(), 0, sd_day))
+  panel <- panel |> left_join(day_shock, by = c("coupleID","diaryday"))
+} else {
+  panel <- panel |> mutate(z_day = 0)
+}
+
+# ===============================
+# 7) Deterministic mean of daily closeness
+# ===============================
+grand_mu <- mean(mu_df$mu_sup)  # ONE global grand mean for CBP
+
+panel <- panel |>
+  left_join(RE, by = "coupleID") |>
+  mutate(
+    # fixed parts by gender
+    fix_b0   = ifelse(is_male==1, b0_male, b0_female),
+    fix_time = ifelse(is_male==1, b_time_male, b_time_female),
+    fix_bp_actor   = ifelse(is_male==1, b_bp_actor_m,  b_bp_actor_f),
+    fix_bp_partner = ifelse(is_male==1, b_bp_partner_m,b_bp_partner_f),
+    fix_wp_actor   = ifelse(is_male==1, b_wp_actor_m,  b_wp_actor_f),
+    fix_wp_partner = ifelse(is_male==1, b_wp_partner_m,b_wp_partner_f),
+
+    # couple-level REs by gender
+    re_b0      = ifelse(is_male==1, re_b0_m,   re_b0_f),
+    re_time    = ifelse(is_male==1, re_time_m, re_time_f),
+    re_wp_actor= ifelse(is_male==1, re_wpA_m,  re_wpA_f),
+    re_wp_part = ifelse(is_male==1, re_wpP_m,  re_wpP_f),
+
+    # latent components
+    actor_cwp   = sup_cwp,
+    partner_cwp = sup_cwp_partner,
+    actor_cbp   = mu_actor   - grand_mu,
+    partner_cbp = mu_partner - grand_mu,
+
+    # deterministic mean
+    mu_it =
+      fix_b0 + fix_time * diaryday +
+      fix_bp_actor   * actor_cbp   + fix_bp_partner * partner_cbp +
+      fix_wp_actor   * actor_cwp   + fix_wp_partner * partner_cwp +
+      re_b0 + re_time * diaryday +
+      re_wp_actor * actor_cwp + re_wp_part * partner_cwp +
+      z_day
   )
+
+# ===============================
+# 8) Residuals: AR(1) within person, gender-specific σ
+# ===============================
+phi_eps <- 0.55
+sd_eps_f <- 0.90; sd_eps_m <- 1.10
+sd_eta_f <- sqrt(sd_eps_f^2 * (1 - phi_eps^2))
+sd_eta_m <- sqrt(sd_eps_m^2 * (1 - phi_eps^2))
+
+simulate_ar1_resid <- function(n, sd_eta, phi=phi_eps) {
+  e <- numeric(n)
+  e[1] <- rnorm(1, 0, sd = sd_eta / sqrt(1 - phi^2))
+  if (n >= 2) for (t in 2:n) e[t] <- phi * e[t-1] + rnorm(1, 0, sd_eta)
+  e
+}
+
+# Vectorized generation (fast)
+idx <- panel |>
+  arrange(userID, diaryday) |>
+  distinct(userID, is_male)
+eps_list <- mapply(
+  FUN = simulate_ar1_resid,
+  n = T_per,
+  sd_eta = ifelse(idx$is_male==1, sd_eta_m, sd_eta_f),
+  SIMPLIFY = FALSE
+)
+eps_vec <- unlist(eps_list, use.names = FALSE)
+
+panel <- panel |>
+  arrange(userID, diaryday) |>
+  mutate(e_it = eps_vec) |>
+  arrange(coupleID, diaryday, p_num)
+
+# ===============================
+# 9) Outcomes & exports
+# ===============================
+df_long <- panel |>
+  mutate(daily_closeness = mu_it + e_it) |>
+  dplyr::select(userID, coupleID, diaryday, gender,
+         daily_closeness, provided_support) |>
+  arrange(coupleID, userID, diaryday)
+
+# MODEL-READY (with centered time + CBP/CWP for APIM)
+df_long_apim <- df_long |>
+  left_join(persons |> dplyr::select(userID, coupleID, is_male, is_female), by = c("userID","coupleID")) |>
+  # Re-attach partner series for isolation
+  left_join(panel |>
+              dplyr::select(userID, coupleID, diaryday,
+                     provided_support_actor = provided_support,
+                     provided_support_partner = provided_support_partner),
+            by = c("userID","coupleID","diaryday")) |>
+  # Proper APIM centering (within person)
+  group_by(userID) |>
+  mutate(
+    provided_support_actor_cbp   = mean(provided_support_actor, na.rm = TRUE),
+    provided_support_actor_cwp   = provided_support_actor - provided_support_actor_cbp,
+    provided_support_partner_cbp = mean(provided_support_partner, na.rm = TRUE),
+    provided_support_partner_cwp = provided_support_partner - provided_support_partner_cbp
+  ) |>
+  ungroup() |>
+  # Center time (global)
+  mutate(diaryday_c = diaryday - mean(diaryday)) |>
+  arrange(coupleID, userID, diaryday)
+
+# Quick integrity checks (optional)
+stopifnot(nrow(df_long) == n_couples * 2 * T_per)
+stopifnot(!any(is.na(df_long$daily_closeness)))
+stopifnot(!any(is.na(df_long$provided_support)))
+
+
 ```
 
 
 ```{r echo = FALSE, results='hide', warning=FALSE, message=FALSE}
-df_long_apim <- reshape_dyadic_data(
-  data = df_long,
-  person_id = 'userID',
-  dyad_id = 'coupleID',
-  time = 'diaryday',
-  vars_to_reshape = c('provided_support', 'gender')
-) 
 
-df_long_apim <- df_long_apim[df_long_apim$gender_actor != df_long_apim$gender_partner, ]
-df_long_apim$gender_actor <- NULL
-df_long_apim$gender_partner <- NULL
+df_long_apim <- df_long %>%
+  mutate(
+  is_female = ifelse(gender == 1, 1, 0), 
+  is_male = ifelse(gender == 2, 1, 0)
+  ) %>% 
+  reshape_dyadic_data(
+    person_id = 'userID',
+    dyad_id = 'coupleID',
+    time = 'diaryday',
+    vars_to_reshape = c('provided_support')
+  )
 
+
+```
+
+
+```{r echo = FALSE, results='hide', warning=FALSE, message=FALSE}
+
+# Function for previev (not needed for analysis!)
 print_couple_preview <- function(df, couple_id,
                                  days = 0:2) {
   # Filter/sort/select with original types
@@ -595,7 +824,7 @@ print_couple_preview <- function(df, couple_id,
 
 ```{r echo=FALSE}
 
-print_df(print_couple_preview(df_long_apim[, c(1,2,3,5,6,7,9,10)], couple_id = "31"))  
+print_df(print_couple_preview(df_long_apim[, c(1,2,3,4,5,7,8,9,10)], couple_id = "31"))  
 
 ```
 
@@ -624,7 +853,12 @@ df_long_apim <- bmlm::isolate(
     provided_support_partner_cwp = provided_support_partner_cw,
     provided_support_actor_cbp = provided_support_actor_cb,
     provided_support_partner_cbp = provided_support_partner_cb,
+  ) %>%
+  # Centering time
+  mutate(
+    diaryday_c = scale(diaryday, center = TRUE, scale = FALSE)
   )
+
 ```
 
 
@@ -640,8 +874,8 @@ formula <- bf(
     0 + is_male + is_female +
     
     # Time Slopes
-    is_male:diaryday +
-    is_female:diaryday +
+    is_male:diaryday_c +
+    is_female:diaryday_c +
     
     # Between-Person APIM
     is_male:provided_support_actor_cbp + 
@@ -659,9 +893,9 @@ formula <- bf(
     
     # Accounting for non-independence between partners' means and trajectories 
     # and effect sensitivities via random effects:
-    (0 + is_male + is_female +  # Random Intercepts and their correlations
+    (0 + is_male + is_female +  
        
-       is_male:diaryday + is_female:diaryday +
+       is_male:diaryday_c + is_female:diaryday_c + 
        
        is_male:provided_support_actor_cwp + 
        is_male:provided_support_partner_cwp +
@@ -676,10 +910,14 @@ formula <- bf(
     # cosy(time = diaryday, gr = coupleID),
     
     # Option 2: model daily coupling / common shocks with a random effect:
+    # Note that this introduces a large number of parameters and may not converge!
     (1 | coupleID:diaryday) +
     
     
     # Modelling residuals as autocorrelated within each person (order 1)
+    # Note that in brms this is only possible if cosy() is not used. 
+    # If Option 2 can not be used instead of cosy, consider using cosy and dropping ar1. 
+    # You may use loo_compare() to get the best converging fit. 
     ar(time = diaryday, gr = coupleID:userID, p = 1),
     
   sigma ~ 0 + is_male + is_female   # heteroscedastic residuals
@@ -1009,7 +1247,7 @@ df_dim <- df_apim2 %>%
   mutate(
     communication_cbc= communication_cm - mean(communication_cm, na.rm = TRUE)
   ) %>% 
-  select(c('userID', 'coupleID', 'satisfaction', 'communication_cwc', 'communication_cbc'))
+  dplyr::select(c('userID', 'coupleID', 'satisfaction', 'communication_cwc', 'communication_cbc'))
 
 print_df(head(df_dim))
 ```
@@ -1420,7 +1658,7 @@ Data is from @hohenerEffectivenessDyadicInterventions2024
 
 ```{r}
 df_long_apim2 <- df_long_apim %>%
-  select('coupleID', 'userID', 'diaryday', 'daily_closeness', 
+  dplyr::select('coupleID', 'userID', 'diaryday', 'daily_closeness', 
          'provided_support_actor_cwp', 'provided_support_partner_cwp', 
          'provided_support_actor_cbp', 'provided_support_partner_cbp')
 
@@ -1470,7 +1708,7 @@ df_long_dim <- df_long_dim %>%
   ) %>%
   ungroup() %>%
   relocate(Idiff, .after = userID) %>%
-  select(-base, -flip)
+  dplyr::select(-base, -flip)
 
 
 print_df(print_couple_preview(df_long_dim, couple_id = "31"))  
@@ -1491,7 +1729,7 @@ df_long_dim <- df_long_dim %>%
   ) %>%
   ungroup() %>%
   relocate(Idiff, .after = userID) %>%
-  select(-base, -flip)
+  dplyr::select(-base, -flip)
 
 
 print_df(print_couple_preview(df_long_dim, couple_id = "31"))  
