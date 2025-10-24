@@ -18,7 +18,7 @@ format:
     code-overflow: wrap
     code-copy: true
     code-tools: false
-    code-block-height: 650px
+    code-block-height: 600px
     toc: false
     df-print: default
     transition: slide
@@ -347,8 +347,10 @@ print_df(head(df_apim))
 Model non-indepencence either via a shared random intercept or correlated residuals (not both). 
 Posterior predictive checks, residual diagnostics and leave one out cross validation (e.g., via `loo_compare()`) may help inform which one to use.
 
+## Distinguishable Dyads - Fitting the Model in BRMS
+
 ```{r }
-#| code-line-numbers: "1-13|15-26|28-33|35-46"
+#| code-line-numbers: "1-15|17-25|27-32|34-45"
 
 # Option A: Random-intercept model for non-independence
 
@@ -399,11 +401,11 @@ model_dist_apim_a <- brm(
 
 ```
 
+
 ## Distinguishable Dyads - Fitting the Model in BRMS
 
-
 ```{r }
-#| code-line-numbers: "1-13|15-26|28-33|35-46"
+#| code-line-numbers: "1-15|17-22|24-29|31-42"
 
 # Option B: Residual CS for non-independence (no random intercept)
 
@@ -461,7 +463,8 @@ rstan::check_hmc_diagnostics(model_dist_apim_b$fit)
 loo::pareto_k_table(loo(model_dist_apim_b))
 ```
 
---- 
+## Distinguishable Dyads - Check Model Convergence and Fit
+
 
 ```{r eval=FALSE}
 plot(model_dist_apim_b, ask = FALSE)
@@ -471,32 +474,39 @@ plot(model_dist_apim_b, ask = FALSE)
 p1 <- plot(model_dist_apim_b, ask=FALSE, nvariables = 3, plot = FALSE)
 p1[[2]] # Look at ALL parameters, here only a subset of 3 is printed for slides
 ```
---- 
+## Distinguishable Dyads - Check Model Convergence and Fit
 
 ```{r cache = TRUE}
 pp_check(model_dist_apim_b, 'dens_overlay_grouped', group = 'is_male')
 ```
 
----
+## Distinguishable Dyads - Check Model Convergence and Fit
 
 ```{r cache = TRUE}
 pp_check(model_dist_apim_b, 'ecdf_overlay_grouped', group = 'is_male')
 ```
 
----
+## Distinguishable Dyads - Check Model Convergence and Fit
 
 ```{r cache = TRUE}
 pp_check(model_dist_apim_b, type = "loo_pit_overlay")
 ```
 
----
+## Distinguishable Dyads - Check Model Convergence and Fit
 
 ```{r cache = TRUE}
 # Custom function to make DHARMa work with brms (see file 'Functions')
 DHARMa.check_brms(model_dist_apim_b)
 ```
 
----
+## Distinguishable Dyads - Check Model Convergence and Fit
+
+In case of non-convergence, bad residuals or low predictive accuracy, the model is very likely miss-specified. 
+
+You can try different families that match your data by using the `family()` argument. For instance, you can easily conduct an ordinal regression by simply setting `family = ordinal()`. For dichotomous outcomes you can use `family = bernoulli()`. Brms supports a variety of families and link functions for these families. In general, you should use the default link function (check `?brms::family.brmsfit()`). 
+
+## Distinguishable Dyads - Results
+
 
 ```{r echo = FALSE}
 
@@ -515,7 +525,7 @@ print_df(
 
 ```
 
-Note that sigma is reported on the log scale (see ?brmsfamily). Using exp(value) retrieves the simulated values well. 
+Note that sigma is reported on the log scale (see `?brms::family.brmsfit()`). Using `exp(value)` retrieves the simulated values well. 
 
 ## Distinguishable Dyads - (Intensive) Longitudinal APIM
 
@@ -765,8 +775,24 @@ print_df(
 
 ```
 
+## Distinguishable Dyads - L-APIM - AR1 Model 
 
-```{r}
+We can try to add an AR1 residual structure.
+
+```{r eval = FALSE}
+
+    ... +
+    ar(time = diaryday, gr = coupleID:userID, p = 1),
+    
+  sigma ~ 0 + is_male + is_female
+)
+
+
+```
+
+
+
+```{r echo=FALSE, results='hide'}
 
 formula <- bf(
   mvpa ~ 
@@ -844,30 +870,10 @@ model_dist_apim_long_ar <- brm(
 
 ```
 
+## Distinguishable Dyads - L-APIM - AR1 Model
 
-```{r include = FALSE}
-
-summary_apim <- summarize_brms(
-    model_dist_apim_long_ar, 
-    stats_to_report = c('CI', 'Rhat', 'ESS')
-    )
-
-print_df(
-  summary_apim, 
-  rows_to_pack = list(
-    'Fixed Effects' = c(1,12),
-    'Random Effects' = c(13, 23),
-    'Residual Structure' = c(24, 26)
-    )
-  )
-
-```
-
-
-AR1 sometimes changes the fixed effects quite a bit in brms. You may always want to check which model 
+AR1 can changes the fixed effects quite a bit. You may always want to check which model 
 performs better! Often the same day shock term and the time slopes take care of everything already. 
-
-In this instance, the AR1 model is much worse!
 
 ```{r cache = TRUE}
 loo1 <- loo(model_dist_apim_long_simple)
@@ -878,6 +884,7 @@ loo::pareto_k_table(loo2)
 
 ```
 
+## Distinguishable Dyads - L-APIM - AR1 Model
 
 ```{r}
 
@@ -887,11 +894,12 @@ report::report(a)
 
 ```
 
+In this instance, the AR1 model is much worse! We keep the simpler model.
 
-# Adding back random slopes
+## Maximal Model Specification
 
-We add back more random slopes (that we were unable to include in the frequentist
-frameworks). We compare models again to check if we are overfitting. 
+We add all random slopes and their correlations. This is not converging in nlme or other
+frequentist frameworks. 
 
 ```{r}
 
@@ -964,6 +972,8 @@ model_dist_apim_long_complex <- brm(
 
 ```
 
+## Maximal Model Specification: Results
+
 ```{r echo=FALSE}
 
 summary_apim <- summarize_brms(
@@ -983,6 +993,16 @@ print_df(
 ```
 
 
+## Maximal Model Specification: Diagnostics
+
+In complex models like this, we want to make sure we are not **overfitting**. 
+
+- Conduct regular model convergence checks (inspecting chains, Rhats, ESS, Multicollinearity, Residual diagnostics etc.). If these are bad (but good for a simpler model), it could be a sign of overfitting.
+
+- Leave-one-out cross-validation is a powerful tool for investigating overfitting. It tests out of sample prediction and thus punishes overfitting. 
+
+## Maximal Model Specification: Diagnostics
+
 ```{r cache = TRUE}
 loo1 <- loo(model_dist_apim_long_simple)
 loo2 <- loo(model_dist_apim_long_complex)
@@ -993,20 +1013,35 @@ loo::pareto_k_table(loo2)
 ```
 
 
+High Pareto-Ks can be a sign of overfitting or other problems. The loo values themselves cannot be interpreted individually, but we can compare models (next page)
+
+
+## Maximal Model Specification: Diagnostics
+
+
 ```{r cache}
 
 a <- loo_compare(loo1, loo2)
 print(a)
-report::report(a)
 
 ```
 
-The difference between the models is quite small. We could follow the p-value and the principle of parsimony, 
-or our theory and the philosophy of the maximal random effects strucutre (e.g., Barr et al., REF). 
+The difference between the models seems quite small. No obvious overfitting, but also no improvement over the simpler model (even slightly worse, but hard to say for such small differences). 
 
-Alternatively, we could exclude the smallest random effects and compare models again. 
+We could follow our theory and the philosophy of the maximal random effects structure [@barrRandomEffectsStructure2013]. Alternatively, we could follow the philosophy of parsimony in this case. 
 
-For more guidance on random effects check out @delrosarioPracticalGuideSpecifying2025. 
+In case of overfitting, we could try to improve the model by subsequently excluding the smallest random effects (or correlations between them) and compare various models. For more guidance on random effects check out @delrosarioPracticalGuideSpecifying2025. 
+
+(continued on next page)
+
+## Maximal Model Specification: Diagnostics
+
+
+One approach is to use the `report` package's approach to obtain a p-value (see their documentation): 
+
+```{r}
+report::report(a)
+```
 
 
 # Exchangeable Dyads
@@ -1087,22 +1122,23 @@ print_df(head(df_apim))
 
 ## Exchangeable Dyads - Cross-Sectional APIM: Model
 
-
 ```{r }
-#| code-line-numbers: "1-14|16-34"
+#| code-line-numbers: "1-16|17-36"
 
 formula <- bf(
   satisfaction ~ 1 + 
     communication_actor_gmc + communication_partner_gmc + 
     
-    # Option 1: A single couple level random intercept. Too restrictive.
-    # Would impose perfect correlation between partners in each couple
+    # Option 1: A single couple level random intercept.
+    # In the cross sectional case this is the maximal random effects structure and
+    # we cannot distniguish each partners variance from noise. 
     # (1 | coupleID)
     
+    # Option 2: using a compound symmetry residual structure. 
     cosy(gr = coupleID)
   
   # Note: no need to model separate sigmas for each partner.
-  # Homogeneous residual variance is estimated: 
+  # Homogeneous residual variance is estimated. 
   # Implied: sigma = ~ 1
 )
 
@@ -1619,6 +1655,8 @@ Thus, the effects are a linear combination:
 
 $$b_{cwc} = b_{actor\_gmc} - b_{partner\_gmc}$$
 
+[@Bolger2025Unified]
+
 ## Equivalence APIM and DIM
 
 * Conversely, to obtain the actor and partner effects given the DIM estimates: 
@@ -1655,11 +1693,10 @@ a$hypothesis[,c(2,3,4,5)]
 In the **distinguishable** case, the **Dyadic Score Model (DSM)** [e.g., @stadlerHowCompanionshipRelated2023] is equivalent to the APIM! [@Bolger2025Unified; @iidaModelsInterdependentIndividuals2018]
 
 
-## Exchangeable Dyads - Longitudinal APIM/DIM: Data
+## Exchangeable Dyads - Longitudinal APIM/DIM: Simulated Data
 
-Data is from @hohenerEffectivenessDyadicInterventions2024
 
-```{r}
+```{r echo=FALSE}
 df_long_apim2 <- df_long_apim %>%
   dplyr::select('coupleID', 'userID', 'diaryday', 'diaryday_c', 'mvpa', 
          'provided_support_actor_cwp', 'provided_support_partner_cwp', 
@@ -1735,7 +1772,7 @@ df_long_dim <- df_long_dim %>%
   dplyr::select(-base, -flip)
 
 
-print_df(print_couple_preview(df_long_dim, couple_id = "31"))  
+print_df(print_couple_preview(df_long_dim, couple_id = "31", days = 0:4))  
 
 ```
 
@@ -1900,7 +1937,7 @@ Comparing APIM (left) and DIM (right) output
 
 ![APIM (left) vs. DIM (right) APIM](Embed/croppedResults2.png)
 
-Equivalence holds on both levels. In the stronger effects (within-person apim matches the within-person DIM almost perfectly), whereas the between-person apim and the between-person dim show slight numeric deviations. This is due to comparing wide posteriors with high uncertainty (weakly identified). 
+Equivalence holds on both levels. Numeric deviations arise due to priors, sampling noise, and uncertainty in some of the effects in this example. 
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: Results
 
@@ -2003,6 +2040,7 @@ print_df(a$full_covariance_matrix)
 ## Convert to correlation matrix of random effects
 
 ```{r}
+# Custom function
 sd_cor <- function(Sigma) {
   sds  <- sqrt(diag(Sigma))
   cors <- cov2cor(Sigma)  
