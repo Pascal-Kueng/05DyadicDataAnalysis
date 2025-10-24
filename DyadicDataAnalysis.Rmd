@@ -639,8 +639,9 @@ df_long_apim <- bmlm::isolate(
 Nlme model of this data for reference:
 
 ```{r cache = TRUE}
+library(nlme)
 # nlme model for reference
-model1 <- nlme::lme(
+model1 <- lme(
   fixed = 
     # Intercepts
     mvpa ~ 0 + is_male + is_female +
@@ -1059,42 +1060,6 @@ DiagrammeR::grViz(glue("
 ![Exchangeable APIM](Embed/APIM_ind_3.png)
 [e.g., @delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]
 
-```{r, echo=FALSE, fig.width=7, fig.align='center', include = FALSE}
-
-DiagrammeR::grViz(glue("
-  digraph APIM {{
-    graph [
-      size='11,11!'
-      layout=dot 
-      rankdir='LR' 
-      label='APIM' 
-      labelloc=t
-    ]
-    
-    node [
-      shape=box 
-      fixedsize=true 
-      width=1
-      fontsize = 10
-    ]
-    pre1 [label='Communication \n Self']
-    out1 [label='Satisfaction \n Self']
-    pre2 [label='Communication \n Partner']
-
-    edge [
-      minlen=2.5
-      labelfloat=true 
-      fontsize=12
-    ]
-    pre1 -> out1 [label='a']
-    pre2 -> out1 [taillabel='p' labeldistance=3.8 labelangle=-8 constraint=false]
-  }}
-"))
-
-
-```
-
---- 
 
 ## Exchangeable Dyads - Main Assumptions
 
@@ -1191,7 +1156,7 @@ Leave-one-out (loo) cross-validation for model comparison (even if not nested).
 ```{r eval=FALSE}
 a <- loo_compare(
   loo(model_ind_apim), 
-  loo(model_dist_apim)
+  loo(model_dist_apim_b)
 )
 print(a)
 ```
@@ -1199,7 +1164,7 @@ print(a)
 | Model             | elpd_diff | se_diff | 
 |-------------------|-----------|---------|
 | model_dist_apim   | 0.0       | 0.0     | 
-| model_ind_apim    | -98.7     | 13.0    | 
+| model_ind_apim    | -172.9     | 16.5    | 
 
 
 ```{r eval = FALSE}
@@ -1207,9 +1172,9 @@ report::report(a)
 ```
 
 <p style="font-size:80%; line-height:1.35">
-The difference in predictive accuracy, as indexed by Expected Log Predictive 
-Density (ELPD-LOO), suggests that 'model_dist_apim' is the best model (ELPD = -1965.61), 
-followed by 'model_ind_apim' (diff-ELPD = -98.72 ± 13.00, p &lt; .001).<br>
+The difference in predictive accuracy, as indexed by Expected Log Predictive Density (ELPD-LOO), suggests that
+'model_dist_apim_b' is the best model (ELPD = -1806.42), followed by 'model_ind_apim' (diff-ELPD = -172.85 +-
+16.53, p < .001).<br>
 See: <a href="https://easystats.github.io/report/reference/report.compare.loo.html">documentation of "report"</a>
 </p>
 
@@ -1677,8 +1642,6 @@ a$hypothesis[,c(2,3,4,5)]
 
 ![APIM (left) vs. DIM (right)](Embed/croppedResults1.png)
 
-
-
 ## Equivalence APIM and DIM: Takeaway
 
 * **APIM** and **DIM** are reparametrizations of the same model
@@ -1698,7 +1661,7 @@ Data is from @hohenerEffectivenessDyadicInterventions2024
 
 ```{r}
 df_long_apim2 <- df_long_apim %>%
-  dplyr::select('coupleID', 'userID', 'diaryday', 'daily_closeness', 
+  dplyr::select('coupleID', 'userID', 'diaryday', 'diaryday_c', 'mvpa', 
          'provided_support_actor_cwp', 'provided_support_partner_cwp', 
          'provided_support_actor_cbp', 'provided_support_partner_cbp')
 
@@ -1759,7 +1722,7 @@ print_df(print_couple_preview(df_long_dim, couple_id = "31"))
 ## Exchangeable Dyads - Longitudinal DIM/APIM: Preparing the Sum and Difference Approach
 
 ```{r echo=FALSE}
-
+set.seed(123)
 df_long_dim <- df_long_dim %>%
   group_by(coupleID) %>%
   mutate(
@@ -1781,9 +1744,9 @@ print_df(print_couple_preview(df_long_dim, couple_id = "31"))
 ```{r }
 
 formula <- bf(
-  daily_closeness ~ 1 + 
+  mvpa ~ 1 + 
     
-    diaryday +
+    diaryday_c +
   
     # Within-person APIM
     provided_support_actor_cwp + 
@@ -1800,32 +1763,32 @@ formula <- bf(
     # provided_support_cbc +
     
     # Dyad-Level intercept and slopes for time-varying predictors
-    (1 + diaryday + provided_support_actor_cwp + provided_support_partner_cwp | coupleID) +
+    (1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp | coupleID) +
     # Both partners' deviations from these dyad-level means and slopes
     (0 + Idiff + 
-         I(Idiff * diaryday) + 
+         I(Idiff * diaryday_c) + 
          I(Idiff * provided_support_actor_cwp) + 
          I(Idiff * provided_support_partner_cwp) | coupleID) +
     
     # Accounting for same-day shocks/coupling
-    (1 | coupleID:diaryday) +
-    # alternatively and equivalently if no autocorrelation needed:
-    # cosy(time = diaryday, gr = coupleID) 
+    (1 | coupleID:diaryday)
     
     # Autocorrelated residuals
-    ar(time = diaryday, gr = coupleID:userID, p = 1)
+    # Due to bad fit in the distinguishable case, we omit AR1 from the start.
+    # ar(time = diaryday, gr = coupleID:userID, p = 1)
   
   # Again, no need to model heterogeneous residual variances (sigma)
   # Implied: sigma = ~ 1
 )
 
 priors <- c(
-  prior(normal(2, 10), class = "Intercept"),
-  prior(normal(0, 5), class = "b"),
-  prior(student_t(3, 0, 1.5), class = "sd"),
-  prior(lkj(2), class = "cor"), # correlation prior for random effect matrix
-  prior(normal(0.5, 0.3), class = "ar"),
-  prior(student_t(3, 0, 1.5), class = "sigma")
+  prior(normal(50, 20), class = "Intercept"),
+  prior(normal(0, 10), class = "b")
+  
+  # We could set priors for other things, but brms sets good default priors
+  #prior(student_t(3, 0, 1.5), class = "sd"),
+  #prior(lkj(2), class = "cor"), # correlation prior for random effect matrix
+  #prior(student_t(3, 0, 1.5), class = "sigma")
 )
 
 model_apim_ind_long <- brm(
@@ -1838,7 +1801,7 @@ model_apim_ind_long <- brm(
   iter = 2000,
   warmup = 1000, 
   seed = 123,
-  file = file.path('brms_cache', 'model_apim_ind_long_both')
+  file = file.path('brms_cache', 'model_apim_ind_long_apim')
 )
 
 
@@ -1848,34 +1811,28 @@ model_apim_ind_long <- brm(
 
 # DIM Version
 formula <- bf(
-  daily_closeness ~ 1 + 
+  mvpa ~ 1 + 
     
-    diaryday +
+    diaryday_c +
     
     provided_support_cwp_mean + 
     provided_support_cwp_halfdiff +
   
-    provided_support_cwcbp+
     provided_support_cbc +
+    provided_support_cwcbp +
     
-    (1 + diaryday + provided_support_actor_cwp + provided_support_partner_cwp | coupleID) +
+    (1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp | coupleID) +
     (0 + Idiff + 
-         I(Idiff * diaryday) + 
+         I(Idiff * diaryday_c) + 
          I(Idiff * provided_support_actor_cwp) + 
          I(Idiff * provided_support_partner_cwp) | coupleID) +
     
-    (1 | coupleID:diaryday) +
-
-    ar(time = diaryday, gr = coupleID:userID, p = 1)
+    (1 | coupleID:diaryday)
 )
 
 priors <- c(
-  prior(normal(2, 10), class = "Intercept"),
-  prior(normal(0, 5), class = "b"),
-  prior(student_t(3, 0, 1.5), class = "sd"),
-  prior(lkj(2), class = "cor"), # correlation prior for random effect matrix
-  prior(normal(0.5, 0.3), class = "ar"),
-  prior(student_t(3, 0, 1.5), class = "sigma")
+  prior(normal(50, 20), class = "Intercept"),
+  prior(normal(0, 10/sqrt(2)), class = "b") # just to match prior in apim. any weakly informative prior is fine
 )
 
 model_dim_ind_long <- brm(
@@ -1888,7 +1845,7 @@ model_dim_ind_long <- brm(
   iter = 2000,
   warmup = 1000, 
   seed = 123,
-  file = file.path('brms_cache', 'model_apim_ind_long_both2')
+  file = file.path('brms_cache', 'model_apim_ind_long_dim')
 )
 
 
@@ -1909,11 +1866,41 @@ Exchangeability is retained: if partners are flipped, the result is the same.
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: Results
 
+```{r include = FALSE}
+summary_apim <- summarize_brms(
+    model_apim_ind_long, 
+    stats_to_report = c('CI', 'Rhat', 'ESS')
+    )
+
+print_df(
+  summary_apim[1:6,1:2], 
+  rows_to_pack = list(
+    'Fixed Effects' = c(1,6)
+    )
+  )
+
+```
+
+```{r include = FALSE}
+summary_apim <- summarize_brms(
+    model_dim_ind_long, 
+    stats_to_report = c('CI', 'Rhat', 'ESS')
+    )
+
+print_df(
+  summary_apim[1:6,1:2], 
+  rows_to_pack = list(
+    'Fixed Effects' = c(1,6)
+    )
+  )
+
+```
+
 Comparing APIM (left) and DIM (right) output
 
 ![APIM (left) vs. DIM (right) APIM](Embed/croppedResults2.png)
 
-Equivalence holds on both levels
+Equivalence holds on both levels. In the stronger effects (within-person apim matches the within-person DIM almost perfectly), whereas the between-person apim and the between-person dim show slight numeric deviations. This is due to comparing wide posteriors with high uncertainty (weakly identified). 
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: Results
 
@@ -1930,7 +1917,7 @@ print_df(
   rows_to_pack = list(
     'Fixed Effects' = c(1,6),
     'Random Effects' = c(7, 27),
-    'Residual Structure' = c(28, 29)
+    'Residual Structure' = c(28, 28)
     )
   )
 
@@ -2010,6 +1997,32 @@ print_df(a$cross_person_covariance_matrix)
 
 ```{r}
 print_df(a$full_covariance_matrix)
+```
+
+
+## Convert to correlation matrix of random effects
+
+```{r}
+sd_cor <- function(Sigma) {
+  sds  <- sqrt(diag(Sigma))
+  cors <- cov2cor(Sigma)  
+  list(sd = sds, cor = cors)
+}
+
+full <- sd_cor(a$full_covariance_matrix)
+```
+
+
+## Random effects SDs
+
+```{r}
+print_df(as.data.frame(round(full$sd, 3)))
+```
+
+## Random effect correlation matrix
+
+```{r}
+print_df(as.data.frame(round(full$cor, 3)))
 ```
 
 
