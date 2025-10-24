@@ -57,6 +57,9 @@ library(glue)
   
 ## Loading Libraries and setting CmdStan Backend
 
+Some functions used in this presentation are sourced from the files available
+in the folder 00_R_Functions.
+
 ```{r, results='hide', message=FALSE, warning=FALSE}
 library(tidyverse)
 library(brms)
@@ -344,8 +347,10 @@ print_df(head(df_apim))
 
 ## Distinguishable Dyads - Fitting the Model in BRMS
 
-Model non-indepencence either via a shared random intercept or correlated residuals (not both). 
-Posterior predictive checks, residual diagnostics and leave one out cross validation (e.g., via `loo_compare()`) may help inform which one to use.
+Model non-independence either via a shared random intercept or correlated residuals (not both). 
+Posterior predictive checks, residual diagnostics and leave one out cross validation (e.g., via `loo_compare()`) may help inform which one to use. 
+
+For other families like ordinal regression with brms, one might work better than the other. 
 
 ## Distinguishable Dyads - Fitting the Model in BRMS
 
@@ -423,7 +428,8 @@ formula <- bf(
     communication_partner_gmc:is_male + 
     communication_partner_gmc:is_female +
   
-    # Option B: Model non-independence by using compound symmetry of the residuals. Works and provides interpretable...
+    # Option B: Model non-independence by using compound symmetry of the residuals. 
+    # Aligns with the SEM conceptualization / literature
     cosy(gr = coupleID),
   
   # Two distinct residual variances for males vs females:
@@ -503,7 +509,7 @@ DHARMa.check_brms(model_dist_apim_b)
 
 In case of non-convergence, bad residuals or low predictive accuracy, the model is very likely miss-specified. 
 
-You can try different families that match your data by using the `family()` argument. For instance, you can easily conduct an ordinal regression by simply setting `family = ordinal()`. For dichotomous outcomes you can use `family = bernoulli()`. Brms supports a variety of families and link functions for these families. In general, you should use the default link function (check `?brms::family.brmsfit()`). 
+You can try different families that match your data by using the `family()` argument. For instance, you can easily conduct an ordinal regression by simply setting `family = cumulative()`. For dichotomous outcomes you can use `family = bernoulli()`. Brms supports a variety of families and link functions for these families. In general, you should use the default link function (check `?brms::family.brmsfit()`). 
 
 ## Distinguishable Dyads - Results
 
@@ -525,7 +531,7 @@ print_df(
 
 ```
 
-Note that sigma is reported on the log scale (see `?brms::family.brmsfit()`). Using `exp(value)` retrieves the simulated values well. 
+Note that sigma is reported on the log scale (see `?brms::family.brmsfit()`). Using `exp(value)` retrieves the simulated SD values well. 
 
 ## Distinguishable Dyads - (Intensive) Longitudinal APIM
 
@@ -687,7 +693,7 @@ model1 <- lme(
     #+ is_female:provided_support_partner_cwp 
   | coupleID, 
   
-  weights = varIdent(form = ~ 1 | gender), # heterogenious residual variances
+  weights = varIdent(form = ~ 1 | gender), # heterogeneous residual variances
   corr = corCompSymm(form = ~ 1 | coupleID/diaryday), # compound symmetry 
   
   data = df_long_apim, 
@@ -1131,7 +1137,7 @@ formula <- bf(
     
     # Option 1: A single couple level random intercept.
     # In the cross sectional case this is the maximal random effects structure and
-    # we cannot distniguish each partners variance from noise. 
+    # we cannot distinguish each partners variance from noise. 
     # (1 | coupleID)
     
     # Option 2: using a compound symmetry residual structure. 
@@ -1801,7 +1807,8 @@ formula <- bf(
     
     # Dyad-Level intercept and slopes for time-varying predictors
     (1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp | coupleID) +
-    # Both partners' deviations from these dyad-level means and slopes
+    # Both partners' deviations from these dyad-level means and slopes.
+    # Note: separate random effects block to make them uncorrelated form dyad-level REs. 
     (0 + Idiff + 
          I(Idiff * diaryday_c) + 
          I(Idiff * provided_support_actor_cwp) + 
