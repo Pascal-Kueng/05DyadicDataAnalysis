@@ -88,32 +88,59 @@ check_and_load_packages <- function(packages) {
 }
 
 # Main function for kable printing
-print_df <- function(df, width = "auto", rows_to_pack = NULL, scroll_height = '500px', scroll_width = '100%') {
-  # Check and load required packages
+print_df <- function(df,
+                     caption = NULL,
+                     digits = NULL,
+                     width = NULL,              # <- set NULL to avoid forcing narrow columns
+                     rows_to_pack = NULL,
+                     scroll_height = "450px",
+                     scroll_width  = "100%",
+                     font_size = 20) {
+  
   required_packages <- c("knitr", "kableExtra", "dplyr")
   check_and_load_packages(required_packages)
-  
-  # Validate the input
   validate_packing_input(rows_to_pack, nrow(df))
   
-  # Create kable object
-  kable_obj <- kable(df) %>%
-    kable_styling(
-      bootstrap_options = c("striped", "hover", "responsive"),
-      full_width = F,
-      position = "left",
-      fixed_thead = T
-    ) %>%
-    column_spec(2:ncol(df), width = width) %>%
-    row_spec(1:nrow(df), extra_css = "white-space: nowrap;") %>%
-    scroll_box(width = scroll_width, height = scroll_height)
+  if (!is.null(digits)) {
+    df <- df %>% dplyr::mutate(dplyr::across(where(is.numeric), ~ round(.x, digits)))
+  }
   
-  # Apply packing if needed
-  kable_obj <- packing(kable_obj, rows_to_pack)
+  alignments <- ifelse(sapply(df, is.numeric), "r", "l")
   
-  # Return the final kable object
-  return(kable_obj)
+  kbl <- knitr::kable(
+    df,
+    caption = caption,
+    escape = FALSE,
+    align = alignments
+  ) |>
+    kableExtra::kable_styling(
+      bootstrap_options = c("striped"),
+      full_width = FALSE,
+      fixed_thead = TRUE,
+      font_size = font_size,
+      position = "left"
+    ) |>
+    # prevent header wrap
+    kableExtra::row_spec(0, extra_css = "white-space: nowrap;")
+  
+  # prevent body-wrap (+ padding); avoid forcing widths if width = NULL
+  if (is.null(width)) {
+    kbl <- kbl |>
+      kableExtra::column_spec(1:ncol(df), extra_css = "white-space: nowrap; padding: 10px;")
+  } else {
+    kbl <- kbl |>
+      kableExtra::column_spec(1:ncol(df), width = width, extra_css = "white-space: nowrap; padding: 10px;")
+  }
+  
+  kbl <- kbl |>
+    kableExtra::scroll_box(width = scroll_width, height = scroll_height)
+  
+  kbl <- packing(kbl, rows_to_pack)
+  return(kbl)
 }
+
+
+
 
 # Helper function to validate merge_option
 validate_merge_option <- function(merge_option) {

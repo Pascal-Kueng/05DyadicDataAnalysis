@@ -82,7 +82,6 @@ options(
 
 ```{r simulating data, echo=FALSE, results='hide'}
 # --- Packages (explicit namespacing avoids conflicts) ---
-# library(dplyr); library(tidyr); library(tibble); library(MASS)
 set.seed(123)
 
 # --- 1. Define Simulation Parameters ---
@@ -336,7 +335,7 @@ df_apim <- relocate(df_apim, 'is_male', 'is_female', .after = 'gender')
 
 ```
 
----
+## Distinguishable Dyads - Preparing Data
 
 ```{r, echo=FALSE}
 
@@ -510,9 +509,10 @@ DHARMa.check_brms(model_dist_apim_b)
 
 In case of non-convergence, bad residuals or low predictive accuracy, the model is likely miss-specified. 
 
+You can try different families that match your data by using the `family()` argument. For instance, you can easily conduct an ordinal regression by simply setting `family = cumulative()` and adjusting your priors. For dichotomous outcomes you can use `family = bernoulli()`. Brms supports a variety of families and link functions for these families. In general, you should use the default link function (check `?brms::family.brmsfit()`). 
+
 Note that for some of the later models in this tutorial, some ESS values are too low. In this case, usually we would increase iterations (and warmup), and/or adapt_delta (see brms documentation). 
 
-You can try different families that match your data by using the `family()` argument. For instance, you can easily conduct an ordinal regression by simply setting `family = cumulative()` and adjusting your priors. For dichotomous outcomes you can use `family = bernoulli()`. Brms supports a variety of families and link functions for these families. In general, you should use the default link function (check `?brms::family.brmsfit()`). 
 
 ## Distinguishable Dyads - Results
 
@@ -1233,8 +1233,6 @@ loo::pareto_k_table(loo2)
 
 In case of High Pareto-Ks there are influential datapoints present. This *can* be a sign of overfitting but it is not necessarily a problem. But it is recommended to use loo(model, moment_match = TRUE) in these cases (the function will tell you). 
 
-In our example, both models are perfectly fine. 
-
 The loo values (elpd) themselves cannot be interpreted individually, but we can compare models again (next page)
 
 
@@ -1267,49 +1265,206 @@ In this instance, the maximal model (no AR) seems to be the preferred one.
 
 In the case of overfitting, we could try to improve the model by subsequently excluding the smallest random effects (or correlations between them) and compare various models. For more guidance on random effects check out @delrosarioPracticalGuideSpecifying2025. 
 
+## Maximal Model Specification: Comparing Estimates to Simulated Values (Ground Truth)
 
-# Exchangeable Dyads
+```{r echo = FALSE}
+
+# HOW WELL DO THE RECOVERED PARAMETERS FIT THE SIMULATED VALUES?  
+
+library(posterior)
+
+fit <- model_dist_apim_long_complex  # your model
+
+# ---------------------------
+# 1) Empirical "truth" from this simulation draw
+# ---------------------------
+true_sd_int_m  <- sd(RE$re_b0_m)
+true_sd_int_f  <- sd(RE$re_b0_f)
+true_sd_time_m <- sd(RE$re_time_m)
+true_sd_time_f <- sd(RE$re_time_f)
+true_sd_day    <- if (exists("day_shock")) sd(day_shock$z_day) else 0
+true_sigma_m   <- sd(panel$e_it[panel$is_male == 1])
+true_sigma_f   <- sd(panel$e_it[panel$is_female == 1])
+
+mean_day <- mean(days)  # e.g., 27 for 0:54
+
+truth_tbl <- tibble::tribble(
+  ~group, ~parameter, ~true, ~scale,
+  # Fixed effects (population-level) -- align to diaryday_c = 0
+  "Fixed", "Intercept (male)",    b0_male   + b_time_male   * mean_day, "identity",
+  "Fixed", "Intercept (female)",  b0_female + b_time_female * mean_day, "identity",
+  "Fixed", "Time slope (male)",   b_time_male,   "identity",
+  "Fixed", "Time slope (female)", b_time_female, "identity",
+  # Between/Within — unchanged
+  "Between-person", "Actor BP (male)",     b_bp_actor_m,   "identity",
+  "Between-person", "Partner BP (male)",   b_bp_partner_m, "identity",
+  "Between-person", "Actor BP (female)",   b_bp_actor_f,   "identity",
+  "Between-person", "Partner BP (female)", b_bp_partner_f, "identity",
+  "Within-person",  "Actor WP (male)",     b_wp_actor_m,   "identity",
+  "Within-person",  "Partner WP (male)",   b_wp_partner_m, "identity",
+  "Within-person",  "Actor WP (female)",   b_wp_actor_f,   "identity",
+  "Within-person",  "Partner WP (female)", b_wp_partner_f, "identity",
+  # Random effects (Simulated)
+  "Random effects (SD)", "Couple intercept SD (male)",    sd(RE$re_b0_m),  "identity",
+  "Random effects (SD)", "Couple intercept SD (female)",  sd(RE$re_b0_f),  "identity",
+  "Random effects (SD)", "Time slope SD (male)",          sd(RE$re_time_m),"identity",
+  "Random effects (SD)", "Time slope SD (female)",        sd(RE$re_time_f),"identity",
+  "Random effects (SD)", "Same-day couple×day SD",        if (exists("day_shock")) sd(day_shock$z_day) else 0, "identity",
+  # Residuals (empirical; model is log-sigma -> we exp() on extraction)
+  "Residuals", "Residual SD (male) \u2020",   sd(panel$e_it[panel$is_male   == 1]), "exp",
+  "Residuals", "Residual SD (female) \u2020", sd(panel$e_it[panel$is_female == 1]), "exp"
+)
 
 
-## Exchangeable Dyads - Cross-Sectional APIM
+# ---------------------------
+# 2) Extract estimates from the model (means + 95% CI)
+# ---------------------------
 
-```{r, echo=FALSE, fig.width=8, fig.align='center', include = FALSE}
+# Helper to get posterior summaries for specific parameter names (regex)
+get_summaries <- function(fit, pattern) {
+  sm <- brms::posterior_summary(fit, pars = pattern, robust = FALSE, probs = c(.025,.975))
+  if (is.null(dim(sm))) return(tibble())
+  as_tibble(sm, rownames = "param") |>
+    rename(Estimate = Estimate, Lower = Q2.5, Upper = Q97.5)
+}
 
-DiagrammeR::grViz(glue("
-  digraph APIM {{
-    graph [
-      size='11,11!'
-      layout=dot 
-      rankdir='LR' 
-      label='APIM' 
-      labelloc=t
-    ]
-    
-    node [
-      shape=box 
-      fixedsize=true 
-      width=1
-      fontsize = 10
-    ]
-    pre1 [label='Communication \n A']
-    out1 [label='Satisfaction \n A']
-    pre2 [label='Communication \n B']
-    out2 [label='Satisfaction \n B']
-    
-    edge [
-      minlen=2.5
-      labelfloat=true 
-      fontsize=12
-    ]
-    pre1 -> out1 [label='a']
-    pre2 -> out1 [taillabel='p' labeldistance=4 labelangle=-15 constraint=false]
-    pre1 -> out2 [taillabel='p' labeldistance=4 labelangle=15 constraint=false]
-    pre2 -> out2 [label='a']
-  }}
-"))
+# (A) Population-level (fixed) effects — use posterior_summary so names have b_
+fix_all <- get_summaries(fit, pattern = "^b_")
+
+# Map model param names -> display labels (same as before)
+map_fixed <- tibble::tribble(
+  ~param_regex,                              ~label,
+  "^b_is_male$",                             "Intercept (male)",
+  "^b_is_female$",                           "Intercept (female)",
+  "^b_is_male:diaryday_c$",                  "Time slope (male)",
+  "^b_is_female:diaryday_c$",                "Time slope (female)",
+  "^b_is_male:provided_support_actor_cbp$",  "Actor BP (male)",
+  "^b_is_male:provided_support_partner_cbp$","Partner BP (male)",
+  "^b_is_female:provided_support_actor_cbp$","Actor BP (female)",
+  "^b_is_female:provided_support_partner_cbp$","Partner BP (female)",
+  "^b_is_male:provided_support_actor_cwp$",  "Actor WP (male)",
+  "^b_is_male:provided_support_partner_cwp$","Partner WP (male)",
+  "^b_is_female:provided_support_actor_cwp$","Actor WP (female)",
+  "^b_is_female:provided_support_partner_cwp$","Partner WP (female)"
+)
+
+fix_labeled <- map_fixed |>
+  rowwise() |>
+  mutate(
+    out = list(
+      fix_all |>
+        dplyr::filter(stringr::str_detect(param, param_regex)) |>
+        dplyr::mutate(parameter = label, scale = "identity") |>
+        dplyr::select(parameter, Estimate, Lower, Upper, scale)
+    )
+  ) |>
+  ungroup() |>
+  dplyr::select(out) |>
+  tidyr::unnest(out)
+
+
+# (B) Group-level SDs (random effects)
+# Expected names (examples):
+#  sd_coupleID__is_male
+#  sd_coupleID__is_female
+#  sd_coupleID__is_male:diaryday_c
+#  sd_coupleID__is_female:diaryday_c
+#  sd_coupleID:diaryday__Intercept   (same-day couple×day shock)
+sd_all <- get_summaries(fit, pattern = "^sd_")
+
+map_sds <- tribble(
+  ~param_regex,                                  ~label,
+  "^sd_coupleID__is_male$",                      "Couple intercept SD (male)",
+  "^sd_coupleID__is_female$",                    "Couple intercept SD (female)",
+  "^sd_coupleID__is_male:diaryday_c$",           "Time slope SD (male)",
+  "^sd_coupleID__is_female:diaryday_c$",         "Time slope SD (female)",
+  "^sd_coupleID:diaryday__Intercept$",           "Same-day couple×day SD"
+)
+
+sd_labeled <- map_sds |>
+  rowwise() |>
+  mutate(
+    out = list(
+      sd_all |>
+        filter(str_detect(param, param_regex)) |>
+        mutate(parameter = label, scale = "identity") |>
+        dplyr::select(parameter, Estimate, Lower, Upper, scale)
+    )
+  ) |>
+  ungroup() |>
+  dplyr::select(out) |>
+  tidyr::unnest(out)
+
+# (C) Residual sigmas (distributional parameters on log scale)
+# With sigma ~ 0 + is_male + is_female, brms names population-level params:
+#   b_sigma_is_male, b_sigma_is_female  (on log scale)
+draws <- as_draws_df(fit)
+resid_map <- tribble(
+  ~param_draw,            ~label,
+  "b_sigma_is_male",      "Residual SD (male) \u2020",
+  "b_sigma_is_female",    "Residual SD (female) \u2020"
+)
+
+resid_summ <- resid_map |>
+  rowwise() |>
+  mutate(
+    vals = list(exp(draws[[param_draw]])),  # exp to go from log-sigma to sigma
+    Estimate = mean(vals),
+    Lower = quantile(vals, 0.025),
+    Upper = quantile(vals, 0.975),
+    scale = "exp"
+  ) |>
+  ungroup() |>
+  dplyr::select(parameter = label, Estimate, Lower, Upper, scale)
+
+# Combine estimates
+est_tbl <- bind_rows(fix_labeled, sd_labeled, resid_summ)
+
+# ---------------------------
+# 3) Join truth + estimates and compute diagnostics
+# ---------------------------
+full_tbl <- truth_tbl |>
+  dplyr::select(group, parameter, true, scale) |>
+  left_join(est_tbl, by = c("parameter","scale")) |>
+  mutate(
+    covered  = !is.na(Lower) & true >= round(pmin(Lower, Upper), 3) & true <= round(pmax(Lower, Upper), 3),
+    pct_err  = 100 * (Estimate - true) / true,
+    Recovery = dplyr::case_when(
+      is.na(Estimate)                ~ "—",
+      !covered                       ~ "Miss",
+      abs(pct_err) <= 5              ~ "Excellent",
+      abs(pct_err) <= 15             ~ "Good",
+      TRUE                           ~ "OK"
+    ),
+    `95% CI` = ifelse(is.na(Lower), "", sprintf("[%.3f, %.3f]", Lower, Upper))
+  ) |>
+  dplyr::select(
+    Group = group,
+    Parameter = parameter,
+    `True (Simulated)` = true,
+    Estimate, `95% CI`,
+    Coverage = covered,
+    `% Error` = pct_err,
+    Recovery
+  ) |>
+  mutate(
+    Coverage = ifelse(is.na(Estimate), "", ifelse(Coverage, "Yes", "No")),
+    `% Error` = ifelse(is.na(Estimate), "", sprintf("%.2f%%", `% Error`))
+  )
+
+# ---------------------------
+# 4) Render (scrollable)
+# ---------------------------
+print_df(
+  full_tbl
+)
+
 
 
 ```
+
+
+## Exchangeable Dyads - Cross-Sectional APIM
 
 ![Exchangeable APIM](Embed/APIM_ind_1.png)
 [e.g., @delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]
@@ -1355,7 +1510,6 @@ formula <- bf(
     
     # Option 1: A single couple level random intercept.
     # In the cross sectional case this is the maximal random effects structure and
-    # we cannot distinguish each partners variance from noise. 
     # (1 | coupleID)
     
     # Option 2: using a compound symmetry residual structure. 
@@ -2306,7 +2460,6 @@ pkgs <- c("brms","bmlm","easystats","DHARMa","tidyverse","cmdstanr","loo","rstan
 knitr::write_bib(pkgs, "Embed/Rpackages.bib")
 
 ```
-
 
 
 
