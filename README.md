@@ -1,4 +1,4 @@
-# Tutorial: Distinguishable and Exchangeable Dyads -- Bayesian Multilevel Modelling
+# Tutorial: Distinguishable and Exchangeable Dyads - Bayesian Multilevel Modelling
 Cross-Sectional and Intensive Longitudinal APIM and DIM
 
 [![DOI](https://zenodo.org/badge/1079959998.svg)](https://doi.org/10.5281/zenodo.17400655)
