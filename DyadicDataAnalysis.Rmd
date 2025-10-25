@@ -1,5 +1,5 @@
 ---
-title: "Distinguishable and Exchangeable Dyads: Multilevel Modelling"
+title: "Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling"
 subtitle: "Cross-Sectional and Intensive Longitudinal APIM and DIM"
 author: "Pascal Küng"
 date: "last-modified"
@@ -1311,8 +1311,8 @@ truth_tbl <- tibble::tribble(
   "Random effects (SD)", "Time slope SD (female)",        sd(RE$re_time_f),"identity",
   "Random effects (SD)", "Same-day couple×day SD",        if (exists("day_shock")) sd(day_shock$z_day) else 0, "identity",
   # Residuals (empirical; model is log-sigma -> we exp() on extraction)
-  "Residuals", "Residual SD (male) \u2020",   sd(panel$e_it[panel$is_male   == 1]), "exp",
-  "Residuals", "Residual SD (female) \u2020", sd(panel$e_it[panel$is_female == 1]), "exp"
+  "Residuals", "Residual SD (male) (exp)",   sd(panel$e_it[panel$is_male   == 1]), "exp",
+  "Residuals", "Residual SD (female) (exp)", sd(panel$e_it[panel$is_female == 1]), "exp"
 )
 
 
@@ -1721,7 +1721,7 @@ print_df(
     'Fixed Effects' = c(1,3),
     'Residual Structure' = c(4,5)
     )
-  )
+)
 ```
 
 
@@ -2435,8 +2435,9 @@ print_df(
     'Fixed Effects' = c(1,6),
     'Random Effects' = c(7, 27),
     'Residual Structure' = c(28, 28)
-    )
-  )
+    ),
+  scroll_height = '50vh'
+)
 
 ```
 
