@@ -35,14 +35,15 @@ If you want to run all analyses or rebuild the slides locally:
 
 ---
 
-If you use or adapt material from this project, please cite:
+[![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 
-> Küng, P. (2025). *Distinguishable and Exchangeable Dyads: Multilevel Modelling*. Zenodo. https://doi.org/10.5281/zenodo.17400655
+
+> Küng, P. (2025). *Tutorial: Distinguishable and Exchangeable Dyads - Bayesian Multilevel Modelling*. Zenodo. [https://doi.org/10.5281/zenodo.17445176](https://doi.org/10.5281/zenodo.17400655)
 
 ```{bibtex}
 @misc{kueng_2025_dyadic,
   author       = {K{\"u}ng, Pascal},
-  title        = {Distinguishable and Exchangeable Dyads: Multilevel Modelling},
+  title        = {Tutorial: Distinguishable and Exchangeable Dyads - Bayesian Multilevel Modelling},
   year         = {2025},
   publisher    = {Zenodo},
   doi          = {10.5281/zenodo.17400655},
@@ -51,4 +52,3 @@ If you use or adapt material from this project, please cite:
 }
 ```
 
-[![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
