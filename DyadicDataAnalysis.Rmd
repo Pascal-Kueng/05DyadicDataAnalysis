@@ -510,6 +510,8 @@ DHARMa.check_brms(model_dist_apim_b)
 
 In case of non-convergence, bad residuals or low predictive accuracy, the model is likely miss-specified. 
 
+Note that for some of the later models in this tutorial, some ESS values are too low. In this case, usually we would increase iterations (and warmup), and/or adapt_delta (see brms documentation). 
+
 You can try different families that match your data by using the `family()` argument. For instance, you can easily conduct an ordinal regression by simply setting `family = cumulative()` and adjusting your priors. For dichotomous outcomes you can use `family = bernoulli()`. Brms supports a variety of families and link functions for these families. In general, you should use the default link function (check `?brms::family.brmsfit()`). 
 
 ## Distinguishable Dyads - Results
@@ -538,19 +540,213 @@ Note that sigma is reported on the log scale (see `?brms::family.brmsfit()`). Us
 
 ## Distinguishable Dyads - L-APIM - Simulated Dataset
 
-```{r echo = FALSE, results='hide'}
+```{r echo=FALSE, results='hide'}
+# Simulate Data
+set.seed(123)
 
-df_long <- readRDS('Embed/df_long.rds')
+# ===============================
+# 1) Design
+# ===============================
+n_couples <- 100
+days      <- 0:54 
+T_per     <- length(days)
 
-df_long <- df_long %>%
-  rename(
-    provided_support = se
-  ) %>%
-  dplyr::select(
-    c(userID, coupleID, diaryday, gender, is_female, is_male, provided_support, mvpa)
+# People per couple: p1 = female, p2 = male
+persons <- tibble(
+  coupleID  = rep(1:n_couples, each = 2),
+  p_num     = rep(1:2, times = n_couples),
+  gender    = ifelse(p_num == 1, 1L, 2L),  # 1=female, 2=male
+  is_female = as.integer(gender == 1L),
+  is_male   = as.integer(gender == 2L),
+  userID    = paste0(coupleID, "_", p_num)
+)
+
+# ===============================
+# 2) Fixed effects (edit as desired)
+# ===============================
+# Intercepts & time trends by gender
+b0_female <- 5.5; b0_male <- 4.7 # depends on centering, not meaningful when recovered. 
+b_time_female <-  0.01; b_time_male <- -0.005 # must be small because over 55 days!
+
+# Between-person APIM (effects of person-mean support)
+b_bp_actor_f <- 1.5; b_bp_partner_f <- 0.5
+b_bp_actor_m <- 1.2; b_bp_partner_m <- 0.3
+
+# Within-person APIM (effects of daily deviations)
+b_wp_actor_f <- 0.4; b_wp_partner_f <- 0.2
+b_wp_actor_m <- 0.2; b_wp_partner_m <- 0.1 # hard to detect!
+
+# ===============================
+# 3) Couple-level random effects (full var-cov)
+#    Vector: [b0_m, b0_f, time_m, time_f, wpA_m, wpP_m, wpA_f, wpP_f]
+# ===============================
+sd_re <- c(0.70, 0.80, 0.015, 0.015, 0.10, 0.08, 0.10, 0.08)
+R     <- matrix(0.15, 8, 8); diag(R) <- 1
+Sigma_re <- diag(sd_re) %*% R %*% diag(sd_re)
+
+RE <- MASS::mvrnorm(n_couples, mu = rep(0, 8), Sigma = Sigma_re) |>
+  as_tibble(.name_repair = ~c("re_b0_m","re_b0_f","re_time_m","re_time_f",
+                              "re_wpA_m","re_wpP_m","re_wpA_f","re_wpP_f")) |>
+  mutate(coupleID = 1:n_couples)
+
+# ===============================
+# 4) Provided support (predictor)
+#    - Person means correlated within couple
+#    - Daily AR(1) within-person; cross-partner correlated innovations
+# ===============================
+mu_sup_f <- 5.0; sd_mu_f <- 0.8
+mu_sup_m <- 4.8; sd_mu_m <- 0.8
+rho_couple_mean <- 0.50
+Sigma_mu <- matrix(c(sd_mu_f^2, rho_couple_mean*sd_mu_f*sd_mu_m,
+                     rho_couple_mean*sd_mu_f*sd_mu_m, sd_mu_m^2), 2)
+
+mu_pairs <- MASS::mvrnorm(n_couples, mu = c(mu_sup_f, mu_sup_m), Sigma = Sigma_mu)
+
+mu_df <- tibble(
+  coupleID = rep(1:n_couples, each = 2),
+  p_num    = rep(1:2, times = n_couples),
+  mu_sup   = c(rbind(mu_pairs[,1], mu_pairs[,2]))
+)
+
+phi_sup <- 0.4
+sd_sup_wp  <- 0.8
+sd_eta_sup <- sqrt(sd_sup_wp^2 * (1 - phi_sup^2))
+rho_sup_day <- 0.3
+Sigma_eta_day <- matrix(c(sd_eta_sup^2, rho_sup_day*sd_eta_sup^2,
+                          rho_sup_day*sd_eta_sup^2, sd_eta_sup^2), 2)
+
+sim_support_one_couple <- function(cid) {
+  eta <- MASS::mvrnorm(T_per, mu = c(0,0), Sigma = Sigma_eta_day)
+  sup <- matrix(NA_real_, nrow = T_per, ncol = 2)
+  sup[1,] <- eta[1,] / sqrt(1 - phi_sup^2)  # stationary init
+  for (t in 2:T_per) sup[t,] <- phi_sup * sup[t-1,] + eta[t,]
+  tibble(coupleID = cid, diaryday = days, sup_f = sup[,1], sup_m = sup[,2])
+}
+
+support_time <- purrr::map_dfr(1:n_couples, sim_support_one_couple)
+
+support_long <- support_time |>
+  tidyr::pivot_longer(c(sup_f, sup_m), names_to = "who", values_to = "sup_cwp") |>
+  dplyr::mutate(p_num = ifelse(who == "sup_f", 1L, 2L)) |>
+  dplyr::select(-who) |>
+  dplyr::left_join(mu_df, by = c("coupleID","p_num")) |>
+  dplyr::mutate(provided_support = mu_sup + sup_cwp) |>
+  dplyr::select(coupleID, diaryday, p_num, provided_support, sup_cwp)
+
+# ===============================
+# 5) Assemble panel & partner lookups (safe keys)
+# ===============================
+panel <- tidyr::expand_grid(coupleID = 1:n_couples, diaryday = days, p_num = 1:2) |>
+  dplyr::left_join(persons, by = c("coupleID","p_num")) |>
+  dplyr::left_join(support_long, by = c("coupleID","diaryday","p_num"))
+
+panel <- panel |>
+  dplyr::group_by(coupleID, diaryday) |>
+  dplyr::mutate(
+    provided_support_partner = provided_support[3 - p_num],
+    sup_cwp_partner          = sup_cwp[3 - p_num]
+  ) |>
+  dplyr::ungroup()
+
+mu_actor_tbl   <- mu_df |> dplyr::rename(mu_actor = mu_sup)
+mu_partner_tbl <- mu_df |> dplyr::mutate(p_num = 3 - p_num) |> dplyr::rename(mu_partner = mu_sup)
+
+panel <- panel |>
+  dplyr::left_join(mu_actor_tbl,   by = c("coupleID","p_num")) |>
+  dplyr::left_join(mu_partner_tbl, by = c("coupleID","p_num"))
+
+# ===============================
+# 6) Same-day couple×day random effect (common shocks)
+# ===============================
+use_day_RE <- TRUE     # set FALSE to remove same-day shock
+sd_day <- 0.17
+if (use_day_RE) {
+  day_shock <- tidyr::expand_grid(coupleID = 1:n_couples, diaryday = days) |>
+    dplyr::mutate(z_day = rnorm(n(), 0, sd_day))
+  panel <- panel |> dplyr::left_join(day_shock, by = c("coupleID","diaryday"))
+} else {
+  panel <- panel |> dplyr::mutate(z_day = 0)
+}
+
+# ===============================
+# 7) Deterministic mean of daily closeness
+# ===============================
+grand_mu <- mean(mu_df$mu_sup)  # single grand mean for CBP
+
+panel <- panel |>
+  dplyr::left_join(RE, by = "coupleID") |>
+  dplyr::mutate(
+    # fixed parts by gender
+    fix_b0   = ifelse(is_male==1, b0_male, b0_female),
+    fix_time = ifelse(is_male==1, b_time_male, b_time_female),
+    fix_bp_actor   = ifelse(is_male==1, b_bp_actor_m,  b_bp_actor_f),
+    fix_bp_partner = ifelse(is_male==1, b_bp_partner_m,b_bp_partner_f),
+    fix_wp_actor   = ifelse(is_male==1, b_wp_actor_m,  b_wp_actor_f),
+    fix_wp_partner = ifelse(is_male==1, b_wp_partner_m,b_wp_partner_f),
+
+    # couple-level REs by gender
+    re_b0      = ifelse(is_male==1, re_b0_m,   re_b0_f),
+    re_time    = ifelse(is_male==1, re_time_m, re_time_f),
+    re_wp_actor= ifelse(is_male==1, re_wpA_m,  re_wpA_f),
+    re_wp_part = ifelse(is_male==1, re_wpP_m,  re_wpP_f),
+
+    # latent components
+    actor_cwp   = sup_cwp,
+    partner_cwp = sup_cwp_partner,
+    actor_cbp   = mu_actor   - grand_mu,
+    partner_cbp = mu_partner - grand_mu,
+
+    # deterministic mean
+    mu_it =
+      fix_b0 + fix_time * diaryday +
+      fix_bp_actor   * actor_cbp   + fix_bp_partner * partner_cbp +
+      fix_wp_actor   * actor_cwp   + fix_wp_partner * partner_cwp +
+      re_b0 + re_time * diaryday +
+      re_wp_actor * actor_cwp + re_wp_part * partner_cwp +
+      z_day
   )
 
-head(df_long)
+# ===============================
+# 8) Residuals: AR(1) within person, gender-specific σ
+# ===============================
+phi_eps <- 0.10
+sd_eps_f <- 0.70; sd_eps_m <- 1.10
+sd_eta_f <- sqrt(sd_eps_f^2 * (1 - phi_eps^2))
+sd_eta_m <- sqrt(sd_eps_m^2 * (1 - phi_eps^2))
+
+simulate_ar1_resid <- function(n, sd_eta, phi=phi_eps) {
+  e <- numeric(n)
+  e[1] <- stats::rnorm(1, 0, sd = sd_eta / sqrt(1 - phi^2))
+  if (n >= 2) for (t in 2:n) e[t] <- phi * e[t-1] + stats::rnorm(1, 0, sd_eta)
+  e
+}
+
+# Vectorized generation per user
+idx <- panel |>
+  dplyr::arrange(userID, diaryday) |>
+  dplyr::distinct(userID, is_male)
+
+eps_list <- mapply(
+  FUN = simulate_ar1_resid,
+  n = T_per,
+  sd_eta = ifelse(idx$is_male==1, sd_eta_m, sd_eta_f),
+  SIMPLIFY = FALSE
+)
+eps_vec <- unlist(eps_list, use.names = FALSE)
+
+panel <- panel |>
+  dplyr::arrange(userID, diaryday) |>
+  dplyr::mutate(e_it = eps_vec) |>
+  dplyr::arrange(coupleID, diaryday, p_num)
+
+# ===============================
+# 9) Outcomes & exports
+# ===============================
+df_long <- panel |>
+  dplyr::mutate(closeness = mu_it + e_it) |>
+  dplyr::select(userID, coupleID, diaryday, gender,
+                closeness, provided_support) |>
+  dplyr::arrange(coupleID, userID, diaryday)
 
 ```
 
@@ -563,6 +759,14 @@ df_long_apim <- df_long %>%
     dyad_id = 'coupleID',
     time = 'diaryday',
     vars_to_reshape = c('provided_support')
+  ) %>%
+  mutate(
+    is_female = ifelse(gender == 1, 1, 0), 
+    is_male = ifelse(gender ==2, 1, 0),
+    diaryday_c = diaryday - mean(diaryday)
+  ) %>% 
+  dplyr::select(
+    userID, coupleID, diaryday, diaryday_c, gender, is_male, is_female, closeness, provided_support_actor, provided_support_partner
   )
 
 
@@ -616,7 +820,7 @@ print_couple_preview <- function(df, couple_id,
 
 ```{r echo=FALSE}
 
-print_df(print_couple_preview(df_long_apim[, c(1,2,3,4,5,7,8,9,10)], couple_id = "31"))  
+print_df(print_couple_preview(df_long_apim, couple_id = "31"))  
 
 ```
 
@@ -665,7 +869,7 @@ library(nlme)
 model1 <- lme(
   fixed = 
     # Intercepts
-    mvpa ~ 0 + is_male + is_female +
+    closeness ~ 0 + is_male + is_female +
     
     # Time Slopes
     is_male:diaryday_c +
@@ -717,7 +921,7 @@ Equivalent `brms` model with simplified random effects structure.
 ```{r results='hide'}
 
 formula <- bf(
-  mvpa ~ 0 + is_male + is_female +
+  closeness ~ 0 + is_male + is_female +
     
     # Time Slopes
     is_male:diaryday_c +
@@ -753,9 +957,9 @@ formula <- bf(
 )
 
 priors <- c(
-  prior(normal(50, 20), class = "b", coef = "is_male"), # male intercept
-  prior(normal(50, 20), class = "b", coef = "is_female"), # female intercept
-  prior(normal(0, 5), class = "b") # other beta coefficients
+  prior(normal(4, 2), class = "b", coef = "is_male"), # male intercept
+  prior(normal(4, 2), class = "b", coef = "is_female"), # female intercept
+  prior(normal(0, 2), class = "b") # other beta coefficients
   # Other priors can be specified, but brms choosed defaults well. 
   # Defaults can be seen via default_prior(formula, data)
 )
@@ -763,7 +967,7 @@ priors <- c(
 model_dist_apim_long_simple <- brm(
   formula = formula, 
   data = df_long_apim,
-  family = gaussian(link = identity),
+  family = gaussian(link = identity), # student() is also often a nice robust option. 
   prior = priors,
   chains = 4,
   cores = 4,
@@ -817,7 +1021,7 @@ We can try to add an AR1 residual structure.
 ```{r echo=FALSE, results='hide'}
 
 formula <- bf(
-  mvpa ~ 
+  closeness ~ 
     
     # Intercepts
     0 + is_male + is_female +
@@ -865,16 +1069,16 @@ formula <- bf(
 )
 
 priors <- c(
-  prior(normal(50, 20), class = "b", coef = "is_male"),
-  prior(normal(50, 20), class = "b", coef = "is_female"),
-  prior(normal(0, 5), class = "b")
+  prior(normal(4, 2), class = "b", coef = "is_male"),
+  prior(normal(4, 2), class = "b", coef = "is_female"),
+  prior(normal(0, 2), class = "b")
 )
 
 
 model_dist_apim_long_ar <- brm(
   formula = formula, 
   data = df_long_apim,
-  family = gaussian(link = identity),
+  family = gaussian(link = identity), 
   prior = priors,
   chains = 4,
   cores = 4,
@@ -888,8 +1092,9 @@ model_dist_apim_long_ar <- brm(
 
 ## Distinguishable Dyads - L-APIM - AR1 Model
 
-AR1 can changes the fixed effects quite a bit. You may want to check which model 
-performs better! Often the same day shock term and the time slopes are enough. 
+Warning: Often, the daily shocks and the time slopes are enough and adding AR1 additionally may "soak up" too much variance.  this can bias fixed effects estimates towards 0. 
+
+You may want to check which model performs better!
 
 ```{r cache = TRUE}
 loo1 <- loo(model_dist_apim_long_simple)
@@ -910,16 +1115,16 @@ report::report(a)
 
 ```
 
-In this instance, the AR1 model performs much worse! We keep the simpler model.
+In this instance, the AR1 model performs much worse, indicating potential overfitting or other issues. Even in the case of no clear difference, it may be advisable to choose the more parsimonious model, which is the one without AR1. 
 
-## Maximal Model Specification
+## Maximal Model Specification (no AR(1))
 
 We add all random slopes and their correlations. This is not converging in `nlme`. 
 
 ```{r}
 
 formula <- bf(
-  mvpa ~ 
+  closeness ~ 
     
     # Intercepts
     0 + is_male + is_female +
@@ -964,9 +1169,9 @@ formula <- bf(
 )
 
 priors <- c(
-  prior(normal(50, 20), class = "b", coef = "is_male"),
-  prior(normal(50, 20), class = "b", coef = "is_female"),
-  prior(normal(0, 5), class = "b")
+  prior(normal(4, 2), class = "b", coef = "is_male"),
+  prior(normal(4, 2), class = "b", coef = "is_female"),
+  prior(normal(0, 2), class = "b")
 )
 
 
@@ -1026,9 +1231,11 @@ loo::pareto_k_table(loo2)
 ```
 
 
-High Pareto-Ks can be a sign of overfitting or other problems. Here, both models are fine. 
+In case of High Pareto-Ks there are influential datapoints present. This *can* be a sign of overfitting but it is not necessarily a problem. But it is recommended to use loo(model, moment_match = TRUE) in these cases (the function will tell you). 
 
-The loo values (elpd) themselves cannot be interpreted individually, but we can compare models (next page)
+In our example, both models are perfectly fine. 
+
+The loo values (elpd) themselves cannot be interpreted individually, but we can compare models again (next page)
 
 
 ## Maximal Model Specification: Diagnostics
@@ -1041,9 +1248,9 @@ print(a)
 
 ```
 
-The difference between the models seems quite small. No obvious overfitting, but also no improvement over the simpler model (even slightly worse, but hard to say for such small differences). Some rule of thumbs say that if the difference is higher than 2x the SE or 4x the SE we can say there is a difference. 
+No obvious overfitting detected. In fact, the more complex model seems to be more predictive. Some rule of thumbs say that if the difference is higher than 2x the SE or 4x the SE we can say there is a difference. 
 
-In our case, we could follow our theory and the philosophy of the maximal random effects structure [@barrRandomEffectsStructure2013]. Alternatively, we could follow the philosophy of parsimony. 
+If there was no obvious difference, we could follow our theory and the philosophy of the maximal random effects structure [@barrRandomEffectsStructure2013]. Alternatively, we could follow the philosophy of parsimony, especially in the territory of such complex models. 
 
 (continued on next page)
 
@@ -1056,7 +1263,9 @@ One approach is to use the `report` package's approach to obtain a p-value for t
 report::report(a)
 ```
 
-In case of clear overfitting, we could try to improve the model by subsequently excluding the smallest random effects (or correlations between them) and compare various models. For more guidance on random effects check out @delrosarioPracticalGuideSpecifying2025. 
+In this instance, the maximal model (no AR) seems to be the preferred one. 
+
+In the case of overfitting, we could try to improve the model by subsequently excluding the smallest random effects (or correlations between them) and compare various models. For more guidance on random effects check out @delrosarioPracticalGuideSpecifying2025. 
 
 
 # Exchangeable Dyads
@@ -1708,14 +1917,22 @@ a$hypothesis[,c(2,3,4,5)]
 In the **distinguishable** case, the **Dyadic Score Model (DSM)** [e.g., @stadlerHowCompanionshipRelated2023] is equivalent to the APIM! [@Bolger2025Unified; @iidaModelsInterdependentIndividuals2018]
 
 
+
+
+
 ## Exchangeable Dyads - Longitudinal APIM/DIM: Simulated Data
+
+We use the same data as in the exchangeable case. But we don't need the gender-related variables anymore, as we assume 
+that partners are indistinguishable. 
+
+```{r echo=FALSE, results='hide'}
+
+df_long_apim2 <- df_long_apim[,c('userID', 'coupleID', 'diaryday', 'diaryday_c', 'closeness', 'provided_support_actor', 'provided_support_partner', 'provided_support_actor_cbp', 'provided_support_actor_cwp', 'provided_support_partner_cbp', 'provided_support_partner_cwp')]
+
+```
 
 
 ```{r echo=FALSE}
-df_long_apim2 <- df_long_apim %>%
-  dplyr::select('coupleID', 'userID', 'diaryday', 'diaryday_c', 'mvpa', 
-         'provided_support_actor_cwp', 'provided_support_partner_cwp', 
-         'provided_support_actor_cbp', 'provided_support_partner_cbp')
 
 print_df(print_couple_preview(df_long_apim2, couple_id = "31"))  
 
@@ -1762,7 +1979,7 @@ df_long_dim <- df_long_dim %>%
     Idiff = base * flip
   ) %>%
   ungroup() %>%
-  relocate(Idiff, .after = userID) %>%
+  relocate(Idiff, .after = coupleID) %>%
   dplyr::select(-base, -flip)
 
 
@@ -1783,7 +2000,7 @@ df_long_dim <- df_long_dim %>%
     Idiff = base * flip
   ) %>%
   ungroup() %>%
-  relocate(Idiff, .after = userID) %>%
+  relocate(Idiff, .after = coupleID) %>%
   dplyr::select(-base, -flip)
 
 
@@ -1796,7 +2013,7 @@ print_df(print_couple_preview(df_long_dim, couple_id = "31", days = 0:4))
 ```{r }
 
 formula <- bf(
-  mvpa ~ 1 + 
+  closeness ~ 1 + 
     
     diaryday_c +
   
@@ -1835,8 +2052,8 @@ formula <- bf(
 )
 
 priors <- c(
-  prior(normal(50, 20), class = "Intercept"),
-  prior(normal(0, 10), class = "b")
+  prior(normal(4, 2), class = "Intercept"),
+  prior(normal(0, 2), class = "b")
   
   # We could set priors for other things, but brms sets good default priors
   #prior(student_t(3, 0, 1.5), class = "sd"),
@@ -1864,7 +2081,7 @@ model_apim_ind_long <- brm(
 
 # DIM Version
 formula <- bf(
-  mvpa ~ 1 + 
+  closeness ~ 1 + 
     
     diaryday_c +
     
@@ -1884,8 +2101,8 @@ formula <- bf(
 )
 
 priors <- c(
-  prior(normal(50, 20), class = "Intercept"),
-  prior(normal(0, 10/sqrt(2)), class = "b") # just to match prior in apim. any weakly informative prior is fine
+  prior(normal(4, 2), class = "Intercept"),
+  prior(normal(0, 2), class = "b")
 )
 
 model_dim_ind_long <- brm(
