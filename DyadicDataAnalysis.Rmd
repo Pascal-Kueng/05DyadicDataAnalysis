@@ -1727,7 +1727,37 @@ print_df(
 
 ## Equivalence APIM and DIM
 
-![APIM (left) vs. DIM (right)](Embed/croppedResults1.png)
+::: columns
+::: column
+
+```{r, echo=FALSE}
+print_df(
+  summary_apim[1:5, 1:2], 
+  rows_to_pack = list(
+    'Fixed Effects' = c(1,3),
+    'Residual Structure' = c(4,5)
+    )
+  )
+
+```
+
+:::
+
+::: column
+
+```{r, echo=FALSE}
+print_df(
+  summary_dim[1:5, 1:2], 
+  rows_to_pack = list(
+    'Fixed Effects' = c(1,3),
+    'Residual Structure' = c(4,5)
+    )
+  )
+
+```
+
+:::
+:::
 
 $$b_{actor\_gmc} + b_{partner\_gmc} = b_{cbc}$$
 $$b_{actor\_gmc} - b_{partner\_gmc} = b_{cwc}$$ 
@@ -1736,11 +1766,37 @@ $$b_{actor\_gmc} - b_{partner\_gmc} = b_{cwc}$$
 
 
 ## Equivalence APIM and DIM
+:::columns
+:::column
 
+```{r, echo=FALSE}
+print_df(
+  summary_apim[1:3, 1:2], 
+  rows_to_pack = list(
+    'Fixed Effects' = c(1,3)
+    )
+  )
+
+```
+
+:::
+
+:::column
+
+```{r, echo=FALSE}
+print_df(
+  summary_dim[1:3, 1:2], 
+  rows_to_pack = list(
+    'Fixed Effects' = c(1,3)
+    )
+  )
+
+```
+
+:::
+:::
 
 ```{=html}
-<img src="Embed/croppedResults1_shallow.png" alt="Results"
-     style="display:block; margin:1.5rem auto; max-width:800px; width:100%; height:auto;">
 
 <section data-background-color="#ffffff">
   <p style="margin-top:0;font-size:1.2rem;max-width:1100px;">
@@ -2053,10 +2109,38 @@ a <- hypothesis(
   "communication_actor_gmc + communication_partner_gmc = 0"
 )
 
-a$hypothesis[,c(2,3,4,5)]
+round(a$hypothesis[,c(2,3,4,5)], 2)
 ```
 
-![APIM (left) vs. DIM (right)](Embed/croppedResults1.png)
+:::columns
+:::column
+
+```{r, echo=FALSE}
+print_df(
+  summary_apim[1:3, 1:2], 
+  rows_to_pack = list(
+    'Fixed Effects' = c(1,3)
+    )
+  )
+
+```
+
+:::
+
+:::column
+
+```{r, echo=FALSE}
+print_df(
+  summary_dim[1:3, 1:2], 
+  rows_to_pack = list(
+    'Fixed Effects' = c(1,3)
+    )
+  )
+
+```
+
+:::
+:::
 
 ## Equivalence APIM and DIM: Takeaway
 
@@ -2290,7 +2374,12 @@ Exchangeability is retained: if partners are flipped, the result is the same.
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: Results
 
-```{r include = FALSE}
+Comparing APIM (left) and DIM (right) output of fixed effects.
+
+:::columns
+:::column
+
+```{r echo = FALSE}
 summary_apim <- summarize_brms(
     model_apim_ind_long, 
     stats_to_report = c('CI', 'Rhat', 'ESS')
@@ -2305,7 +2394,11 @@ print_df(
 
 ```
 
-```{r include = FALSE}
+:::
+
+:::column
+
+```{r echo = FALSE}
 summary_apim <- summarize_brms(
     model_dim_ind_long, 
     stats_to_report = c('CI', 'Rhat', 'ESS')
@@ -2320,11 +2413,11 @@ print_df(
 
 ```
 
-Comparing APIM (left) and DIM (right) output
+:::
+:::
 
-![APIM (left) vs. DIM (right) APIM](Embed/croppedResults2.png)
 
-Equivalence holds on both levels. Numeric deviations arise due to priors, sampling noise, and uncertainty in some of the effects in this example. 
+Equivalence holds on both levels. Numeric deviations arise due to priors, sampling noise, and rounding. 
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: Results
 
@@ -2362,6 +2455,7 @@ and the cross-person covariance of both partners' intercepts is:
 
 $$var(Intercept) - var(Idiff)$$
 
+Note: This only holds true when the means and Idiffs are uncorrelated. This is why we put them in separate random effects blocks.  
 
 ## Extract Full APIM Random Effects Variance-Covariance Matrix
 

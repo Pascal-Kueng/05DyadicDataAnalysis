@@ -93,7 +93,7 @@ print_df <- function(df,
                      digits = NULL,
                      width = NULL,              # <- set NULL to avoid forcing narrow columns
                      rows_to_pack = NULL,
-                     scroll_height = "450px",
+                     scroll_height = "auto",
                      scroll_width  = "100%",
                      font_size = 20) {
   
