@@ -373,7 +373,8 @@ formula <- bf(
     communication_partner_gmc:is_male + 
     communication_partner_gmc:is_female +
     
-    # Option 0: Random intercept for male and female (correlated), not identifiable in the cross-sectional case:
+    # Option 0: Random intercept for male and female (correlated)
+    # NOT identifiable in the cross-sectional case:
     # (0 + is_male + is_female | coupleID)
     
     # Option A: Shared dyad effect - interpretable dyad-level random intercept. 
@@ -507,9 +508,9 @@ DHARMa.check_brms(model_dist_apim_b)
 
 ## Distinguishable Dyads - Check Model Convergence and Fit
 
-In case of non-convergence, bad residuals or low predictive accuracy, the model is very likely miss-specified. 
+In case of non-convergence, bad residuals or low predictive accuracy, the model is likely miss-specified. 
 
-You can try different families that match your data by using the `family()` argument. For instance, you can easily conduct an ordinal regression by simply setting `family = cumulative()`. For dichotomous outcomes you can use `family = bernoulli()`. Brms supports a variety of families and link functions for these families. In general, you should use the default link function (check `?brms::family.brmsfit()`). 
+You can try different families that match your data by using the `family()` argument. For instance, you can easily conduct an ordinal regression by simply setting `family = cumulative()` and adjusting your priors. For dichotomous outcomes you can use `family = bernoulli()`. Brms supports a variety of families and link functions for these families. In general, you should use the default link function (check `?brms::family.brmsfit()`). 
 
 ## Distinguishable Dyads - Results
 
@@ -544,6 +545,9 @@ df_long <- readRDS('Embed/df_long.rds')
 df_long <- df_long %>%
   rename(
     provided_support = se
+  ) %>%
+  dplyr::select(
+    c(userID, coupleID, diaryday, gender, is_female, is_male, provided_support, mvpa)
   )
 
 head(df_long)
@@ -569,7 +573,7 @@ df_long_apim <- df_long %>%
 
 # Function for previev (not needed for analysis!)
 print_couple_preview <- function(df, couple_id,
-                                 days = 0:2) {
+                                 days = 0:3) {
   # Filter/sort/select with original types
   dfc0 <- df %>%
     dplyr::filter(coupleID == couple_id) %>%
@@ -636,6 +640,7 @@ df_long_apim <- bmlm::isolate(
   value = c('provided_support_actor', 'provided_support_partner'),
   which = 'both' 
 ) %>%
+# renaming to avoid confusion with between- and within COUPLE centred DIM variables
   rename(
     provided_support_actor_cwp = provided_support_actor_cw,
     provided_support_partner_cwp = provided_support_partner_cw,
@@ -652,7 +657,7 @@ df_long_apim <- bmlm::isolate(
 
 ## Distinguishable Dyads - L-APIM - Model nlme
 
-Nlme model of this data for reference:
+`nlme` model of this data for reference (simplified random effects structure to achieve convergence).
 
 ```{r cache = TRUE}
 library(nlme)
@@ -694,7 +699,7 @@ model1 <- lme(
   | coupleID, 
   
   weights = varIdent(form = ~ 1 | gender), # heterogeneous residual variances
-  corr = corCompSymm(form = ~ 1 | coupleID/diaryday), # compound symmetry 
+  corr = corCompSymm(form = ~ 1 | coupleID/diaryday), # compound symmetry (partner's values on each day)
   
   data = df_long_apim, 
   control = list(maxIter=1000)
@@ -707,7 +712,9 @@ summary(model1)
 
 ## Distinguishable Dyads - L-APIM - Model brms
 
-```{r}
+Equivalent `brms` model with simplified random effects structure. 
+
+```{r results='hide'}
 
 formula <- bf(
   mvpa ~ 0 + is_male + is_female +
@@ -730,21 +737,28 @@ formula <- bf(
     is_female:provided_support_actor_cwp + 
     is_female:provided_support_partner_cwp +
   
+  # Accounting for non-independence between partners' means and trajectories 
+  # and effect sensitivities via random effects:
   (0 + is_male + is_female
     + is_male:diaryday_c + is_female:diaryday_c
   | coupleID) +
     
+    
+  # Accounting for daily non-independence (mimicking nlme's corCompSym)
+  # modelled via common 'shocks' with a random intercept:
   (1 | coupleID:diaryday)
 
-  , sigma ~ 0 + is_male + is_female   # heteroscedastic residuals
+  # heteroscedastic residuals
+  , sigma ~ 0 + is_male + is_female 
 )
 
 priors <- c(
-  prior(normal(50, 20), class = "b", coef = "is_male"),
-  prior(normal(50, 20), class = "b", coef = "is_female"),
-  prior(normal(0, 5), class = "b")
+  prior(normal(50, 20), class = "b", coef = "is_male"), # male intercept
+  prior(normal(50, 20), class = "b", coef = "is_female"), # female intercept
+  prior(normal(0, 5), class = "b") # other beta coefficients
+  # Other priors can be specified, but brms choosed defaults well. 
+  # Defaults can be seen via default_prior(formula, data)
 )
-
 
 model_dist_apim_long_simple <- brm(
   formula = formula, 
@@ -758,6 +772,8 @@ model_dist_apim_long_simple <- brm(
   seed = 123,
   file = file.path('brms_cache', 'example1_dist_apim_long_simpel') # Cache the model
 )
+
+summary(model_dist_apim_long_simple)
 
 ```
 
@@ -838,16 +854,10 @@ formula <- bf(
     
     
     # Accounting for daily non-independence
-    
-    # Model common shocks with a random effect:
-    # Note that this introduces a large number of parameters and may not converge
-    # Especially if modelled in lme4
     (1 | coupleID:diaryday) +
     
     
     # Modelling residuals as autocorrelated within each person (order 1)
-    # Note that in brms this is only possible if cosy() is not used. 
-    # If Option 2 can not be used instead of cosy, consider using cosy and dropping ar1. 
     # You may use loo_compare() to get the best converging fit. 
     ar(time = diaryday, gr = coupleID:userID, p = 1),
     
@@ -878,8 +888,8 @@ model_dist_apim_long_ar <- brm(
 
 ## Distinguishable Dyads - L-APIM - AR1 Model
 
-AR1 can changes the fixed effects quite a bit. You may always want to check which model 
-performs better! Often the same day shock term and the time slopes take care of everything already. 
+AR1 can changes the fixed effects quite a bit. You may want to check which model 
+performs better! Often the same day shock term and the time slopes are enough. 
 
 ```{r cache = TRUE}
 loo1 <- loo(model_dist_apim_long_simple)
@@ -900,12 +910,11 @@ report::report(a)
 
 ```
 
-In this instance, the AR1 model is much worse! We keep the simpler model.
+In this instance, the AR1 model performs much worse! We keep the simpler model.
 
 ## Maximal Model Specification
 
-We add all random slopes and their correlations. This is not converging in nlme or other
-frequentist frameworks. 
+We add all random slopes and their correlations. This is not converging in `nlme`. 
 
 ```{r}
 
@@ -947,8 +956,6 @@ formula <- bf(
     
     
     # Accounting for daily non-independence
-    # Model common shocks with a random effect:
-    # Note that this introduces a large number of parameters and may not converge!
     (1 | coupleID:diaryday), 
   
   # No more AR1. You could also test MA or ARMA. 
@@ -1019,7 +1026,9 @@ loo::pareto_k_table(loo2)
 ```
 
 
-High Pareto-Ks can be a sign of overfitting or other problems. The loo values themselves cannot be interpreted individually, but we can compare models (next page)
+High Pareto-Ks can be a sign of overfitting or other problems. Here, both models are fine. 
+
+The loo values (elpd) themselves cannot be interpreted individually, but we can compare models (next page)
 
 
 ## Maximal Model Specification: Diagnostics
@@ -1032,22 +1041,22 @@ print(a)
 
 ```
 
-The difference between the models seems quite small. No obvious overfitting, but also no improvement over the simpler model (even slightly worse, but hard to say for such small differences). 
+The difference between the models seems quite small. No obvious overfitting, but also no improvement over the simpler model (even slightly worse, but hard to say for such small differences). Some rule of thumbs say that if the difference is higher than 2x the SE or 4x the SE we can say there is a difference. 
 
-We could follow our theory and the philosophy of the maximal random effects structure [@barrRandomEffectsStructure2013]. Alternatively, we could follow the philosophy of parsimony in this case. 
-
-In case of overfitting, we could try to improve the model by subsequently excluding the smallest random effects (or correlations between them) and compare various models. For more guidance on random effects check out @delrosarioPracticalGuideSpecifying2025. 
+In our case, we could follow our theory and the philosophy of the maximal random effects structure [@barrRandomEffectsStructure2013]. Alternatively, we could follow the philosophy of parsimony. 
 
 (continued on next page)
 
 ## Maximal Model Specification: Diagnostics
 
+One approach is to use the `report` package's approach to obtain a p-value for the comparison (see their documentation for which assumptions they make): 
 
-One approach is to use the `report` package's approach to obtain a p-value (see their documentation): 
 
 ```{r}
 report::report(a)
 ```
+
+In case of clear overfitting, we could try to improve the model by subsequently excluding the smallest random effects (or correlations between them) and compare various models. For more guidance on random effects check out @delrosarioPracticalGuideSpecifying2025. 
 
 
 # Exchangeable Dyads
