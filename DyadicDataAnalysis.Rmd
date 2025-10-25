@@ -18,7 +18,7 @@ format:
     code-overflow: wrap
     code-copy: true
     code-tools: false
-    code-block-height: 600px
+    code-block-height: 55vh
     toc: false
     df-print: default
     transition: slide
@@ -864,6 +864,7 @@ df_long_apim <- bmlm::isolate(
 `nlme` model of this data for reference (simplified random effects structure to achieve convergence).
 
 ```{r cache = TRUE}
+#| code-block-height: 50vh   # this chunk only
 library(nlme)
 # nlme model for reference
 model1 <- lme(
@@ -996,7 +997,8 @@ print_df(
     'Fixed Effects' = c(1,12),
     'Random Effects' = c(13, 23),
     'Residual Structure' = c(24, 25)
-    )
+    ),
+  scroll_height = '55vh'
   )
 
 ```
@@ -1121,7 +1123,7 @@ In this instance, the AR1 model performs much worse, indicating potential overfi
 
 We add all random slopes and their correlations. This is not converging in `nlme`. 
 
-```{r}
+```{r .}
 
 formula <- bf(
   closeness ~ 
@@ -1205,7 +1207,8 @@ print_df(
     'Fixed Effects' = c(1,12),
     'Random Effects' = c(13, 49),
     'Residual Structure' = c(50, 51)
-    )
+    ),
+  scroll_height = '55vh'
   )
 
 ```
@@ -1456,7 +1459,8 @@ full_tbl <- truth_tbl |>
 # 4) Render (scrollable)
 # ---------------------------
 print_df(
-  full_tbl
+  full_tbl,
+  scroll_height = '50vh'
 )
 
 
