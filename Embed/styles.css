@@ -42,5 +42,18 @@
   line-height: 2em;
 }
 
+/* Default: Let code scroll if needed */
+.reveal pre.sourceCode {
+  overflow: auto;
+}
+
+/* Optional height utilities */
+.code-30vh pre.sourceCode { max-height: 30vh; }
+.code-35vh pre.sourceCode { max-height: 35vh; }
+.code-40vh pre.sourceCode { max-height: 40vh; }
+.code-45vh pre.sourceCode { max-height: 45vh; }
+.code-50vh pre.sourceCode { max-height: 50vh; }
+
+
 
 .nocite { display: none; }
