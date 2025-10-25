@@ -93,9 +93,15 @@ print_df <- function(df,
                      digits = NULL,
                      width = NULL,              # <- set NULL to avoid forcing narrow columns
                      rows_to_pack = NULL,
-                     scroll_height = "auto",
+                     scroll_height = "auto",    # "auto" | numeric (px) | CSS length ("50vh", "20rem")
                      scroll_width  = "100%",
                      font_size = 20) {
+  
+  normalize_css_len <- function(x, default = "auto") {
+    if (is.null(x)) return(default)
+    if (is.numeric(x) && length(x) == 1 && !is.na(x)) return(paste0(x, "px"))
+    as.character(x)
+  }
   
   required_packages <- c("knitr", "kableExtra", "dplyr")
   check_and_load_packages(required_packages)
@@ -133,12 +139,14 @@ print_df <- function(df,
   }
   
   kbl <- kbl |>
-    kableExtra::scroll_box(width = scroll_width, height = scroll_height)
+    kableExtra::scroll_box(
+      width  = normalize_css_len(scroll_width, "100%"),
+      height = normalize_css_len(scroll_height, "auto")
+    )
   
   kbl <- packing(kbl, rows_to_pack)
   return(kbl)
 }
-
 
 
 
