@@ -33,7 +33,6 @@ vignettes/*.pdf
 /cache/
 
 # other cached chunks
-/brms_cache
 /DyadicDataAnalysis_cache
 /DyadicDataAnalysis_files
 
