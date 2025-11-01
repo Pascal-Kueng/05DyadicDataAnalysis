@@ -1,1 +1,5 @@
 This file only exist so that the folder is synced. 
+The brms_cache folder is needed to store the brms models so they are note
+re-estimated each time the script runs or the presentation is built. 
+
+The first time after cloning the repository, all models need to be estimated. 
