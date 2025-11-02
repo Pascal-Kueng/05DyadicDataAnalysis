@@ -31,7 +31,7 @@ bibliography:
   - Embed/Rpackages.bib
 csl: Embed/apa.csl
 nocite: |
-  @R-brms, @R-bmlm, @R-easystats, @R-DHARMa, @R-tidyverse, @R-cmdstanr, @R-loo, @R-rstan
+  @R-brms, @R-bmlm, @R-easystats, @R-DHARMa, @R-tidyverse, @R-cmdstanr, @R-loo, @R-rstan, @R-MASS, @R-nlme
 
 ---
 

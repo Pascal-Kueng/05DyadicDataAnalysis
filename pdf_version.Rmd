@@ -34,7 +34,24 @@ keywords:
 format:
   pdf:
     pdf-engine: xelatex
-    toc: true
+    include-in-header:
+      text: |
+        % Code wrapping (you already had this)
+        \usepackage{fvextra}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,breakanywhere,commandchars=\\\{\}}
+        \fvset{breaklines,breakanywhere}
+
+        % Slightly tighter tables to help fit width
+        \usepackage{etoolbox}
+        \AtBeginEnvironment{longtable}{\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{0.95}\small}
+
+        % Give LaTeX more flexibility for line breaks
+        \emergencystretch=2em
+
+        % Optional: landscape for one-off huge tables
+        \usepackage{pdflscape}
+
+    toc: false
     toc-depth: 2
     number-sections: true
     papersize: a4
@@ -57,6 +74,12 @@ knitr::opts_chunk$set(echo = TRUE)
 rm(list = ls())
 gc()
 library(glue)
+
+library(webshot2)
+knitr::opts_chunk$set(echo = TRUE)
+# Optional: for better table/figure sizing in PDF
+options(knitr.kable.NA = "", width = 100)
+
 ```
 
 > **Interactive HTML Version (recommended):**  
@@ -96,6 +119,13 @@ library(purrr)
 source(file.path('00_R_Functions', 'ReportModels.R'))
 source(file.path('00_R_Functions', 'PrettyTables.R'))
 source(file.path('00_R_Functions', 'PrepareData.R'))
+
+
+# table font size
+font_size <- 9
+
+
+
 
 options(
   brms.backend = 'cmdstan',
@@ -304,7 +334,8 @@ df <- temp_df_for_outcome %>%
 ## Distinguishable Dyads - Data: Simulated Dyads
 
 ```{r}
-print_df(head(df))
+print_df(head(df),
+  font_size = font_size)
 ```
 
 
@@ -329,6 +360,7 @@ df <- df[df_filt$gender_actor != df_filt$gender_partner, ]
 
 ## Distinguishable Dyads - Preparing Data
 
+
 ```{r results='hide', message=FALSE, warning=FALSE}
 df_apim <- df %>%
   # Reshaping to Actor-Partner format (4-field)
@@ -347,9 +379,11 @@ df_apim <- df %>%
     is_male = ifelse(gender == 2, 1, 0),
   ) 
 
-print_df(head(df_apim))
+print_df(head(df_apim),
+  font_size = font_size)
 
 ```
+
 
 
 ```{r echo = FALSE, results='hide', message = FALSE, warning= FALSE, error=FALSE}
@@ -359,14 +393,18 @@ df_apim <- relocate(df_apim, 'is_male', 'is_female', .after = 'gender')
 
 ```
 
+::: {.landscape}
+
 ## Distinguishable Dyads - Preparing Data
 
 ```{r, echo=FALSE}
 
-print_df(head(df_apim))
+print_df(head(df_apim),
+  font_size = font_size)
 
 ```
 
+:::
 
 ## Distinguishable Dyads - Fitting the Model in BRMS
 
@@ -553,12 +591,15 @@ print_df(
   rows_to_pack = list(
     'Fixed Effects' = c(1,6),
     'Residual Structure' = c(7,9)
-    )
+    ),
+  font_size = font_size
   )
 
 ```
 
 Note that sigma is reported on the log scale (see `?brms::family.brmsfit()`). Using `exp(value)` retrieves the simulated SD values well. 
+
+::: {.landscape}
 
 ## Distinguishable Dyads - (Intensive) Longitudinal APIM
 
@@ -844,9 +885,12 @@ print_couple_preview <- function(df, couple_id,
 
 ```{r echo=FALSE}
 
-print_df(print_couple_preview(df_long_apim, couple_id = "31"))  
+print_df(print_couple_preview(df_long_apim, couple_id = "31"),
+  font_size = font_size)  
 
 ```
+
+:::
 
 
 ## Distinguishable Dyads - L-APIM - Centering 
@@ -1023,7 +1067,8 @@ print_df(
     'Random Effects' = c(13, 23),
     'Residual Structure' = c(24, 25)
     ),
-  scroll_height = '55vh'
+  scroll_height = '55vh',
+  font_size = font_size
   )
 
 ```
@@ -1219,7 +1264,11 @@ model_dist_apim_long_complex <- brm(
 
 ```
 
+
+::: {.landscape}
+
 ## Maximal Model Specification: Results
+
 
 ```{r echo=FALSE}
 
@@ -1235,10 +1284,13 @@ print_df(
     'Random Effects' = c(13, 49),
     'Residual Structure' = c(50, 51)
     ),
-  scroll_height = '55vh'
+  scroll_height = '55vh',
+  font_size = font_size
   )
 
 ```
+
+:::
 
 
 ## Maximal Model Specification: Diagnostics
@@ -1294,6 +1346,8 @@ report::report(a)
 In this instance, the maximal model (no AR) seems to be the preferred one. 
 
 In the case of overfitting, we could try to improve the model by subsequently excluding the smallest random effects (or correlations between them) and compare various models. For more guidance on random effects check out @delrosarioPracticalGuideSpecifying2025. 
+
+::: {.landscape}
 
 ## Maximal Model Specification: Comparing Estimates to Simulated Values (Ground Truth)
 
@@ -1487,13 +1541,15 @@ full_tbl <- truth_tbl |>
 # ---------------------------
 print_df(
   full_tbl,
-  scroll_height = '50vh'
+  scroll_height = '50vh',
+  font_size = font_size
 )
 
 
 
 ```
 
+:::
 
 ## Exchangeable Dyads - Cross-Sectional APIM
 
@@ -1519,16 +1575,20 @@ But they should still be allowed to vary within each couple, while being correla
 
 [e.g., @delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]
 
+
+::: {.landscape}
+
 ## Exchangeable Dyads - Cross-Sectional APIM: Data
 
 Same cross-sectional data in the same 4-field actor-partner format as before. 
 ```{r}
 
-print_df(head(df_apim))
+print_df(head(df_apim),
+  font_size = font_size)
 
 ```
 
-
+:::
 
 ## Exchangeable Dyads - Cross-Sectional APIM: Model
 
@@ -1588,7 +1648,8 @@ print_df(
   rows_to_pack = list(
     'Fixed Effects' = c(1,3),
     'Residual Structure' = c(4,5)
-    )
+    ),
+  font_size = font_size
   )
 
 ```
@@ -1670,7 +1731,8 @@ Starting from scratch (no 4-field data needed)
 
 df_apim2 <- df_apim[, c('userID', 'coupleID', 'communication', 'satisfaction')]
 
-print_df(head(df_apim2))
+print_df(head(df_apim2),
+  font_size = font_size)
 
 ```
 
@@ -1699,7 +1761,8 @@ df_dim <- df_apim2 %>%
   ) %>% 
   dplyr::select(c('userID', 'coupleID', 'satisfaction', 'communication_cwc', 'communication_cbc'))
 
-print_df(head(df_dim))
+print_df(head(df_dim),
+  font_size = font_size)
 ```
 
 
@@ -1751,7 +1814,8 @@ print_df(
   rows_to_pack = list(
     'Fixed Effects' = c(1,3),
     'Residual Structure' = c(4,5)
-    )
+    ),
+  font_size = font_size
 )
 ```
 
@@ -1767,7 +1831,8 @@ print_df(
   rows_to_pack = list(
     'Fixed Effects' = c(1,3),
     'Residual Structure' = c(4,5)
-    )
+    ),
+  font_size = font_size
   )
 
 ```
@@ -1782,7 +1847,8 @@ print_df(
   rows_to_pack = list(
     'Fixed Effects' = c(1,3),
     'Residual Structure' = c(4,5)
-    )
+    ),
+  font_size = font_size
   )
 
 ```
@@ -1805,7 +1871,8 @@ print_df(
   summary_apim[1:3, 1:2], 
   rows_to_pack = list(
     'Fixed Effects' = c(1,3)
-    )
+    ),
+  font_size = font_size
   )
 
 ```
@@ -1819,7 +1886,8 @@ print_df(
   summary_dim[1:3, 1:2], 
   rows_to_pack = list(
     'Fixed Effects' = c(1,3)
-    )
+    ),
+  font_size = font_size
   )
 
 ```
@@ -2151,7 +2219,8 @@ print_df(
   summary_apim[1:3, 1:2], 
   rows_to_pack = list(
     'Fixed Effects' = c(1,3)
-    )
+    ),
+  font_size = font_size
   )
 
 ```
@@ -2165,7 +2234,8 @@ print_df(
   summary_dim[1:3, 1:2], 
   rows_to_pack = list(
     'Fixed Effects' = c(1,3)
-    )
+    ),
+  font_size = font_size
   )
 
 ```
@@ -2188,6 +2258,7 @@ In the **distinguishable** case, the **Dyadic Score Model (DSM)** [e.g., @stadle
 
 
 
+::: {.landscape}
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: Simulated Data
 
@@ -2203,10 +2274,12 @@ df_long_apim2 <- df_long_apim[,c('userID', 'coupleID', 'diaryday', 'diaryday_c',
 
 ```{r echo=FALSE}
 
-print_df(print_couple_preview(df_long_apim2, couple_id = "31"))  
+print_df(print_couple_preview(df_long_apim2, couple_id = "31"),
+  font_size = font_size)  
 
 ```
 
+:::
 
 ## Exchangeable Dyads - Longitudinal DIM/APIM
 
@@ -2231,6 +2304,8 @@ df_long_dim <- df_long_apim2 %>%
 
 ```
 
+::: {.landscape}
+
 ## Exchangeable Dyads - Longitudinal DIM/APIM: Preparing the sum and difference approach
 
 We need to randomly assign -1 and +1 for each Partner within each couple. 
@@ -2252,10 +2327,12 @@ df_long_dim <- df_long_dim %>%
   dplyr::select(-base, -flip)
 
 
-print_df(print_couple_preview(df_long_dim, couple_id = "31"))  
+print_df(print_couple_preview(df_long_dim, couple_id = "31"),
+  font_size = font_size)  
 
 ```
 
+:::
 
 ## Exchangeable Dyads - Longitudinal DIM/APIM: Preparing the Sum and Difference Approach
 
@@ -2273,7 +2350,8 @@ df_long_dim <- df_long_dim %>%
   dplyr::select(-base, -flip)
 
 
-print_df(print_couple_preview(df_long_dim, couple_id = "31", days = 0:4))  
+print_df(print_couple_preview(df_long_dim, couple_id = "31", days = 0:4),
+  font_size = font_size)  
 
 ```
 
@@ -2420,7 +2498,8 @@ print_df(
   summary_apim[1:6,1:2], 
   rows_to_pack = list(
     'Fixed Effects' = c(1,6)
-    )
+    ),
+  font_size = font_size
   )
 
 ```
@@ -2439,7 +2518,8 @@ print_df(
   summary_apim[1:6,1:2], 
   rows_to_pack = list(
     'Fixed Effects' = c(1,6)
-    )
+    ),
+  font_size = font_size
   )
 
 ```
@@ -2449,6 +2529,8 @@ print_df(
 
 
 Equivalence holds on both levels. Numeric deviations arise due to priors, sampling noise, and rounding. 
+
+::: {.landscape}
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: Results
 
@@ -2467,12 +2549,13 @@ print_df(
     'Random Effects' = c(7, 27),
     'Residual Structure' = c(28, 28)
     ),
-  scroll_height = '50vh'
+  scroll_height = '50vh',
+  font_size = font_size
 )
 
 ```
 
-
+:::
 
 ## Extract Full APIM Random Effects Variance-Covariance Matrix
 
@@ -2488,6 +2571,10 @@ and the cross-person covariance of both partners' intercepts is:
 $$var(Intercept) - var(Idiff)$$
 
 Note: This only holds true when the means and Idiffs are uncorrelated. This is why we put them in separate random effects blocks.  
+
+
+::: {.landscape}
+
 
 ## Extract Full APIM Random Effects Variance-Covariance Matrix
 
@@ -2532,21 +2619,24 @@ a <- rotate_apim_covariance(model_apim_ind_long)
 ## Extract Full APIM Random Effects Variance-Covariance Matrix: Within-Person Matrix
 
 ```{r}
-print_df(a$within_person_covariance_matrix)
+print_df(a$within_person_covariance_matrix,
+  font_size = font_size)
 ```
 
 
 ## Extract Full APIM Random Effects Variance-Covariance Matrix: Cross-Person Matrix
 
 ```{r}
-print_df(a$cross_person_covariance_matrix)
+print_df(a$cross_person_covariance_matrix,
+  font_size = font_size)
 ```
 
 
 ## Extract Full APIM Random Effects Variance-Covariance Matrix: Full Matrix
 
 ```{r}
-print_df(a$full_covariance_matrix)
+print_df(a$full_covariance_matrix,
+  font_size = font_size)
 ```
 
 
@@ -2567,15 +2657,18 @@ full <- sd_cor(a$full_covariance_matrix)
 ## Random effects SDs
 
 ```{r}
-print_df(as.data.frame(round(full$sd, 3)))
+print_df(as.data.frame(round(full$sd, 3)),
+  font_size = font_size)
 ```
 
 ## Random effect correlation matrix
 
 ```{r}
-print_df(as.data.frame(round(full$cor, 3)))
+print_df(as.data.frame(round(full$cor, 3)),
+  font_size = font_size)
 ```
 
+:::
 
 ## References
 
