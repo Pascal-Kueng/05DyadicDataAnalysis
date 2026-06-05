@@ -63,6 +63,7 @@ in the folder 00_R_Functions.
 ```{r, results='hide', message=FALSE, warning=FALSE}
 library(tidyverse)
 library(brms)
+library(glmmTMB)
 library(bmlm)
 library(easystats)
 library(DiagrammeR)
@@ -344,21 +345,17 @@ print_df(head(df_apim))
 ```
 
 
-## Distinguishable Dyads - Fitting the Model in BRMS
+## Distinguishable Dyads - Fitting the Model in glmmTMB
 
-Model non-independence either via a shared random intercept or correlated residuals (not both). 
-Posterior predictive checks, residual diagnostics and leave one out cross validation (e.g., via `loo_compare()`) may help inform which one to use. 
+In glmmTMB, random effects with various covariance structures can be specified. A residual covariance can not be directly specified. 
+However, in glmmTMB specifically, we can remove the separate modelling of an independen residual by setting `dispformula = ~ 0`. 
 
-For other families like ordinal regression with brms, one might work better than the other. 
+This forces all residual variance into the random effect we specify. The random effects block now becomes the residual, giving us enormous control over the covariance structure of the residuals. 
 
-## Distinguishable Dyads - Fitting the Model in BRMS
+```{r}
+#| code-line-numbers: "1-15|17-22|24-29|31-42"
 
-```{r }
-#| code-line-numbers: "1-15|17-25|27-32|34-45"
-
-# Option A: Random-intercept model for non-independence
-
-formula <- bf(
+model1_glmmTMB <- glmmTMB(
   satisfaction ~ 
     
     # Remove global intercept, introduce male and female intercepts.
@@ -371,48 +368,44 @@ formula <- bf(
     # Partner effect for male and female
     communication_partner_gmc:is_male + 
     communication_partner_gmc:is_female +
-    
-    # Option 0: Random intercept for male and female (correlated)
-    # NOT identifiable in the cross-sectional case:
-    # (0 + is_male + is_female | coupleID)
-    
-    # Option A: Shared dyad effect - interpretable dyad-level random intercept. 
-    (1 | coupleID), 
   
-  # Two distinct residual variances for males vs females:
-  sigma = ~ 0 + is_male + is_female
+    # Modelling non-independence by using compound symmetry of the residuals. 
+    us(0 + is_male + is_female | coupleID)
+  
+    # Since we model residuals via a cs random effects structure, glmmTMB requires us to remove an 
+    # additional independent residual
+    , dispformula = ~ 0
+  
+    , data = df_apim
 )
-
-priors <- c(
-  # prior(normal(2, 3), class = "Intercept"),
-  prior(normal(0, 5), class = "b"),
-  prior(student_t(3, 0, 1.5), class = "b", dpar = "sigma"),
-  prior(student_t(3, 0, 2.5), class = "sd")
-)
-
-model_dist_apim_a <- brm(
-  formula = formula, 
-  data = df_apim,
-  family = gaussian(link = identity),
-  prior = priors,
-  chains = 4,
-  cores = 4,
-  iter = 2000,
-  warmup = 1000, 
-  seed = 123,
-  file = file.path('brms_cache', 'example1_dist_apim_a') # Cache the model
-)
-
 
 ```
 
+### Distinguishable Dyads - Fitting the Model in glmmTMB
+
+Note that 'unstructured' is the default in glmmTMB, so instead of `us(0 + is_male + is_female | coupleID)`, we could also remove `us` and simply write `(0 + is_male + is_female | coupleID)`. 
+
+```{r}
+
+summary(model1_glmmTMB)
+
+```
+
+## glmmTMB: Current limitation
+
+Usually DHARMa {!TODO: cite package} is an amazing tool for model diagnostics for complex (generalized) MLM. 
+However, when we remove the native residuals `dispformula = ~ 0` the residual is, in practice, set to a tiny constant. 
+
+This confuses model diagnostic packages! I am working on a fix. 
+
 
 ## Distinguishable Dyads - Fitting the Model in BRMS
+
+In brms, we can not use the glmmTMB trick and disable the internal modelling of the residual variance. Instead, we must rely on brms provided residual covariance structures. We can achieve the same model via:
 
 ```{r }
 #| code-line-numbers: "1-15|17-22|24-29|31-42"
 
-# Option B: Residual CS for non-independence (no random intercept)
 
 formula <- bf(
   satisfaction ~ 
@@ -428,11 +421,12 @@ formula <- bf(
     communication_partner_gmc:is_male + 
     communication_partner_gmc:is_female +
   
-    # Option B: Model non-independence by using compound symmetry of the residuals. 
-    # Aligns with the SEM conceptualization / literature
+    # Modelling non-independence by using compound symmetry of the residuals. 
+    # Note that we can't use unstructured here, due to a brms limitation.
+    # But compound symmetry is exactly equivalent with only two partners. 
     cosy(gr = coupleID),
   
-  # Two distinct residual variances for males vs females:
+  # Allowing two distinct residual variances for males vs females:
   sigma = ~ 0 + is_male + is_female
 )
 
@@ -516,7 +510,6 @@ Note that for some of the later models in this tutorial, some ESS values are too
 
 ## Distinguishable Dyads - Results
 
-
 ```{r echo = FALSE}
 
 summary_apim <- summarize_brms(
@@ -534,7 +527,7 @@ print_df(
 
 ```
 
-Note that sigma is reported on the log scale (see `?brms::family.brmsfit()`). Using `exp(value)` retrieves the simulated SD values well. 
+CAREFUL: In contrast to glmmTMB, brms reports sigma on the log scale (see `?brms::family.brmsfit()`). Using `exp(value)` retrieves the simulated SD values well and aligns perfectly with the glmmTMB model. 
 
 ## Distinguishable Dyads - (Intensive) Longitudinal APIM
 
@@ -863,6 +856,8 @@ df_long_apim <- bmlm::isolate(
 
 `nlme` model of this data for reference (simplified random effects structure to achieve convergence).
 
+This package is old, but still often used and cited. So here, we briefly show it to demonstrate that we can achieve the same model with much more modern and powerful methods. 
+
 ```{r cache = TRUE, eval = FALSE}
 #| classes: code-45vh
 
@@ -915,14 +910,11 @@ summary(model1)
 
 ```
 
-## Distinguishable Dyads - L-APIM - Model brms
+## Distinguishable Dyads - L-APIM - Model glmmTMB
 
-Equivalent `brms` model with simplified random effects structure. 
+```{r}
 
-```{r results='hide'}
-#| classes: code-50vh
-
-formula <- bf(
+model1_glmmTMB <- glmmTMB(
   closeness ~ 0 + is_male + is_female +
     
     # Time Slopes
@@ -950,9 +942,105 @@ formula <- bf(
   | coupleID) +
     
     
-  # Accounting for daily non-independence (mimicking nlme's corCompSym)
-  # modelled via common 'shocks' with a random intercept:
-  (1 | coupleID:diaryday)
+  # Accounting for daily non-independence
+  us(0 + is_male + is_female | coupleID:diaryday)
+
+  # heteroscedastic residuals
+  , dispformula = ~ 0
+  , data = df_long_apim
+)
+```
+Note that we could also add `us` before the first random effect term, as this is equivalent. But because the lowest level random effects block is the one that represents the residual covariance strucutre, we only use it there. 
+
+## Distinguishable Dyads - L-APIM - Model glmmTMB
+
+```{r}
+summary(model1_glmmTMB)
+```
+
+## Comparing outputs between nlme and glmmTMB
+
+Let's compare the random effects outputs to see if the models are truly equivalent. 
+
+### nlme
+                     StdDev     Corr                
+is_male              0.83645552 is_mal is_fml is_m:_
+is_female            0.90199634  0.189              
+is_male:diaryday_c   0.01634796  0.544  0.033       
+is_female:diaryday_c 0.01612665  0.204  0.534 -0.012
+Residual             0.72170702                     
+
+Correlation Structure: Compound symmetry
+ Formula: ~1 | coupleID/diaryday 
+ Parameter estimate(s):
+       Rho 
+0.04094751 
+Variance function:
+ Structure: Different standard deviations per stratum
+ Formula: ~1 | gender 
+ Parameter estimates:
+       1        2 
+1.000000 1.554608 
+
+We need to compute the residual for each partner ourselves:
+```{r}
+0.72170702 * 1.000000
+0.72170702 * 1.554608
+
+```
+
+
+### glmmTMB
+
+Random effects:
+
+Conditional model:
+ Groups            Name                 Variance  Std.Dev. Corr              
+ coupleID          is_male              0.6814498 0.82550                    
+                   is_female            0.7930407 0.89053   0.19             
+                   is_male:diaryday_c   0.0002637 0.01624   0.55  0.03       
+                   is_female:diaryday_c 0.0002571 0.01603   0.21  0.54 -0.01 
+ coupleID:diaryday is_male              1.2583552 1.12176                    
+                   is_female            0.5206608 0.72157  0.04              
+
+
+## Distinguishable Dyads - L-APIM - Model brms
+
+Equivalent `brms` model. 
+
+```{r results='hide'}
+#| classes: code-50vh
+
+formula <- bf(
+  closeness ~ 0 + is_male + is_female +
+    
+    # Time Slopes
+    is_male:diaryday_c +
+    is_female:diaryday_c +
+    
+    # Between-Person APIM
+    is_male:provided_support_actor_cbp + 
+    is_male:provided_support_partner_cbp + 
+    
+    is_female:provided_support_actor_cbp + 
+    is_female:provided_support_partner_cbp +
+  
+    # Within-Person APIM
+    is_male:provided_support_actor_cwp + 
+    is_male:provided_support_partner_cwp +
+    
+    is_female:provided_support_actor_cwp + 
+    is_female:provided_support_partner_cwp +
+  
+  # Accounting for non-independence between partners' means and trajectories 
+  # and effect sensitivities via random effects:
+  (0 + is_male + is_female
+    + is_male:diaryday_c + is_female:diaryday_c
+  | coupleID) +
+    
+    
+  # Accounting for daily non-independence
+  cosy(gr = coupleID:diaryday)
 
   # heteroscedastic residuals
   , sigma ~ 0 + is_male + is_female 
@@ -1004,13 +1092,28 @@ print_df(
 
 ```
 
+Note: When comparing to the glmmTMB output, do not forget to exponentiate the two sigmas from brms. 
+
+!TODO: change reporting function to exponentiate from the start for the tables?
+
 ## Distinguishable Dyads - L-APIM - AR1 Model 
 
-We can try to add an AR1 residual structure.
+In glmmTMB, we can try to add an AR1 residual structure.
 
 ```{r eval = FALSE}
-
-    ... +
+    
+    # Accounting for non-independence between partners' means and trajectories 
+    # and effect sensitivities
+    (0 + is_male + is_female
+      + is_male:diaryday_c + is_female:diaryday_c
+    | coupleID) +
+      
+      
+    # Accounting for daily non-independence
+    us(0 + is_male + is_female | coupleID:diaryday) +
+    
+  
+    # Accounting for each persons' autocorrelation. 
     ar(time = diaryday, gr = coupleID:userID, p = 1),
     
   sigma ~ 0 + is_male + is_female
@@ -1019,84 +1122,26 @@ We can try to add an AR1 residual structure.
 
 ```
 
+However, these autocorrelation structures are additive. Additionally, this would imply that both partners in the couple have the exact same AR process. 
 
+**This is not fully in line with the idea of distinguishable dyads!**
 
-```{r echo=FALSE, results='hide'}
-#| classes: code-50vh
+This does also not work in brms, as only one residual structure at a time is supported. 
 
-formula <- bf(
-  closeness ~ 
-    
-    # Intercepts
-    0 + is_male + is_female +
-    
-    # Time Slopes
-    is_male:diaryday_c +
-    is_female:diaryday_c +
-    
-    # Between-Person APIM
-    is_male:provided_support_actor_cbp + 
-    is_male:provided_support_partner_cbp +
-    
-    is_female:provided_support_actor_cbp + 
-    is_female:provided_support_partner_cbp +
-  
-    # Within-Person APIM
-    is_male:provided_support_actor_cwp + 
-    is_male:provided_support_partner_cwp +
-    
-    is_female:provided_support_actor_cwp + 
-    is_female:provided_support_partner_cwp +
-    
-    # Accounting for non-independence between partners' means and trajectories 
-    # and effect sensitivities via random effects:
-    (0 + is_male + is_female +  
-       
-       is_male:diaryday_c + is_female:diaryday_c
-       
-       #+ is_male:provided_support_actor_cwp + 
-       #+ is_male:provided_support_partner_cwp +
-       #+ is_female:provided_support_actor_cwp + 
-       #+ is_female:provided_support_partner_cwp 
-       | coupleID ) + 
-    
-    
-    # Accounting for daily non-independence
-    (1 | coupleID:diaryday) +
-    
-    
-    # Modelling residuals as autocorrelated within each person (order 1)
-    # You may use loo_compare() to get the best converging fit. 
-    ar(time = diaryday, gr = coupleID:userID, p = 1),
-    
-  sigma ~ 0 + is_male + is_female   # heteroscedastic residuals
-)
+## Workarounds if AR processes are plausible
 
-priors <- c(
-  prior(normal(4, 2), class = "b", coef = "is_male"),
-  prior(normal(4, 2), class = "b", coef = "is_female"),
-  prior(normal(0, 2), class = "b")
-)
+In brms, a dynamic MLM can account for temporal dependence from both the actor and partner. 
 
+!TODO: briefly describe. 
+!TODO: briefly explain why this is risky in glmmTMB due to nickel bias or what it is called, and stationarity assumptions being challenged by random effects? if that is correct. 
+!TODO: also mention how this changes interpretation. Show an example implementation
 
-model_dist_apim_long_ar <- brm(
-  formula = formula, 
-  data = df_long_apim,
-  family = gaussian(link = identity), 
-  prior = priors,
-  chains = 4,
-  cores = 4,
-  iter = 2000,
-  warmup = 1000, 
-  seed = 123,
-  file = file.path('brms_cache', 'example1_dist_apim_long_ar') # Cache the model
-)
-
-```
+Future covariance structures that improve on this are in the works in glmmTMB.
 
 ## Distinguishable Dyads - L-APIM - AR1 Model
 
 Warning: Often, the daily shocks and the time slopes are enough and adding AR1 additionally may "soak up" too much variance.  this can bias fixed effects estimates towards 0. 
+!TODO: check if this is even true!
 
 You may want to check which model performs better!
 
@@ -1125,7 +1170,9 @@ In this instance, the AR1 model performs much worse, indicating potential overfi
 
 We add all random slopes and their correlations. This is not converging in `nlme`. 
 
-```{r }
+!TODO: but maybe in glmmTMB?
+
+```{r results='hide'}
 #| classes: code-50vh
 
 formula <- bf(
@@ -1166,7 +1213,7 @@ formula <- bf(
     
     
     # Accounting for daily non-independence
-    (1 | coupleID:diaryday), 
+    cosy(gr = coupleID:diaryday), 
   
   # No more AR1. You could also test MA or ARMA. 
     
@@ -1193,6 +1240,7 @@ model_dist_apim_long_complex <- brm(
   file = file.path('brms_cache', 'example1_dist_apim_long_complex') # Cache the model
 )
 
+summary(model_dist_apim_long_complex)
 ```
 
 ## Maximal Model Specification: Results
@@ -1205,7 +1253,7 @@ summary_apim <- summarize_brms(
     )
 
 print_df(
-  summary_apim, 
+  summary_apim,
   rows_to_pack = list(
     'Fixed Effects' = c(1,12),
     'Random Effects' = c(13, 49),
@@ -1262,7 +1310,6 @@ If there was no obvious difference, we could follow our theory and the philosoph
 
 One approach is to use the `report` package's approach to obtain a p-value for the comparison (see their documentation for which assumptions they make): 
 
-
 ```{r}
 report::report(a)
 ```
@@ -1272,6 +1319,7 @@ In this instance, the maximal model (no AR) seems to be the preferred one.
 In the case of overfitting, we could try to improve the model by subsequently excluding the smallest random effects (or correlations between them) and compare various models. For more guidance on random effects check out @delrosarioPracticalGuideSpecifying2025. 
 
 ## Maximal Model Specification: Comparing Estimates to Simulated Values (Ground Truth)
+!TODO: this was written without cosy in mind but rather a random effect like (1 | coupleID:day). So this needs adjusting. 
 
 ```{r echo = FALSE}
 
@@ -1471,6 +1519,16 @@ print_df(
 ```
 
 
+
+
+
+
+
+
+
+
+
+
 ## Exchangeable Dyads - Cross-Sectional APIM
 
 ![Exchangeable APIM](Embed/APIM_ind_1.png)
@@ -1504,7 +1562,36 @@ print_df(head(df_apim))
 
 ```
 
+## Exchangeable Dyads - Cross-Sectional APIM: glmmTMB
 
+Now, we only have one actor effect and one partner effect. This pools the information from both 
+partners within a couple. 
+
+For the random effects: What we want is to constrain both partners variances to be equal. 
+We could pool similarly as we do in the fixed effects by doing: `(1 | coupleID)`. 
+
+However, this now does not estimate a correaltion between partners anymore!
+
+One solution is the following:
+
+```{r}
+#| code-line-numbers: "1-15|17-22|24-29|31-42"
+
+model1_glmmTMB <- glmmTMB(
+  satisfaction ~ 1 +
+    communication_actor_gmc + communication_partner_gmc
+  
+    # homogenous compound symmetry structure constrains the variances to be equal.
+    homcs(0 + is_male + is_female | coupleID)
+  
+    # Since we model residuals via a cs random effects structure, glmmTMB requires us to remove an 
+    # additional independent residual
+    , dispformula = ~ 0
+  
+    , data = df_apim
+)
+
+```
 
 ## Exchangeable Dyads - Cross-Sectional APIM: Model
 
