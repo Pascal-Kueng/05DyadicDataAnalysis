@@ -37,6 +37,8 @@
 # - model: The fitted Bayesian model object from the `brms` package.
 # - short_version: A logical value indicating whether to return a shortened summary. Default is FALSE.
 # - exponentiate: A logical value indicating whether to exponentiate the coefficients. Default is FALSE.
+# - exponentiate_sigma: A logical value indicating whether to exponentiate brms sigma
+#   distributional parameters while leaving the other coefficients unchanged. Default is FALSE.
 # - model_rows_fixed: Optional. A vector specifying which rows of the fixed effects summary to include.
 # - model_rows_random: Optional. A vector specifying which rows of the random effects summary to include.
 # - model_rownames_fixed: Optional. A vector specifying the row names for the fixed effects summary.
@@ -100,6 +102,7 @@ my_brm <- function(data, imputed_data = NULL, mi = FALSE, file = NULL, ...) {
 
 summarize_brms <- function(model, 
                            exponentiate = FALSE,
+                           exponentiate_sigma = FALSE,
                            invert_zero_component_OR = TRUE,
                            side_by_side_components = TRUE,
                            multivariate_outcomes = c(),
@@ -379,6 +382,17 @@ summarize_brms <- function(model,
     
     # Compute SE using the delta method
     fixed_effects$SE <- fixed_effects$Estimate * fixed_effects$SE
+  }
+  
+  # brms estimates sigma distributional parameters on the link scale.
+  if (exponentiate_sigma && !is.null(random_effects)) {
+    sigma_rows <- grepl("^(b_)?sigma_", rownames(random_effects))
+    if (any(sigma_rows)) {
+      random_effects$Estimate[sigma_rows] <- exp(random_effects$Estimate[sigma_rows])
+      random_effects$`u-95% CI`[sigma_rows] <- exp(random_effects$`u-95% CI`[sigma_rows])
+      random_effects$`l-95% CI`[sigma_rows] <- exp(random_effects$`l-95% CI`[sigma_rows])
+      random_effects$SE[sigma_rows] <- random_effects$Estimate[sigma_rows] * random_effects$SE[sigma_rows]
+    }
   }
   
   # Format estimates with significance
@@ -2249,7 +2263,6 @@ DHARMa.check_brms.all <- function(model, integer = FALSE, outliers_type = 'defau
   try(testZeroInflation(model.check))
   try(testOutliers(model.check, type = outliers_type))
 }
-
 
 
 
