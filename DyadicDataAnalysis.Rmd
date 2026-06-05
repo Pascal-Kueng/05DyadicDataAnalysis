@@ -1106,15 +1106,13 @@ Note: Sigma rows are shown on the response scale; they were exponentiated from b
 
 In this model, same-day partner interdependence is handled by `cosy(gr = coupleID:diaryday)`. In current univariate brms models, we cannot combine this residual correlation structure with `ar()` in the same formula.
 
-Replacing `cosy()` with `(1 | coupleID:diaryday) + ar(...)` is possible, but it is not the same model. It changes the same-day dyadic dependency and adds an AR process at the same time, so a LOO comparison would not isolate the value of AR(1).
+The cleanest currently possible solution would be a multivariate model or a custom Stan model.
 
-The cleanest solution would be a covariance structure that jointly models same-day partner interdependence and within-person autocorrelation, or a multivariate/custom Stan model.
+### Dynamic Workaround
 
-## Distinguishable Dyads - L-APIM - Dynamic Workaround
+A dynamic MLM can account for temporal dependence by including lagged outcomes as predictors. In dyadic data, this can include actor inertia and partner spillover: today's closeness is predicted by yesterday's own closeness and yesterday's partner closeness, in addition to the concurrent APIM predictors.
 
-As a sensitivity analysis, a dynamic MLM can account for temporal dependence by including lagged outcomes as predictors. In dyadic data, this can include actor inertia and partner spillover: today's closeness is predicted by yesterday's own closeness and yesterday's partner closeness, in addition to the concurrent APIM predictors.
-
-This is not a drop-in replacement for residual AR(1). The APIM coefficients become effects conditional on prior closeness, not total within-person associations. Lagged-outcome models can also suffer from dynamic-panel bias, often called Nickell bias [@nickellBiasesDynamicModels1981], because the lagged outcome is related to person/couple effects and prior residuals. This is especially problematic with short time series; with longer intensive longitudinal panels it is often less severe, but it should still be discussed.
+This is not a drop-in replacement for residual AR(1). The APIM coefficients become effects conditional on prior closeness, not total within-person associations. Lagged-outcome models can also suffer from dynamic-panel bias, often called Nickell bias [@nickellBiasesDynamicModels1981], because the lagged outcome is related to person/couple effects and prior residuals. This is especially problematic with short time series. 
 
 ```{r eval = FALSE}
 df_long_dyn <- df_long_apim |>
@@ -1821,7 +1819,7 @@ formula <- bf(
     communication_cbc+ communication_cwc + 
     cosy(gr = coupleID) 
   
-    # sigma ~ 1 is implied and does not have to be specified. 
+    # sigma ~ 1 is implied.  
 )
 
 priors <- c(
@@ -2294,8 +2292,6 @@ print_df(
 ### Side Note:
 
 In the **distinguishable** case, the **Dyadic Score Model (DSM)** [e.g., @stadlerHowCompanionshipRelated2023] is equivalent to the APIM! [@Bolger2025Unified; @iidaModelsInterdependentIndividuals2018]
-
-
 
 
 
