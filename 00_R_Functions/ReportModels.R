@@ -2137,6 +2137,7 @@ check_brms <- function(
 
 DHARMa.check_brms <- function(model,        
                        integer = FALSE,   # integer response? (TRUE/FALSE)
+                       ndraws = 1000,
                        plot = TRUE,       
                        ...) {
   
@@ -2144,13 +2145,36 @@ DHARMa.check_brms <- function(model,
   if (!"Y" %in% names(mdata))
     stop("Cannot extract the required information from this brms model")
   
+  observed_response <- as.vector(mdata$Y)
+  
+  simulated_response <- brms::posterior_predict(model, ndraws = ndraws)
+  if (length(dim(simulated_response)) != 2) {
+    stop("DHARMa.check_brms currently supports only univariate brms models")
+  }
+  if (ncol(simulated_response) == length(observed_response)) {
+    simulated_response <- t(simulated_response)
+  } else if (nrow(simulated_response) != length(observed_response)) {
+    stop(
+      "Dimension mismatch: posterior_predict returned ",
+      paste(dim(simulated_response), collapse = " x "),
+      " values, but observed response has length ",
+      length(observed_response)
+    )
+  }
+  
+  fitted_response <- brms::posterior_epred(model, ndraws = ndraws)
+  if (length(dim(fitted_response)) == 2 && ncol(fitted_response) == length(observed_response)) {
+    fitted_response <- apply(fitted_response, 2, median)
+  } else if (length(dim(fitted_response)) == 2 && nrow(fitted_response) == length(observed_response)) {
+    fitted_response <- apply(fitted_response, 1, median)
+  } else {
+    fitted_response <- apply(simulated_response, 1, median)
+  }
+  
   dharma.obj <- DHARMa::createDHARMa(
-    simulatedResponse = t(brms::posterior_predict(model, ndraws = 1000)),
-    observedResponse = mdata$Y, 
-    fittedPredictedResponse = apply(
-      t(brms::posterior_epred(model, ndraws = 1000, re.form = NA)),
-      1,
-      median),
+    simulatedResponse = simulated_response,
+    observedResponse = observed_response, 
+    fittedPredictedResponse = fitted_response,
     integerResponse = integer,
     seed = 123
     )
@@ -2263,7 +2287,6 @@ DHARMa.check_brms.all <- function(model, integer = FALSE, outliers_type = 'defau
   try(testZeroInflation(model.check))
   try(testOutliers(model.check, type = outliers_type))
 }
-
 
 
 

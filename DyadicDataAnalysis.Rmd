@@ -1110,73 +1110,43 @@ The cleanest currently possible solution would be a multivariate model or a cust
 
 ### Dynamic Workaround
 
-A dynamic MLM can account for temporal dependence by including lagged outcomes as predictors. In dyadic data, this can include actor inertia and partner spillover: today's closeness is predicted by yesterday's own closeness and yesterday's partner closeness, in addition to the concurrent APIM predictors.
+A dynamic MLM can account for temporal dependence by including lagged within-person centered outcomes as predictors. In dyadic data, this can include actor inertia and partner spillover: today's closeness is predicted by yesterday's own deviation from typical closeness and yesterday's partner deviation from typical closeness, in addition to the concurrent APIM predictors.
 
 This is not a drop-in replacement for residual AR(1). The APIM coefficients become effects conditional on prior closeness, not total within-person associations. Lagged-outcome models can also suffer from dynamic-panel bias, often called Nickell bias [@nickellBiasesDynamicModels1981], because the lagged outcome is related to person/couple effects and prior residuals. This is especially problematic with short time series. 
 
 ```{r eval = FALSE}
-df_long_dyn <- df_long_apim |>
-  dplyr::arrange(userID, diaryday) |>
-  dplyr::group_by(userID) |>
-  dplyr::mutate(closeness_actor_lag = dplyr::lag(closeness)) |>
-  dplyr::ungroup() |>
-  dplyr::group_by(coupleID, diaryday) |>
+df_long_dyn <- df_long_apim %>%
+  dplyr::arrange(userID, diaryday) %>%
+  dplyr::group_by(userID) %>%
   dplyr::mutate(
-    closeness_partner_lag = closeness_actor_lag[match(3 - gender, gender)]
-  ) |>
-  dplyr::ungroup() |>
-  dplyr::filter(!is.na(closeness_actor_lag), !is.na(closeness_partner_lag)) |>
+    closeness_cwp = closeness - mean(closeness, na.rm = TRUE),
+    closeness_actor_lag_cwp = dplyr::lag(closeness_cwp)
+  ) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(coupleID, diaryday) %>%
   dplyr::mutate(
-    closeness_actor_lag_c = closeness_actor_lag - mean(closeness_actor_lag),
-    closeness_partner_lag_c = closeness_partner_lag - mean(closeness_partner_lag)
-  )
+    closeness_partner_lag_cwp = closeness_actor_lag_cwp[match(3 - gender, gender)]
+  ) %>%
+  dplyr::ungroup() %>%
+  dplyr::filter(!is.na(closeness_actor_lag_cwp), !is.na(closeness_partner_lag_cwp))
 ```
 
 ## Distinguishable Dyads - L-APIM - Dynamic Workaround
 
 ```{r eval = FALSE}
 # Add these terms to the fixed-effects part of the APIM:
-is_male:closeness_actor_lag_c +
-is_male:closeness_partner_lag_c +
-is_female:closeness_actor_lag_c +
-is_female:closeness_partner_lag_c
+is_male:closeness_actor_lag_cwp +
+is_male:closeness_partner_lag_cwp +
+is_female:closeness_actor_lag_cwp +
+is_female:closeness_partner_lag_cwp
 ```
 
-Use this as a sensitivity analysis for temporal dynamics, not as the primary APIM unless the conditional-on-lag interpretation matches the research question.
+You way want to use this as a sensitivity analysis for temporal dynamics, not as the primary APIM unless the conditional-on-lag interpretation matches the research question (due to the Nickell-bias).
 
-## Maximal Model Specification (no AR(1))
+## Maximal Model Specification (non-dynamic/no AR(1))
 
-We add all random slopes and their correlations. This is not converging in `nlme`. 
+We add all random slopes and their correlations. This is neither converging in `nlme` nor `glmmTMB`. 
 
-The same maximal random-effects idea can also be attempted in glmmTMB. This is a useful convergence check, but it estimates a large covariance matrix with only 100 couples, so inspect warnings, boundary estimates, and the Hessian before trusting the fit.
-
-```{r eval = FALSE}
-model_dist_apim_long_complex_glmmTMB <- glmmTMB(
-  closeness ~ 
-    0 + is_male + is_female +
-    is_male:diaryday_c + is_female:diaryday_c +
-    is_male:provided_support_actor_cbp +
-    is_male:provided_support_partner_cbp +
-    is_female:provided_support_actor_cbp +
-    is_female:provided_support_partner_cbp +
-    is_male:provided_support_actor_cwp +
-    is_male:provided_support_partner_cwp +
-    is_female:provided_support_actor_cwp +
-    is_female:provided_support_partner_cwp +
-    
-    us(0 + is_male + is_female +
-         is_male:diaryday_c + is_female:diaryday_c +
-         is_male:provided_support_actor_cwp +
-         is_male:provided_support_partner_cwp +
-         is_female:provided_support_actor_cwp +
-         is_female:provided_support_partner_cwp | coupleID) +
-    
-    us(0 + is_male + is_female | coupleID:diaryday),
-  
-  dispformula = ~ 0,
-  data = df_long_apim
-)
-```
 
 ```{r results='hide'}
 #| classes: code-50vh
@@ -1342,10 +1312,71 @@ fit <- model_dist_apim_long_complex  # your model
 # ---------------------------
 # 1) Empirical "truth" from this simulation draw
 # ---------------------------
-true_sd_int_m  <- sd(RE$re_b0_m)
-true_sd_int_f  <- sd(RE$re_b0_f)
-true_sd_time_m <- sd(RE$re_time_m)
-true_sd_time_f <- sd(RE$re_time_f)
+mean_day <- mean(days)  # e.g., 27 for 0:54
+
+# Fixed-effect truth on the same centered-predictor scale used by the model.
+fixed_truth_data <- panel |>
+  dplyr::mutate(
+    fixed_only =
+      fix_b0 + fix_time * diaryday +
+      fix_bp_actor   * actor_cbp   + fix_bp_partner * partner_cbp +
+      fix_wp_actor   * actor_cwp   + fix_wp_partner * partner_cwp
+  ) |>
+  dplyr::select(userID, coupleID, diaryday, fixed_only) |>
+  dplyr::inner_join(df_long_apim, by = c("userID", "coupleID", "diaryday"))
+
+fixed_truth_fit <- stats::lm(
+  fixed_only ~
+    0 + is_male + is_female +
+    is_male:diaryday_c + is_female:diaryday_c +
+    is_male:provided_support_actor_cbp +
+    is_male:provided_support_partner_cbp +
+    is_female:provided_support_actor_cbp +
+    is_female:provided_support_partner_cbp +
+    is_male:provided_support_actor_cwp +
+    is_male:provided_support_partner_cwp +
+    is_female:provided_support_actor_cwp +
+    is_female:provided_support_partner_cwp,
+  data = fixed_truth_data
+)
+fixed_truth <- coef(fixed_truth_fit)
+
+# Random effects on the same centered-time scale used by the fitted model.
+true_re_tbl <- tibble::tibble(
+  is_male = RE$re_b0_m + RE$re_time_m * mean_day,
+  is_female = RE$re_b0_f + RE$re_time_f * mean_day,
+  `is_male:diaryday_c` = RE$re_time_m,
+  `is_female:diaryday_c` = RE$re_time_f,
+  `is_male:provided_support_actor_cwp` = RE$re_wpA_m,
+  `is_male:provided_support_partner_cwp` = RE$re_wpP_m,
+  `is_female:provided_support_actor_cwp` = RE$re_wpA_f,
+  `is_female:provided_support_partner_cwp` = RE$re_wpP_f
+)
+
+re_sd_truth <- purrr::map_dbl(true_re_tbl, sd)
+re_cor_truth <- stats::cor(true_re_tbl)
+
+re_sd_labels <- c(
+  "is_male" = "Couple intercept SD (male)",
+  "is_female" = "Couple intercept SD (female)",
+  "is_male:diaryday_c" = "Time slope SD (male)",
+  "is_female:diaryday_c" = "Time slope SD (female)",
+  "is_male:provided_support_actor_cwp" = "Actor WP slope SD (male)",
+  "is_male:provided_support_partner_cwp" = "Partner WP slope SD (male)",
+  "is_female:provided_support_actor_cwp" = "Actor WP slope SD (female)",
+  "is_female:provided_support_partner_cwp" = "Partner WP slope SD (female)"
+)
+
+re_cor_labels <- c(
+  "is_male" = "Intercept (male)",
+  "is_female" = "Intercept (female)",
+  "is_male:diaryday_c" = "Time slope (male)",
+  "is_female:diaryday_c" = "Time slope (female)",
+  "is_male:provided_support_actor_cwp" = "Actor WP slope (male)",
+  "is_male:provided_support_partner_cwp" = "Partner WP slope (male)",
+  "is_female:provided_support_actor_cwp" = "Actor WP slope (female)",
+  "is_female:provided_support_partner_cwp" = "Partner WP slope (female)"
+)
 
 true_resid_tbl <- panel |>
   dplyr::mutate(resid_total = z_day + e_it)
@@ -1359,33 +1390,54 @@ true_cosy <- true_resid_tbl |>
   dplyr::summarise(r = stats::cor(gender_1, gender_2)) |>
   dplyr::pull(r)
 
-mean_day <- mean(days)  # e.g., 27 for 0:54
+fixed_truth_tbl <- tibble::tribble(
+  ~group, ~parameter, ~coef_name,
+  "Fixed", "Intercept (male)", "is_male",
+  "Fixed", "Intercept (female)", "is_female",
+  "Fixed", "Time slope (male)", "is_male:diaryday_c",
+  "Fixed", "Time slope (female)", "is_female:diaryday_c",
+  "Between-person", "Actor BP (male)", "is_male:provided_support_actor_cbp",
+  "Between-person", "Partner BP (male)", "is_male:provided_support_partner_cbp",
+  "Between-person", "Actor BP (female)", "is_female:provided_support_actor_cbp",
+  "Between-person", "Partner BP (female)", "is_female:provided_support_partner_cbp",
+  "Within-person", "Actor WP (male)", "is_male:provided_support_actor_cwp",
+  "Within-person", "Partner WP (male)", "is_male:provided_support_partner_cwp",
+  "Within-person", "Actor WP (female)", "is_female:provided_support_actor_cwp",
+  "Within-person", "Partner WP (female)", "is_female:provided_support_partner_cwp"
+) |>
+  dplyr::mutate(true = unname(fixed_truth[coef_name]), scale = "identity") |>
+  dplyr::select(group, parameter, true, scale)
 
-truth_tbl <- tibble::tribble(
+re_sd_truth_tbl <- tibble::tibble(
+  group = "Random effects (SD)",
+  parameter = unname(re_sd_labels[names(re_sd_truth)]),
+  true = unname(re_sd_truth),
+  scale = "identity"
+)
+
+re_cor_truth_tbl <- t(combn(names(re_cor_labels), 2)) |>
+  as.data.frame() |>
+  dplyr::rename(param1 = V1, param2 = V2) |>
+  dplyr::mutate(
+    group = "Random effects (cor)",
+    parameter = paste0("cor(", re_cor_labels[param1], ", ", re_cor_labels[param2], ")"),
+    true = purrr::map2_dbl(param1, param2, ~ re_cor_truth[.x, .y]),
+    scale = "identity"
+  ) |>
+  dplyr::select(group, parameter, true, scale)
+
+resid_truth_tbl <- tibble::tribble(
   ~group, ~parameter, ~true, ~scale,
-  # Fixed effects (population-level) -- align to diaryday_c = 0
-  "Fixed", "Intercept (male)",    b0_male   + b_time_male   * mean_day, "identity",
-  "Fixed", "Intercept (female)",  b0_female + b_time_female * mean_day, "identity",
-  "Fixed", "Time slope (male)",   b_time_male,   "identity",
-  "Fixed", "Time slope (female)", b_time_female, "identity",
-  # Between/Within — unchanged
-  "Between-person", "Actor BP (male)",     b_bp_actor_m,   "identity",
-  "Between-person", "Partner BP (male)",   b_bp_partner_m, "identity",
-  "Between-person", "Actor BP (female)",   b_bp_actor_f,   "identity",
-  "Between-person", "Partner BP (female)", b_bp_partner_f, "identity",
-  "Within-person",  "Actor WP (male)",     b_wp_actor_m,   "identity",
-  "Within-person",  "Partner WP (male)",   b_wp_partner_m, "identity",
-  "Within-person",  "Actor WP (female)",   b_wp_actor_f,   "identity",
-  "Within-person",  "Partner WP (female)", b_wp_partner_f, "identity",
-  # Random effects (Simulated)
-  "Random effects (SD)", "Couple intercept SD (male)",    sd(RE$re_b0_m),  "identity",
-  "Random effects (SD)", "Couple intercept SD (female)",  sd(RE$re_b0_f),  "identity",
-  "Random effects (SD)", "Time slope SD (male)",          sd(RE$re_time_m),"identity",
-  "Random effects (SD)", "Time slope SD (female)",        sd(RE$re_time_f),"identity",
-  "Residuals", "Same-day residual correlation",           true_cosy, "identity",
-  # Residuals (empirical; model is log-sigma -> we exp() on extraction)
-  "Residuals", "Residual SD (male) (exp)",   true_sigma_m, "exp",
+  "Residuals", "Same-day residual correlation", true_cosy, "identity",
+  "Residuals", "Residual SD (male) (exp)", true_sigma_m, "exp",
   "Residuals", "Residual SD (female) (exp)", true_sigma_f, "exp"
+)
+
+truth_tbl <- dplyr::bind_rows(
+  fixed_truth_tbl,
+  re_sd_truth_tbl,
+  re_cor_truth_tbl,
+  resid_truth_tbl
 )
 
 
@@ -1436,35 +1488,30 @@ fix_labeled <- map_fixed |>
   tidyr::unnest(out)
 
 
-# (B) Group-level SDs (random effects)
-# Expected names (examples):
-#  sd_coupleID__is_male
-#  sd_coupleID__is_female
-#  sd_coupleID__is_male:diaryday_c
-#  sd_coupleID__is_female:diaryday_c
+# (B) Group-level SDs and correlations (random effects)
 sd_all <- get_summaries(fit, pattern = "^sd_")
 
-map_sds <- tribble(
-  ~param_regex,                                  ~label,
-  "^sd_coupleID__is_male$",                      "Couple intercept SD (male)",
-  "^sd_coupleID__is_female$",                    "Couple intercept SD (female)",
-  "^sd_coupleID__is_male:diaryday_c$",           "Time slope SD (male)",
-  "^sd_coupleID__is_female:diaryday_c$",         "Time slope SD (female)"
-)
-
-sd_labeled <- map_sds |>
-  rowwise() |>
-  mutate(
-    out = list(
-      sd_all |>
-        filter(str_detect(param, param_regex)) |>
-        mutate(parameter = label, scale = "identity") |>
-        dplyr::select(parameter, Estimate, Lower, Upper, scale)
-    )
+sd_labeled <- sd_all |>
+  dplyr::mutate(
+    component = stringr::str_remove(param, "^sd_coupleID__"),
+    parameter = unname(re_sd_labels[component]),
+    scale = "identity"
   ) |>
-  ungroup() |>
-  dplyr::select(out) |>
-  tidyr::unnest(out)
+  dplyr::filter(!is.na(parameter)) |>
+  dplyr::select(parameter, Estimate, Lower, Upper, scale)
+
+cor_all <- get_summaries(fit, pattern = "^cor_coupleID__")
+
+cor_labeled <- cor_all |>
+  dplyr::mutate(
+    components = stringr::str_remove(param, "^cor_coupleID__"),
+    param1 = stringr::str_split_fixed(components, "__", 2)[, 1],
+    param2 = stringr::str_split_fixed(components, "__", 2)[, 2],
+    parameter = paste0("cor(", re_cor_labels[param1], ", ", re_cor_labels[param2], ")"),
+    scale = "identity"
+  ) |>
+  dplyr::filter(!is.na(re_cor_labels[param1]), !is.na(re_cor_labels[param2])) |>
+  dplyr::select(parameter, Estimate, Lower, Upper, scale)
 
 # (C) Residual sigmas (distributional parameters on log scale)
 # With sigma ~ 0 + is_male + is_female, brms names population-level params:
@@ -1472,8 +1519,8 @@ sd_labeled <- map_sds |>
 draws <- as_draws_df(fit)
 resid_map <- tribble(
   ~param_draw,            ~label,
-  "b_sigma_is_male",      "Residual SD (male) \u2020",
-  "b_sigma_is_female",    "Residual SD (female) \u2020"
+  "b_sigma_is_male",      "Residual SD (male) (exp)",
+  "b_sigma_is_female",    "Residual SD (female) (exp)"
 )
 
 resid_summ <- resid_map |>
@@ -1502,7 +1549,7 @@ cosy_summ <- if (nrow(cosy_all) > 0) {
 }
 
 # Combine estimates
-est_tbl <- bind_rows(fix_labeled, sd_labeled, cosy_summ, resid_summ)
+est_tbl <- bind_rows(fix_labeled, sd_labeled, cor_labeled, cosy_summ, resid_summ)
 
 # ---------------------------
 # 3) Join truth + estimates and compute diagnostics
@@ -1511,14 +1558,12 @@ full_tbl <- truth_tbl |>
   dplyr::select(group, parameter, true, scale) |>
   left_join(est_tbl, by = c("parameter","scale")) |>
   mutate(
-    covered  = !is.na(Lower) & true >= round(pmin(Lower, Upper), 3) & true <= round(pmax(Lower, Upper), 3),
-    pct_err  = 100 * (Estimate - true) / true,
+    covered  = !is.na(Lower) & true >= pmin(Lower, Upper) & true <= pmax(Lower, Upper),
+    abs_error = abs(Estimate - true),
     Recovery = dplyr::case_when(
       is.na(Estimate)                ~ "—",
-      !covered                       ~ "Miss",
-      abs(pct_err) <= 5              ~ "Excellent",
-      abs(pct_err) <= 15             ~ "Good",
-      TRUE                           ~ "OK"
+      covered                        ~ "Covered",
+      TRUE                           ~ "Miss"
     ),
     `95% CI` = ifelse(is.na(Lower), "", sprintf("[%.3f, %.3f]", Lower, Upper))
   ) |>
@@ -1528,12 +1573,12 @@ full_tbl <- truth_tbl |>
     `True (Simulated)` = true,
     Estimate, `95% CI`,
     Coverage = covered,
-    `% Error` = pct_err,
+    `Abs. Error` = abs_error,
     Recovery
   ) |>
   mutate(
     Coverage = ifelse(is.na(Estimate), "", ifelse(Coverage, "Yes", "No")),
-    `% Error` = ifelse(is.na(Estimate), "", sprintf("%.2f%%", `% Error`))
+    `Abs. Error` = ifelse(is.na(Estimate), "", sprintf("%.3f", `Abs. Error`))
   )
 
 # ---------------------------
@@ -1604,17 +1649,22 @@ Often, this is attempted via: `(1 | coupleID)`.
   - This fixes both partners' residual variances to be equal (pooled)
   - However, it does **not** allow for a correaltion between partners anymore! The correlation between partners is implied to be perfect (1). 
 
-One solution is the following:
+One solution in glmmTMB is the following:
 
 ```{r results='hide'}
 #| code-line-numbers: "2-4|6-7|9-13"
 
 model1_glmmTMB <- glmmTMB(
-  satisfaction ~ 1 +
+  satisfaction ~ 
+    
+    # Pooled single intercept
+    1 +
+    
+    # Pooled actor and partner effects
     communication_actor_gmc + communication_partner_gmc +
   
     # homogenous compound symmetry structure constrains the variances to be equal.
-    # we do not need to take gender here, we could construct arbitrary categorization. 
+    # we do not need to take gender here, we could construct an arbitrary categorization. 
     homcs(0 + is_male + is_female | coupleID)
   
     # Since we model residuals via a cs random effects structure, glmmTMB requires us to remove an 
@@ -1637,7 +1687,15 @@ This successfully returns a single pooled residual variance, and a correlation b
 summary(model1_glmmTMB)
 ```
 
+## Exchangeable Dyads - Cross-Sectional APIM: glmmTMB
+
+Note that this approach does not generalize to the ILD case! Therefore, we will
+introduce an alternative that works across packages later on. 
+
 ## Exchangeable Dyads - Cross-Sectional APIM: Brms
+
+In brms, this issue can also be solved more elegantly immediately by simply providing a group argument
+to the `cosy` function and not specifying different residual variances:
 
 ```{r }
 #| code-line-numbers: "2-16|18-36"
