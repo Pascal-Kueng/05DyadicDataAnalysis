@@ -18,7 +18,6 @@ format:
     code-overflow: wrap
     code-copy: true
     code-tools: false
-    code-block-height: 55vh
     toc: false
     df-print: default
     transition: slide

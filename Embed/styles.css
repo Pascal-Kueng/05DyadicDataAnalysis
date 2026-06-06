@@ -42,17 +42,66 @@
   line-height: 2em;
 }
 
-/* Default: Let code scroll if needed */
-.reveal pre.sourceCode {
-  overflow: auto;
+/* Code blocks use remaining slide height and scroll internally. */
+.reveal .slides section.present.slide:has(pre.sourceCode) {
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
-/* Optional height utilities */
-.code-30vh pre.sourceCode { max-height: 30vh; }
-.code-35vh pre.sourceCode { max-height: 35vh; }
-.code-40vh pre.sourceCode { max-height: 40vh; }
-.code-45vh pre.sourceCode { max-height: 45vh; }
-.code-50vh pre.sourceCode { max-height: 50vh; }
+.reveal .slides section.present.slide:has(pre.sourceCode) > * {
+  flex: 0 0 auto;
+}
+
+.reveal .slides section.present.slide:has(pre.sourceCode) > .cell:has(pre.sourceCode),
+.reveal .slides section.present.slide:has(pre.sourceCode) > .columns:has(pre.sourceCode),
+.reveal .slides section.present.slide:has(pre.sourceCode) .column:has(pre.sourceCode) > .cell:has(pre.sourceCode) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.reveal .slides section.present.slide:has(pre.sourceCode) .columns:has(pre.sourceCode),
+.reveal .slides section.present.slide:has(pre.sourceCode) .column:has(pre.sourceCode),
+.reveal .cell:has(pre.sourceCode),
+.reveal .code-copy-outer-scaffold:has(pre.sourceCode),
+.reveal div.sourceCode.cell-code {
+  min-height: 0;
+}
+
+.reveal .cell:has(pre.sourceCode) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.reveal .code-copy-outer-scaffold:has(pre.sourceCode) {
+  display: flex;
+  flex: 0 1 auto;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.reveal div.sourceCode.cell-code {
+  flex: 1 1 auto;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.reveal pre.sourceCode {
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+/* Optional height utilities still cap code when a slide has extra space. */
+.code-30vh pre.sourceCode { max-height: min(30vh, 100%); }
+.code-35vh pre.sourceCode { max-height: min(35vh, 100%); }
+.code-40vh pre.sourceCode { max-height: min(40vh, 100%); }
+.code-45vh pre.sourceCode { max-height: min(45vh, 100%); }
+.code-50vh pre.sourceCode { max-height: min(50vh, 100%); }
 
 
 
