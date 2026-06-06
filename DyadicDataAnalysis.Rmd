@@ -353,8 +353,7 @@ However, in glmmTMB specifically, we can remove the separate modelling of an ind
 This forces all residual variance into the random effect we specify. The random effects block now becomes the residual, giving us enormous control over the covariance structure of the residuals. 
 
 ```{r fit-dist-apim-glmmtmb, results='hide', message=FALSE, warning=FALSE}
-#| code-line-numbers: "2-14|16-17|19-23"
-
+#| code-line-numbers: "1-13|15-16|18-22"
 model_dist_apim_glmmtmb <- glmmTMB(
   satisfaction ~ 
     
@@ -404,9 +403,7 @@ This confuses model diagnostic packages! I am working on a fix.
 In brms, we cannot use the glmmTMB trick and disable the internal modelling of the residual variance. Instead, we must rely on brms-provided residual covariance structures. We can achieve the same model via:
 
 ```{r fit-dist-apim-brms, results='hide', message=FALSE, warning=FALSE}
-#| code-line-numbers: "3-15|17-23|26-31|33-43"
-
-
+#| code-line-numbers: "1-13|15-21|24-29|31-41"
 formula_dist_apim_b <- bf(
   satisfaction ~ 
     
@@ -1649,8 +1646,7 @@ Often, this is attempted via: `(1 | coupleID)`.
 One solution in glmmTMB is the following:
 
 ```{r fit-exch-apim-glmmtmb, results='hide', message=FALSE, warning=FALSE}
-#| code-line-numbers: "2-4|6-7|9-13"
-
+#| code-line-numbers: "1-3|5-6|8-12"
 model_exch_apim_glmmtmb <- glmmTMB(
   satisfaction ~ 
     
@@ -1693,8 +1689,7 @@ In brms, this issue can also be solved more elegantly immediately by simply prov
 to the `cosy` function and not specifying different residual variances:
 
 ```{r fit-exch-apim-brms, results='hide', message=FALSE, warning=FALSE}
-#| code-line-numbers: "2-16|18-36"
-
+#| code-line-numbers: "1-13|15-20|22-33"
 formula_exch_apim <- bf(
   satisfaction ~ 1 + 
     communication_actor_gmc + communication_partner_gmc + 
@@ -1869,8 +1864,7 @@ print_df(head(df_dim))
 ## Exchangeable Dyads - Cross-Sectional DIM: Model
 
 ```{r fit-exch-dim-brms, results='hide', message=FALSE, warning=FALSE}
-#| code-line-numbers: "2-6|8-13|15-26"
-
+#| code-line-numbers: "1-7|9-14|16-27"
 formula_exch_dim <- bf(
   satisfaction ~ 1 + 
     communication_cbc+ communication_cwc + 
