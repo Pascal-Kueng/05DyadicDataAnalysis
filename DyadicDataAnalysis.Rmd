@@ -2435,10 +2435,16 @@ df_long_dim <- df_long_dim %>%
   mutate(
     base = ifelse(userID == min(userID), 1, -1),
     flip = 1 - 2 * rbinom(1, 1, 0.5),   # yields +1 or -1 once per couple
-    Idiff = base * flip
+    Idiff = base * flip,
+    
+    # Not needed for brms, but for glmmTMB we create two dummy variables representing
+    # randomly selected partner 1 and partner 2.
+    is_partner1 = as.numeric(Idiff == 1),
+    is_partner2 = as.numeric(Idiff == -1)
   ) %>%
   ungroup() %>%
   relocate(Idiff, .after = coupleID) %>%
+  relocate(is_partner1, is_partner2, .after = Idiff) %>%
   dplyr::select(-base, -flip)
 
 
@@ -2456,10 +2462,13 @@ df_long_dim <- df_long_dim %>%
   mutate(
     base = ifelse(userID == min(userID), 1, -1),
     flip = 1 - 2 * rbinom(1, 1, 0.5),   # yields +1 or -1 once per couple
-    Idiff = base * flip
+    Idiff = base * flip,
+    is_partner1 = as.numeric(Idiff == 1),
+    is_partner2 = as.numeric(Idiff == -1)
   ) %>%
   ungroup() %>%
   relocate(Idiff, .after = coupleID) %>%
+  relocate(is_partner1, is_partner2, .after = Idiff) %>%
   dplyr::select(-base, -flip)
 
 
@@ -2467,7 +2476,63 @@ print_df(print_couple_preview(df_long_dim, couple_id = "31", days = 0:4))
 
 ```
 
-## Exchangeable Dyads - Longitudinal APIM/DIM: Model
+
+## Exchangeable Dyads - Longitudinal APIM/DIM: glmmTMB
+
+```{r }
+
+model_apim_ind_long_glmmTMB <- glmmTMB(
+  closeness ~ 1 + 
+    
+    diaryday_c +
+  
+    # Within-person APIM
+    provided_support_actor_cwp + 
+    provided_support_partner_cwp +
+    # Equivalent to within-person DIM:
+    # provided_support_cwp_mean + 
+    # provided_support_cwp_halfdiff +
+  
+    # Between-person APIM
+    provided_support_actor_cbp +
+    provided_support_partner_cbp +
+    # Equivalent to between-person DIM
+    # provided_support_cwcbp+
+    # provided_support_cbc +
+    
+    # Dyad-Level intercept and slopes for time-varying predictors
+    (1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp | coupleID) +
+    
+    # Both partners' deviations from these dyad-level means and slopes.
+    # Note: separate random effects block to make them uncorrelated form dyad-level REs. 
+    (0 + Idiff + 
+         I(Idiff * diaryday_c) + 
+         I(Idiff * provided_support_actor_cwp) + 
+         I(Idiff * provided_support_partner_cwp) | coupleID) +
+    
+    # After accounting for stable differences between partners, they may still be
+    # non-independent each day due to external occurrences and daily exchange processes
+    # not captured in the fixed effects. Thus, residuals are not yet independent. 
+    # To model this in glmmTMB, we can either do: 
+    
+    # Option 1 (as before): 
+    homcs(0 + is_partner1 + is_partner2 | coupleID:diaryday)
+    
+    # Option 2 (in line with the Idiff approach above, 
+    # but would need to be rotated back for clean interpretation):
+    # un(1 | coupleID) + un(0 + Idiff | coupleID)
+  
+  # In glmmTMB always remove the residual variance if modelling via random effects.
+  , dispformula = ~ 0
+  , data = df_long_dim
+)
+
+summary(model_apim_ind_long_glmmTMB)
+```
+
+## Exchangeable Dyads - Longitudinal APIM/DIM: brms
+
+in Brms, the same model can be estimated as:
 
 ```{r }
 
@@ -2492,6 +2557,7 @@ formula <- bf(
     
     # Dyad-Level intercept and slopes for time-varying predictors
     (1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp | coupleID) +
+    
     # Both partners' deviations from these dyad-level means and slopes.
     # Note: separate random effects block to make them uncorrelated form dyad-level REs. 
     (0 + Idiff + 
@@ -2500,7 +2566,7 @@ formula <- bf(
          I(Idiff * provided_support_partner_cwp) | coupleID) +
     
     # After accounting for stable differences between partners, they may still be
-    # non-independen each day due to external occurrences and daily exchange processes
+    # non-independent each day due to external occurrences and daily exchange processes
     # not captured in the fixed effects. Thus, residuals are not yet independent. 
     # To model this in brms: 
     cosy(gr = coupleID:diaryday)
@@ -2665,7 +2731,8 @@ print_df(
 
 ## Extract Full APIM Random Effects Variance-Covariance Matrix
 
-We can rotate the random effects structure back to obtain the full APIM Random effects variance-covariance matrix [@kenny_ackerman_2023]. 
+We can rotate the random effects structure back to obtain the full APIM Random effects variance-covariance matrix, based on
+[@kenny_ackerman_2023]. 
 Just as we would in a SEM model with equality constraints!
 
 For example, the within-person variance of the intercept is:
