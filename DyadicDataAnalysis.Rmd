@@ -2360,7 +2360,33 @@ that partners are indistinguishable.
 
 ```{r echo=FALSE, results='hide'}
 
-df_long_apim2 <- df_long_apim[,c('userID', 'coupleID', 'diaryday', 'diaryday_c', 'closeness', 'provided_support_actor', 'provided_support_partner', 'provided_support_actor_cbp', 'provided_support_actor_cwp', 'provided_support_partner_cbp', 'provided_support_partner_cwp')]
+required_long_apim_cols <- c(
+  'userID', 'coupleID', 'diaryday', 'diaryday_c', 'closeness',
+  'provided_support_actor', 'provided_support_partner',
+  'provided_support_actor_cbp', 'provided_support_actor_cwp',
+  'provided_support_partner_cbp', 'provided_support_partner_cwp'
+)
+
+if (!all(required_long_apim_cols %in% names(df_long_apim))) {
+  df_long_apim <- bmlm::isolate(
+    df_long_apim,
+    by = 'userID',
+    value = c('provided_support_actor', 'provided_support_partner'),
+    which = 'both'
+  ) %>%
+    rename(
+      provided_support_actor_cwp = provided_support_actor_cw,
+      provided_support_partner_cwp = provided_support_partner_cw,
+      provided_support_actor_cbp = provided_support_actor_cb,
+      provided_support_partner_cbp = provided_support_partner_cb
+    ) %>%
+    mutate(
+      diaryday_c = scale(diaryday, center = TRUE, scale = FALSE)
+    )
+}
+
+df_long_apim2 <- df_long_apim %>%
+  dplyr::select(dplyr::all_of(required_long_apim_cols))
 
 ```
 
@@ -2473,12 +2499,11 @@ formula <- bf(
          I(Idiff * provided_support_actor_cwp) + 
          I(Idiff * provided_support_partner_cwp) | coupleID) +
     
-    # Accounting for same-day shocks/coupling
-    (1 | coupleID:diaryday)
-    
-    # Autocorrelated residuals
-    # Due to bad fit in the distinguishable case, we omit AR1 from the start.
-    # ar(time = diaryday, gr = coupleID:userID, p = 1)
+    # After accounting for stable differences between partners, they may still be
+    # non-independen each day due to external occurrences and daily exchange processes
+    # not captured in the fixed effects. Thus, residuals are not yet independent. 
+    # To model this in brms: 
+    cosy(gr = coupleID:diaryday)
   
   # Again, no need to model heterogeneous residual variances (sigma)
   # Implied: sigma = ~ 1
@@ -2530,7 +2555,7 @@ formula <- bf(
          I(Idiff * provided_support_actor_cwp) + 
          I(Idiff * provided_support_partner_cwp) | coupleID) +
     
-    (1 | coupleID:diaryday)
+    cosy(gr = coupleID:diaryday)
 )
 
 priors <- c(
