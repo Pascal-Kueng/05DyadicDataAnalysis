@@ -2530,6 +2530,9 @@ model_apim_ind_long_glmmTMB <- glmmTMB(
 summary(model_apim_ind_long_glmmTMB)
 ```
 
+The model does not converge properly. This means, we would have to simplify the random
+Effects structure. Instead, we use brms.
+
 ## Exchangeable Dyads - Longitudinal APIM/DIM: brms
 
 in Brms, the same model can be estimated as:
@@ -2544,16 +2547,10 @@ formula <- bf(
     # Within-person APIM
     provided_support_actor_cwp + 
     provided_support_partner_cwp +
-    # Equivalent to within-person DIM:
-    # provided_support_cwp_mean + 
-    # provided_support_cwp_halfdiff +
   
     # Between-person APIM
     provided_support_actor_cbp +
     provided_support_partner_cbp +
-    # Equivalent to between-person DIM
-    # provided_support_cwcbp+
-    # provided_support_cbc +
     
     # Dyad-Level intercept and slopes for time-varying predictors
     (1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp | coupleID) +
@@ -2565,10 +2562,7 @@ formula <- bf(
          I(Idiff * provided_support_actor_cwp) + 
          I(Idiff * provided_support_partner_cwp) | coupleID) +
     
-    # After accounting for stable differences between partners, they may still be
-    # non-independent each day due to external occurrences and daily exchange processes
-    # not captured in the fixed effects. Thus, residuals are not yet independent. 
-    # To model this in brms: 
+    # Modelling Level 1 residuals in brms: 
     cosy(gr = coupleID:diaryday)
   
   # Again, no need to model heterogeneous residual variances (sigma)
@@ -2600,6 +2594,10 @@ model_apim_ind_long <- brm(
 
 
 ```
+
+## Exchangeable Dyads - Longitudinal APIM/DIM: brms
+
+The equivalent DIM specification:
 
 ```{r echo=FALSE, results='hide', message=FALSE}
 
