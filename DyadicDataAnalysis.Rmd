@@ -347,8 +347,8 @@ print_df(head(df_apim))
 
 ## Distinguishable Dyads - Fitting the Model in glmmTMB
 
-In glmmTMB, random effects with various covariance structures can be specified. A residual covariance can not be directly specified. 
-However, in glmmTMB specifically, we can remove the separate modelling of an independen residual by setting `dispformula = ~ 0`. 
+In glmmTMB, random effects with various covariance structures can be specified. A residual covariance cannot be directly specified. 
+However, in glmmTMB specifically, we can remove the separate modelling of an independent residual by setting `dispformula = ~ 0`. 
 
 This forces all residual variance into the random effect we specify. The random effects block now becomes the residual, giving us enormous control over the covariance structure of the residuals. 
 
@@ -379,8 +379,6 @@ model1_glmmTMB <- glmmTMB(
     , data = df_apim
 )
 
-summary(model1_glmmTMB)
-
 ```
 
 ### Distinguishable Dyads - Fitting the Model in glmmTMB
@@ -401,11 +399,11 @@ However, when we remove the native residuals `dispformula = ~ 0` the residual is
 This confuses model diagnostic packages! I am working on a fix. 
 
 
-## Distinguishable Dyads - Fitting the Model in BRMS
+## Distinguishable Dyads - Fitting the Model in brms
 
-In brms, we can not use the glmmTMB trick and disable the internal modelling of the residual variance. Instead, we must rely on brms provided residual covariance structures. We can achieve the same model via:
+In brms, we cannot use the glmmTMB trick and disable the internal modelling of the residual variance. Instead, we must rely on brms-provided residual covariance structures. We can achieve the same model via:
 
-```{r }
+```{r results='hide'}
 #| code-line-numbers: "3-15|17-23|26-31|33-43"
 
 
@@ -504,7 +502,7 @@ DHARMa.check_brms(model_dist_apim_b)
 
 In case of non-convergence, bad residuals or low predictive accuracy, the model is likely miss-specified. 
 
-You can try different families that match your data by using the `family` argument. For instance, you can easily conduct an ordinal regression by simply setting `family = cumulative()` and adjusting your priors. For dichotomous outcomes you can use `family = bernoulli()`. Brms supports a variety of families and link functions for these families. In general, you should use the default link function (check `?brms::family.brmsfit()`). 
+You can try different families that match your data by using the `family` argument. For instance, you can easily conduct an ordinal regression by simply setting `family = cumulative()` and adjusting your priors. For dichotomous outcomes you can use `family = bernoulli()`. brms supports a variety of families and link functions for these families. In general, you should use the default link function (check `?brms::family.brmsfit()`). 
 
 Note that for some of the later models in this tutorial, some ESS values are too low. In this case, usually we would increase iterations (and warmup), and/or adapt_delta (see brms documentation). 
 
@@ -832,7 +830,7 @@ While it may seem like we have 3-levels (couple/person/day), by including the me
 
 ## Distinguishable Dyads - L-APIM - Centering 
 
-```{r}
+```{r results='hide'}
 df_long_apim <- bmlm::isolate(
   df_long_apim, 
   by = 'userID', # NOT coupleID
@@ -914,7 +912,7 @@ summary(model1)
 
 ## Distinguishable Dyads - L-APIM - Model glmmTMB
 
-```{r}
+```{r results='hide'}
 
 model1_glmmTMB <- glmmTMB(
   closeness ~ 0 + is_male + is_female +
@@ -952,11 +950,11 @@ model1_glmmTMB <- glmmTMB(
   , data = df_long_apim
 )
 ```
-Note that we could also add `us` before the first random effect term, as this is equivalent. But because the lowest level random effects block is the one that represents the residual covariance strucutre, we only use it there. 
+Note that we could also add `us` before the first random effect term, as this is equivalent. But because the lowest-level random effects block is the one that represents the residual covariance structure, we only use it there. 
 
 ## Distinguishable Dyads - L-APIM - Model glmmTMB
 
-```{r}
+```{r echo=FALSE}
 summary(model1_glmmTMB)
 ```
 
@@ -1073,8 +1071,6 @@ model_dist_apim_long_simple <- brm(
   seed = 123,
   file = file.path('brms_cache', 'example1_dist_apim_long_simpel') # Cache the model
 )
-
-summary(model_dist_apim_long_simple)
 
 ```
 
@@ -1220,7 +1216,6 @@ model_dist_apim_long_complex <- brm(
   file = file.path('brms_cache', 'example1_dist_apim_long_complex') # Cache the model
 )
 
-summary(model_dist_apim_long_complex)
 ```
 
 ## Maximal Model Specification: Results
@@ -1639,15 +1634,15 @@ print_df(head(df_apim))
 
 ## Exchangeable Dyads - Cross-Sectional APIM: glmmTMB
 
-- For the fixed effects, we can pool the intercepts `is_male` and `is_female` by simly
+- For the fixed effects, we can pool the intercepts `is_male` and `is_female` by simply
 reintroducing a single shared intercept `1`. 
 
 - For the actor and partner effects, we can remove the interactions to get a pooled estimate. 
 
-- For the residual, we want is to constrain both partners variances to be equal. 
+- For the residual, we want to constrain both partners' variances to be equal. 
 Often, this is attempted via: `(1 | coupleID)`. 
   - This fixes both partners' residual variances to be equal (pooled)
-  - However, it does **not** allow for a correaltion between partners anymore! The correlation between partners is implied to be perfect (1). 
+  - However, it does **not** allow for a correlation between partners anymore! The correlation between partners is implied to be perfect (1). 
 
 One solution in glmmTMB is the following:
 
@@ -1663,7 +1658,7 @@ model1_glmmTMB <- glmmTMB(
     # Pooled actor and partner effects
     communication_actor_gmc + communication_partner_gmc +
   
-    # homogenous compound symmetry structure constrains the variances to be equal.
+    # Homogeneous compound symmetry constrains the variances to be equal.
     # we do not need to take gender here, we could construct an arbitrary categorization. 
     homcs(0 + is_male + is_female | coupleID)
   
@@ -1673,8 +1668,6 @@ model1_glmmTMB <- glmmTMB(
   
     , data = df_apim
 )
-
-summary(model1_glmmTMB)
 
 ```
 
@@ -1692,19 +1685,19 @@ summary(model1_glmmTMB)
 Note that this approach does not generalize to the ILD case! Therefore, we will
 introduce an alternative that works across packages later on. 
 
-## Exchangeable Dyads - Cross-Sectional APIM: Brms
+## Exchangeable Dyads - Cross-Sectional APIM: brms
 
 In brms, this issue can also be solved more elegantly immediately by simply providing a group argument
 to the `cosy` function and not specifying different residual variances:
 
-```{r }
+```{r results='hide'}
 #| code-line-numbers: "2-16|18-36"
 
 formula <- bf(
   satisfaction ~ 1 + 
     communication_actor_gmc + communication_partner_gmc + 
   
-    # To achieve a homogenous compound symmetry covariance structure we use
+    # To achieve a homogeneous compound symmetry covariance structure we use
     # cosy exactly as before... 
     cosy(gr = coupleID)
   
@@ -1760,7 +1753,7 @@ print_df(
 
 ## Exchangeable Dyads - Cross-Sectional APIM: Test for Distinguishability
 
-Leave-one-out (loo) cross-validation for model comparison (even if not nested). !TODO: even if not nested is it meaningful?
+Leave-one-out (loo) cross-validation compares out-of-sample predictive accuracy. It can be meaningful for non-nested models when they are fit to the same outcome and observations, and when the pointwise log-likelihoods are comparable.
 
 ```{r eval=FALSE}
 a <- loo_compare(
@@ -1850,7 +1843,7 @@ Same assumption about exchangeability as in the APIM
 ## Exchangeable Dyads - Cross-Sectional DIM: Centering
 
 
-```{r}
+```{r results='hide'}
 df_dim <- df_apim2 %>%
   group_by(coupleID) %>%
   mutate(
@@ -1862,14 +1855,18 @@ df_dim <- df_apim2 %>%
     communication_cbc= communication_cm - mean(communication_cm, na.rm = TRUE)
   ) %>% 
   dplyr::select(c('userID', 'coupleID', 'satisfaction', 'communication_cwc', 'communication_cbc'))
+```
 
+## Exchangeable Dyads - Cross-Sectional DIM: Centering
+
+```{r echo=FALSE}
 print_df(head(df_dim))
 ```
 
 
 ## Exchangeable Dyads - Cross-Sectional DIM: Model
 
-```{r}
+```{r results='hide'}
 #| code-line-numbers: "2-6|8-13|15-26"
 
 formula <- bf(
@@ -2479,7 +2476,7 @@ print_df(print_couple_preview(df_long_dim, couple_id = "31", days = 0:4))
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: glmmTMB
 
-```{r }
+```{r results='hide'}
 
 model_apim_ind_long_glmmTMB <- glmmTMB(
   closeness ~ 1 + 
@@ -2518,26 +2515,30 @@ model_apim_ind_long_glmmTMB <- glmmTMB(
     # Option 1 (as before): 
     homcs(0 + is_partner1 + is_partner2 | coupleID:diaryday)
     
-    # Option 2 (in line with the Idiff approach above, 
-    # but would need to be rotated back for clean interpretation):
-    # un(1 | coupleID) + un(0 + Idiff | coupleID)
+    # Option 2: equivalent sum/difference parameterization.
+    # This would need to be rotated back for clean interpretation:
+    # (1 | coupleID:diaryday) + (0 + Idiff | coupleID:diaryday)
   
   # In glmmTMB always remove the residual variance if modelling via random effects.
   , dispformula = ~ 0
   , data = df_long_dim
 )
+```
 
+## Exchangeable Dyads - Longitudinal APIM/DIM: glmmTMB
+
+```{r echo=FALSE}
 summary(model_apim_ind_long_glmmTMB)
 ```
 
-The model does not converge properly. This means, we would have to simplify the random
-Effects structure. Instead, we use brms.
+The model does not converge properly. This means we would have to simplify the random
+effects structure. Instead, we use brms.
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: brms
 
-in Brms, the same model can be estimated as:
+In brms, the same model can be estimated as:
 
-```{r }
+```{r results='hide'}
 
 formula <- bf(
   closeness ~ 1 + 
@@ -2573,7 +2574,7 @@ priors <- c(
   prior(normal(4, 2), class = "Intercept"),
   prior(normal(0, 2), class = "b")
   
-  # We could set priors for other things, but brms sets good default priors
+  # We could set priors for other things, but brms sets sensible default priors
   #prior(student_t(3, 0, 1.5), class = "sd"),
   #prior(lkj(2), class = "cor"), # correlation prior for random effect matrix
   #prior(student_t(3, 0, 1.5), class = "sigma")
@@ -2599,7 +2600,7 @@ model_apim_ind_long <- brm(
 
 The equivalent DIM specification:
 
-```{r echo=FALSE, results='hide', message=FALSE}
+```{r results='hide', message=FALSE}
 
 # DIM Version
 formula <- bf(
