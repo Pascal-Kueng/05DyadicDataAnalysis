@@ -275,7 +275,8 @@ df <- temp_df_for_outcome %>%
 
 # Distinguishable Dyads
 
-## Distinguishable Dyads - Cross-Sectional APIM 
+# Distinguishable Dyads
+### Cross-Sectional APIM
 
 ## Distinguishable Dyads - Data: Simulated Dyads
 
@@ -346,19 +347,20 @@ print_df(head(df_apim))
 
 ## Distinguishable Dyads - Fitting the Model in glmmTMB
 
-- `glmmTMB` usually models the residual structure via the `dispformula` argument.
-However, this does not provide us with enough flexibility for our usecase.
+- `glmmTMB` models residual variance/dispersion via `dispformula`, but residual covariance is handled through random-effect covariance structures.
 
-- However, in glmmTMB specifically, we can suppress the modelling of the residual structure by setting `dispformula = ~ 0`.
+- For Gaussian mixed models, `dispformula = ~ 0` fixes the residual variance to a tiny value. This pushes the Gaussian residual variance into the random-effect block.
 
-- This forces the residual variance into the random effects. The random effects block now becomes the residual variance covariance structure.
+- In this Gaussian dyadic model, the `us(0 + is_male + is_female | coupleID)` block therefore represents the 2x2 residual variance-covariance structure between partners.
 
-- In glmmTMB, random effects with various covariance structures can be specified, giving us enormous control over the covariance structure of the residuals.
+- For non-Gaussian models, this is not an ordinary residual covariance on the response scale. The same random-effect trick adds latent Gaussian heterogeneity/correlation on the linear predictor scale.
+
+- Do **not** use `dispformula = ~ 0` as a general non-Gaussian residual-covariance trick. For families with an estimable dispersion parameter, `dispformula` models that family-specific parameter via a log link; for families without one, such as Poisson or binomial, it is ignored. Partner-specific dispersion, e.g. `dispformula = ~ 0 + is_male + is_female`, is only appropriate when the family has a dispersion parameter and this is substantively intended.
 
 ## Distinguishable Dyads - Fitting the Model in glmmTMB
 
 ```{r fit-dist-apim-glmmtmb, results='hide', message=FALSE, warning=FALSE}
-#| code-line-numbers: "1-13|15-16|18-22"
+#| code-line-numbers: "1-13|15-16|18-21|23-27|29-30"
 model_dist_apim_glmmtmb <- glmmTMB(
   satisfaction ~ 
     
@@ -376,11 +378,19 @@ model_dist_apim_glmmtmb <- glmmTMB(
     # Modelling residual non-independence with an unstructured 2x2 covariance. 
     us(0 + is_male + is_female | coupleID)
   
-    # Since we model residual covariance via this random-effects block, glmmTMB requires us to remove an 
-    # additional independent residual
+    # Gaussian response:
+    # dispformula = ~ 0 fixes residual variance to a tiny value,
+    # pushing the Gaussian residual variance into this random-effect block.
     , dispformula = ~ 0
   
-    , data = df_apim
+    # Non-Gaussian responses:
+    # dispformula is family-specific dispersion, or ignored for families
+    # without a dispersion parameter. Do not use ~0 as a residual trick.
+    # If dispersion exists and should differ by partner, use e.g.:
+    # dispformula = ~ 0 + is_male + is_female
+
+  , data = df_apim
+  , family = gaussian
 )
 
 ```
@@ -407,7 +417,9 @@ Therefore, residuals need to be manually simulated and compared.
 
 ## Distinguishable Dyads - Fitting the Model in brms
 
-In brms, we cannot use the glmmTMB trick and disable the internal modelling of the residual variance. Instead, we must rely on brms-provided residual covariance structures. We can achieve the same model via:
+In brms, we can use brms-provided residual covariance structures directly. We do not have to set residuals internally to zero.
+
+We can achieve the same model as before via:
 
 ```{r fit-dist-apim-brms, results='hide', message=FALSE, warning=FALSE}
 #| code-line-numbers: "1-13|15-21|23-28|30-41"
@@ -431,6 +443,7 @@ formula_dist_apim_b <- bf(
   
   # Allowing two distinct residual variances for males vs females:
   sigma = ~ 0 + is_male + is_female
+
 )
 
 priors_dist_apim_b <- c(
@@ -533,7 +546,8 @@ print_df(
 
 CAREFUL: In contrast to glmmTMB, brms estimates sigma on the log scale (see `?brms::family.brmsfit()`). In the table above, sigma rows are exponentiated to show residual SDs on the response scale and to align with the glmmTMB model. 
 
-## Distinguishable Dyads - (Intensive) Longitudinal APIM
+# Distinguishable Dyads
+### Intensive Longitudinal APIM (L-APIM)
 
 ## Distinguishable Dyads - L-APIM - Simulated Dataset
 
@@ -965,9 +979,9 @@ summary(model_dist_apim_long_glmmtmb)
 
 Let's compare the random effects outputs to see if the models are truly equivalent.
 
-Residual variance in `nlme` must first be constructed from the output by taking the residual and multiply it with the parameter estimates under the variance function for each partner. 
-
-{.model-compare-note}
+::: {.model-compare-note}
+Residual variance in `nlme` must first be constructed from the output by taking the residual SD and multiplying it by the parameter estimate under the variance function for each partner.
+:::
 
 ::: {.model-compare-grid}
 ::: {.model-compare-panel}
@@ -993,7 +1007,7 @@ Variance function:
 
 
 
-Manually computed by multiplying the residual with the mulitpliers:
+Manually computed by multiplying the residual SD by the multipliers:
 
 Residual SDs by partner:
   Partner 1: 0.721707
@@ -1017,7 +1031,11 @@ Conditional model:
 
 Equivalent `brms` model. 
 
-Longitudinal brms residual priors differ by model type. Distinguishable models estimate partner-specific residual SDs via `sigma ~ 0 + is_male + is_female`; because brms models these log-sigma predictors as distributional regression coefficients, their priors use `class = "b", dpar = "sigma"`. Exchangeable longitudinal models keep one pooled residual `sigma`, so their priors use `prior(student_t(3, 0, 1.5), class = "sigma")` directly.
+In contrast to glmmTMB, brms provides native variance-covariance structures to model residuals directly. Therefore, we do NOT set the residuals to zero!
+
+::: {.brms-prior-note}
+Because this distinguishable model estimates partner-specific residual SDs via `sigma ~ 0 + is_male + is_female`, the sigma priors target brms distributional coefficients: `class = "b", dpar = "sigma"`.
+:::
 
 ```{r fit-dist-apim-long-simple-brms, results='hide', message=FALSE, warning=FALSE}
 #| classes: code-50vh
@@ -1609,6 +1627,10 @@ print_df(
 
 
 
+# Exchangeable Dyads
+
+# Exchangeable Dyads
+### Cross-Sectional
 
 ## Exchangeable Dyads - Cross-Sectional APIM
 
@@ -2403,6 +2425,9 @@ print_df(print_couple_preview(df_long_apim2, couple_id = "31"))
 ```
 
 
+# Exchangeable Dyads
+### Intensive Longitudinal
+
 ## Exchangeable Dyads - Longitudinal DIM/APIM
 
 * We need an APIM or DIM on both the between person level and the within-person level.
@@ -2538,6 +2563,10 @@ In this example, the glmmTMB model does not converge properly. The random-effect
 ## Exchangeable Dyads - Longitudinal APIM/DIM: brms
 
 In brms, the same model can be estimated as:
+
+::: {.brms-prior-note}
+Unlike the distinguishable longitudinal model, this exchangeable specification keeps one pooled residual `sigma` (`sigma ~ 1` is implied). Its residual SD prior therefore targets `class = "sigma"` directly.
+:::
 
 ```{r fit-exch-long-apim-brms, results='hide', message=FALSE, warning=FALSE}
 

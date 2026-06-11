@@ -55,6 +55,16 @@
   line-height: 2em;
 }
 
+.reveal .brms-prior-note {
+  font-size: 0.58em;
+  line-height: 1.25;
+  margin-bottom: 0.7em;
+}
+
+.reveal .brms-prior-note code {
+  font-size: 0.95em;
+}
+
 /* Code blocks and verbose model summaries use remaining slide height. */
 .reveal .slides section.present.slide:has(pre.sourceCode),
 .reveal .slides section.present.slide:has(.model-summary-output) {
