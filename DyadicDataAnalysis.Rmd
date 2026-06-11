@@ -346,10 +346,16 @@ print_df(head(df_apim))
 
 ## Distinguishable Dyads - Fitting the Model in glmmTMB
 
-In glmmTMB, random effects with various covariance structures can be specified. A residual covariance cannot be directly specified. 
-However, in glmmTMB specifically, we can remove the separate modelling of an independent residual by setting `dispformula = ~ 0`. 
+- `glmmTMB` usually models the residual structure via the `dispformula` argument.
+However, this does not provide us with enough flexibility for our usecase.
 
-This forces all residual variance into the random effect we specify. The random effects block now becomes the residual, giving us enormous control over the covariance structure of the residuals. 
+- However, in glmmTMB specifically, we can suppress the modelling of the residual structure by setting `dispformula = ~ 0`.
+
+- This forces the residual variance into the random effects. The random effects block now becomes the residual variance covariance structure.
+
+- In glmmTMB, random effects with various covariance structures can be specified, giving us enormous control over the covariance structure of the residuals.
+
+## Distinguishable Dyads - Fitting the Model in glmmTMB
 
 ```{r fit-dist-apim-glmmtmb, results='hide', message=FALSE, warning=FALSE}
 #| code-line-numbers: "1-13|15-16|18-22"
@@ -379,11 +385,12 @@ model_dist_apim_glmmtmb <- glmmTMB(
 
 ```
 
-### Distinguishable Dyads - Fitting the Model in glmmTMB
 
-Note that 'unstructured' is the default in glmmTMB, so instead of `us(0 + is_male + is_female | coupleID)`, we could also remove `us` and simply write `(0 + is_male + is_female | coupleID)`. 
+- Note that 'unstructured' is the default in glmmTMB, so instead of `us(0 + is_male + is_female | coupleID)`, we could also remove `us` and simply write `(0 + is_male + is_female | coupleID)`.
 
-```{r results-dist-apim-glmmtmb, echo=FALSE}
+## Distinguishable Dyads - Fitting the Model in glmmTMB
+
+```{r results-dist-apim-glmmtmb, echo=FALSE, class.output='model-summary-output'}
 
 summary(model_dist_apim_glmmtmb)
 
@@ -391,10 +398,11 @@ summary(model_dist_apim_glmmtmb)
 
 ## glmmTMB: Current limitation
 
-Usually DHARMa [@R-DHARMa] is an amazing tool for simulation-based residual diagnostics for complex (generalized) MLMs. 
-However, when we remove the native residuals `dispformula = ~ 0` the residual is, in practice, set to a tiny constant. 
+Usually, simulation-based tools like DHARMa [@R-DHARMa] are great for residual diagnostics in complex (generalized) MLMs. 
 
-This confuses model diagnostic packages! I am working on a fix. 
+However, when we remove the native residuals `dispformula = ~ 0` the residual is, in practice, set to a tiny constant. This confuses model diagnostic packages! 
+
+Therefore, residuals need to be manually simulated and compared.
 
 
 ## Distinguishable Dyads - Fitting the Model in brms
@@ -950,7 +958,7 @@ Note that we could also add `us` before the first random effect term, as this is
 
 ## Distinguishable Dyads - L-APIM - Model glmmTMB
 
-```{r results-dist-apim-long-glmmtmb, echo=FALSE}
+```{r results-dist-apim-long-glmmtmb, echo=FALSE, class.output='model-summary-output'}
 summary(model_dist_apim_long_glmmtmb)
 ```
 
@@ -1673,7 +1681,7 @@ model_exch_apim_glmmtmb <- glmmTMB(
 
 This successfully returns a single pooled residual variance, and a correlation between partners: 
 
-```{r results-exch-apim-glmmtmb, echo=FALSE}
+```{r results-exch-apim-glmmtmb, echo=FALSE, class.output='model-summary-output'}
 summary(model_exch_apim_glmmtmb)
 ```
 
@@ -2516,7 +2524,7 @@ model_exch_long_apim_glmmtmb <- glmmTMB(
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: glmmTMB
 
-```{r results-exch-long-apim-glmmtmb, echo=FALSE}
+```{r results-exch-long-apim-glmmtmb, echo=FALSE, class.output='model-summary-output'}
 summary(model_exch_long_apim_glmmtmb)
 ```
 

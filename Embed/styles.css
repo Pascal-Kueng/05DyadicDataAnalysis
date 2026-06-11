@@ -35,6 +35,19 @@
   margin-bottom: 1em;      /* space below tables too */
 }
 
+/* Compact verbose model summaries without changing rendered tables. */
+.reveal .model-summary-output pre,
+.reveal pre.model-summary-output {
+  font-size: 0.62em;
+  line-height: 1.18;
+}
+
+.reveal .model-summary-output pre code,
+.reveal pre.model-summary-output code {
+  font-size: inherit;
+  line-height: inherit;
+}
+
 
 /* Add spacing between bibliography entries */
 .reveal .slides .csl-entry {
@@ -42,8 +55,9 @@
   line-height: 2em;
 }
 
-/* Code blocks use remaining slide height and scroll internally. */
-.reveal .slides section.present.slide:has(pre.sourceCode) {
+/* Code blocks and verbose model summaries use remaining slide height. */
+.reveal .slides section.present.slide:has(pre.sourceCode),
+.reveal .slides section.present.slide:has(.model-summary-output) {
   display: flex !important;
   flex-direction: column;
   align-items: stretch;
@@ -52,29 +66,45 @@
   overflow: hidden;
 }
 
-.reveal .slides section.present.slide:has(pre.sourceCode) > * {
+.reveal .slides section.present.slide:has(pre.sourceCode) > *,
+.reveal .slides section.present.slide:has(.model-summary-output) > * {
   flex: 0 0 auto;
 }
 
 .reveal .slides section.present.slide:has(pre.sourceCode) > .cell:has(pre.sourceCode),
 .reveal .slides section.present.slide:has(pre.sourceCode) > .columns:has(pre.sourceCode),
-.reveal .slides section.present.slide:has(pre.sourceCode) .column:has(pre.sourceCode) > .cell:has(pre.sourceCode) {
+.reveal .slides section.present.slide:has(pre.sourceCode) .column:has(pre.sourceCode) > .cell:has(pre.sourceCode),
+.reveal .slides section.present.slide:has(.model-summary-output) > .cell:has(.model-summary-output),
+.reveal .slides section.present.slide:has(.model-summary-output) > .columns:has(.model-summary-output),
+.reveal .slides section.present.slide:has(.model-summary-output) .column:has(.model-summary-output) > .cell:has(.model-summary-output) {
   flex: 1 1 auto;
   min-height: 0;
 }
 
 .reveal .slides section.present.slide:has(pre.sourceCode) .columns:has(pre.sourceCode),
 .reveal .slides section.present.slide:has(pre.sourceCode) .column:has(pre.sourceCode),
+.reveal .slides section.present.slide:has(.model-summary-output) .columns:has(.model-summary-output),
+.reveal .slides section.present.slide:has(.model-summary-output) .column:has(.model-summary-output),
 .reveal .cell:has(pre.sourceCode),
+.reveal .cell:has(.model-summary-output),
+.reveal .cell-output:has(.model-summary-output),
 .reveal .code-copy-outer-scaffold:has(pre.sourceCode),
+.reveal .code-copy-outer-scaffold:has(.model-summary-output),
+.reveal .sourceCode:has(.model-summary-output),
 .reveal div.sourceCode.cell-code {
   min-height: 0;
 }
 
-.reveal .cell:has(pre.sourceCode) {
+.reveal .cell:has(pre.sourceCode),
+.reveal .cell:has(.model-summary-output),
+.reveal .cell-output:has(.model-summary-output) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.reveal .cell-output:has(.model-summary-output) {
+  flex: 1 1 auto;
 }
 
 .reveal .code-copy-outer-scaffold:has(pre.sourceCode) {
@@ -84,13 +114,26 @@
   overflow: hidden;
 }
 
+.reveal .code-copy-outer-scaffold:has(.model-summary-output) {
+  flex: 1 1 auto;
+}
+
+.reveal .sourceCode:has(.model-summary-output) {
+  display: flex;
+  flex: 1 1 auto;
+  max-height: 100%;
+  overflow: hidden;
+}
+
 .reveal div.sourceCode.cell-code {
   flex: 1 1 auto;
   max-height: 100%;
   overflow: hidden;
 }
 
-.reveal pre.sourceCode {
+.reveal pre.sourceCode,
+.reveal pre.model-summary-output {
+  flex: 1 1 auto;
   max-height: 100%;
   overflow-y: auto;
   overflow-x: auto;
