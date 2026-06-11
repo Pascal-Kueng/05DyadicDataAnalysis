@@ -38,8 +38,8 @@
 /* Compact verbose model summaries without changing rendered tables. */
 .reveal .model-summary-output pre,
 .reveal pre.model-summary-output {
-  font-size: 0.62em;
-  line-height: 1.18;
+  font-size: 0.55em;
+  line-height: 1.12;
 }
 
 .reveal .model-summary-output pre code,
@@ -107,6 +107,13 @@
   flex: 1 1 auto;
 }
 
+.reveal .cell-output:has(.model-summary-output),
+.reveal .code-copy-outer-scaffold:has(.model-summary-output),
+.reveal .sourceCode:has(.model-summary-output),
+.reveal pre.model-summary-output {
+  height: 100%;
+}
+
 .reveal .code-copy-outer-scaffold:has(pre.sourceCode) {
   display: flex;
   flex: 0 1 auto;
@@ -137,6 +144,10 @@
   max-height: 100%;
   overflow-y: auto;
   overflow-x: auto;
+}
+
+.reveal pre.model-summary-output {
+  height: calc(100% - 0.25em);
 }
 
 /* Optional height utilities still cap code when a slide has extra space. */

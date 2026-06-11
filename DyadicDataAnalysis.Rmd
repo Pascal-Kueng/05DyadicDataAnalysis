@@ -398,9 +398,9 @@ summary(model_dist_apim_glmmtmb)
 
 ## glmmTMB: Current limitation
 
-Usually, simulation-based tools like DHARMa [@R-DHARMa] are great for residual diagnostics in complex (generalized) MLMs. 
+Usually, simulation-based tools like DHARMa [@R-DHARMa] are great for residual diagnostics in complex (generalized) MLMs.
 
-However, when we remove the native residuals `dispformula = ~ 0` the residual is, in practice, set to a tiny constant. This confuses model diagnostic packages! 
+However, when we remove the native residuals `dispformula = ~ 0` the residual is, in practice, set to a tiny constant. This confuses model diagnostic packages!
 
 Therefore, residuals need to be manually simulated and compared.
 
@@ -410,7 +410,7 @@ Therefore, residuals need to be manually simulated and compared.
 In brms, we cannot use the glmmTMB trick and disable the internal modelling of the residual variance. Instead, we must rely on brms-provided residual covariance structures. We can achieve the same model via:
 
 ```{r fit-dist-apim-brms, results='hide', message=FALSE, warning=FALSE}
-#| code-line-numbers: "1-13|15-21|24-29|31-41"
+#| code-line-numbers: "1-13|15-21|23-28|30-41"
 formula_dist_apim_b <- bf(
   satisfaction ~ 
     
@@ -917,7 +917,7 @@ summary(model1)
 ## Distinguishable Dyads - L-APIM - Model glmmTMB
 
 ```{r fit-dist-apim-long-glmmtmb, results='hide', message=FALSE, warning=FALSE}
-
+#| code-line-numbers: "1-6|8-13|15-20|22-26|28-34"
 model_dist_apim_long_glmmtmb <- glmmTMB(
   closeness ~ 0 + is_male + is_female +
     
@@ -944,7 +944,6 @@ model_dist_apim_long_glmmtmb <- glmmTMB(
   (0 + is_male + is_female
     + is_male:diaryday_c + is_female:diaryday_c
   | coupleID) +
-    
     
   # Accounting for daily non-independence
   us(0 + is_male + is_female | coupleID:diaryday)

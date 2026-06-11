@@ -623,8 +623,8 @@ margin-bottom: 1em;
 
 .reveal .model-summary-output pre,
 .reveal pre.model-summary-output {
-font-size: 0.62em;
-line-height: 1.18;
+font-size: 0.55em;
+line-height: 1.12;
 }
 .reveal .model-summary-output pre code,
 .reveal pre.model-summary-output code {
@@ -682,6 +682,12 @@ overflow: hidden;
 .reveal .cell-output:has(.model-summary-output) {
 flex: 1 1 auto;
 }
+.reveal .cell-output:has(.model-summary-output),
+.reveal .code-copy-outer-scaffold:has(.model-summary-output),
+.reveal .sourceCode:has(.model-summary-output),
+.reveal pre.model-summary-output {
+height: 100%;
+}
 .reveal .code-copy-outer-scaffold:has(pre.sourceCode) {
 display: flex;
 flex: 0 1 auto;
@@ -708,6 +714,9 @@ flex: 1 1 auto;
 max-height: 100%;
 overflow-y: auto;
 overflow-x: auto;
+}
+.reveal pre.model-summary-output {
+height: calc(100% - 0.25em);
 }
 
 .code-30vh pre.sourceCode { max-height: min(30vh, 100%); }
@@ -2969,7 +2978,9 @@ Pascal Küng
 <span id="cb4-22"><a href></a>    , <span class="at">data =</span> df_apim</span>
 <span id="cb4-23"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>Note that ‘unstructured’ is the default in glmmTMB, so instead of <code>us(0 + is_male + is_female | coupleID)</code>, we could also remove <code>us</code> and simply write <code>(0 + is_male + is_female | coupleID)</code>.</p>
+<ul>
+<li>Note that ‘unstructured’ is the default in glmmTMB, so instead of <code>us(0 + is_male + is_female | coupleID)</code>, we could also remove <code>us</code> and simply write <code>(0 + is_male + is_female | coupleID)</code>.</li>
+</ul>
 </section>
 <section id="distinguishable-dyads---fitting-the-model-in-glmmtmb-2" class="slide level2">
 <h2>Distinguishable Dyads - Fitting the Model in glmmTMB</h2>
@@ -3010,14 +3021,15 @@ Pascal Küng
 </section>
 <section id="glmmtmb-current-limitation" class="slide level2">
 <h2>glmmTMB: Current limitation</h2>
-<p>Usually DHARMa <span class="citation" data-cites="R-DHARMa">(<a href="#/references" role="doc-biblioref" onclick>Hartig, 2026</a>)</span> is an amazing tool for simulation-based residual diagnostics for complex (generalized) MLMs. However, when we remove the native residuals <code>dispformula = ~ 0</code> the residual is, in practice, set to a tiny constant.</p>
-<p>This confuses model diagnostic packages! I am working on a fix.</p>
+<p>Usually, simulation-based tools like DHARMa <span class="citation" data-cites="R-DHARMa">(<a href="#/references" role="doc-biblioref" onclick>Hartig, 2026</a>)</span> are great for residual diagnostics in complex (generalized) MLMs.</p>
+<p>However, when we remove the native residuals <code>dispformula = ~ 0</code> the residual is, in practice, set to a tiny constant. This confuses model diagnostic packages!</p>
+<p>Therefore, residuals need to be manually simulated and compared.</p>
 </section>
 <section id="distinguishable-dyads---fitting-the-model-in-brms" class="slide level2">
 <h2>Distinguishable Dyads - Fitting the Model in brms</h2>
 <p>In brms, we cannot use the glmmTMB trick and disable the internal modelling of the residual variance. Instead, we must rely on brms-provided residual covariance structures. We can achieve the same model via:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" data-code-line-numbers="1-13|15-21|24-29|31-41"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href></a>formula_dist_apim_b <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" data-code-line-numbers="1-13|15-21|23-28|30-41"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href></a>formula_dist_apim_b <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
 <span id="cb6-2"><a href></a>  satisfaction <span class="sc">~</span> </span>
 <span id="cb6-3"><a href></a>    </span>
 <span id="cb6-4"><a href></a>    <span class="co"># Remove global intercept, introduce male and female intercepts.</span></span>
@@ -3462,7 +3474,7 @@ All Pareto k estimates are good (k &lt; 0.7).</code></pre>
 <section id="distinguishable-dyads---l-apim---model-glmmtmb" class="slide level2">
 <h2>Distinguishable Dyads - L-APIM - Model glmmTMB</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href></a>model_dist_apim_long_glmmtmb <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23" data-code-line-numbers="1-6|8-13|15-20|22-26|28-34"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href></a>model_dist_apim_long_glmmtmb <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
 <span id="cb23-2"><a href></a>  closeness <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female <span class="sc">+</span></span>
 <span id="cb23-3"><a href></a>    </span>
 <span id="cb23-4"><a href></a>    <span class="co"># Time Slopes</span></span>
