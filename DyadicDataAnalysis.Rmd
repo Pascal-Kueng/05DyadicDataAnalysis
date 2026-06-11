@@ -961,51 +961,57 @@ Note that we could also add `us` before the first random effect term, as this is
 summary(model_dist_apim_long_glmmtmb)
 ```
 
-## Comparing outputs between nlme and glmmTMB
+## Comparing outputs between nlme and glmmTMB {.model-comparison}
 
-Let's compare the random effects outputs to see if the models are truly equivalent. 
+Let's compare the random effects outputs to see if the models are truly equivalent.
 
+Residual variance in `nlme` must first be constructed from the output by taking the residual and multiply it with the parameter estimates under the variance function for each partner. 
+
+{.model-compare-note}
+
+::: {.model-compare-grid}
+::: {.model-compare-panel}
 **nlme:**
-                     StdDev     Corr                
+<pre class="model-compare-output"><code>                     StdDev     Corr
 is_male              0.83645552 is_mal is_fml is_m:_
 is_female            0.90199634  0.189              
 is_male:diaryday_c   0.01634796  0.544  0.033       
 is_female:diaryday_c 0.01612665  0.204  0.534 -0.012
-Residual             0.72170702                     
+Residual             0.72170702
 
 Correlation Structure: Compound symmetry
- Formula: ~1 | coupleID/diaryday 
+ Formula: ~1 | coupleID/diaryday
  Parameter estimate(s):
-       Rho 
-0.04094751 
+       Rho
+0.04094751
 Variance function:
  Structure: Different standard deviations per stratum
- Formula: ~1 | gender 
+ Formula: ~1 | gender
  Parameter estimates:
-       1        2 
-1.000000 1.554608 
-
-We need to compute the residual for each partner ourselves from the nlme output:
-```{r compare-dist-long-nlme-residual-sd}
-0.72170702 * 1.000000
-0.72170702 * 1.554608
-
-```
+       1        2
+1.000000 1.554608
 
 
+
+Manually computed by multiplying the residual with the mulitpliers:
+
+Residual SDs by partner:
+  Partner 1: 0.721707
+  Partner 2: 1.121972</code></pre>
+:::
+::: {.model-compare-panel}
 **glmmTMB:**
-
-Random effects:
-
+<pre class="model-compare-output"><code>Random effects:
 Conditional model:
- Groups            Name                 Variance  Std.Dev. Corr              
- coupleID          is_male              0.6814498 0.82550                    
+ Groups            Name                 Variance  Std.Dev. Corr
+ coupleID          is_male              0.6814498 0.82550
                    is_female            0.7930407 0.89053   0.19             
                    is_male:diaryday_c   0.0002637 0.01624   0.55  0.03       
-                   is_female:diaryday_c 0.0002571 0.01603   0.21  0.54 -0.01 
- coupleID:diaryday is_male              1.2583552 1.12176                    
-                   is_female            0.5206608 0.72157  0.04              
-
+                   is_female:diaryday_c 0.0002571 0.01603   0.21  0.54 -0.01
+ coupleID:diaryday is_male              1.2583552 1.12176
+                   is_female            0.5206608 0.72157  0.04</code></pre>
+:::
+:::
 
 ## Distinguishable Dyads - L-APIM - Model brms
 

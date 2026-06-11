@@ -719,6 +719,73 @@ overflow-x: auto;
 height: calc(100% - 0.25em);
 }
 
+.reveal .slides section.present.model-comparison {
+display: flex !important;
+flex-direction: column;
+align-items: stretch;
+height: 100%;
+min-height: 0;
+overflow: hidden;
+}
+.reveal .model-comparison > p {
+flex: 0 0 auto;
+margin-bottom: 0.45em;
+}
+.reveal .model-comparison .model-compare-note {
+flex: 0 0 auto;
+margin: -0.15em 0 0.55em;
+font-size: 0.52em;
+line-height: 1.25;
+}
+.reveal .model-comparison .model-compare-note code {
+color: inherit;
+background: none;
+padding: 0;
+}
+.reveal .model-compare-grid {
+display: grid;
+grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+gap: 0.65em;
+flex: 1 1 auto;
+min-height: 0;
+}
+.reveal .model-compare-panel {
+display: flex;
+flex-direction: column;
+min-width: 0;
+min-height: 0;
+overflow: hidden;
+}
+.reveal .model-compare-panel > p {
+flex: 0 0 auto;
+margin: 0 0 0.25em;
+font-size: 0.82em;
+}
+.reveal pre.model-compare-output {
+flex: 1 1 auto;
+min-height: 0;
+max-height: 100%;
+height: 100%;
+margin: 0;
+padding: 0.75em;
+overflow: auto;
+box-sizing: border-box;
+border: 1px solid #ddd;
+border-radius: 4px;
+background: #f8f8f8;
+font-size: 0.33em;
+line-height: 1.06;
+text-align: left;
+white-space: pre;
+}
+.reveal pre.model-compare-output code {
+font-size: inherit;
+line-height: inherit;
+white-space: pre;
+word-break: normal;
+overflow-wrap: normal;
+}
+
 .code-30vh pre.sourceCode { max-height: min(30vh, 100%); }
 .code-35vh pre.sourceCode { max-height: min(35vh, 100%); }
 .code-40vh pre.sourceCode { max-height: min(40vh, 100%); }
@@ -3501,14 +3568,13 @@ All Pareto k estimates are good (k &lt; 0.7).</code></pre>
 <span id="cb23-25"><a href></a>    <span class="sc">+</span> is_male<span class="sc">:</span>diaryday_c <span class="sc">+</span> is_female<span class="sc">:</span>diaryday_c</span>
 <span id="cb23-26"><a href></a>  <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
 <span id="cb23-27"><a href></a>    </span>
-<span id="cb23-28"><a href></a>    </span>
-<span id="cb23-29"><a href></a>  <span class="co"># Accounting for daily non-independence</span></span>
-<span id="cb23-30"><a href></a>  <span class="fu">us</span>(<span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female <span class="sc">|</span> coupleID<span class="sc">:</span>diaryday)</span>
-<span id="cb23-31"><a href></a></span>
-<span id="cb23-32"><a href></a>  <span class="co"># heteroscedastic residuals</span></span>
-<span id="cb23-33"><a href></a>  , <span class="at">dispformula =</span> <span class="sc">~</span> <span class="dv">0</span></span>
-<span id="cb23-34"><a href></a>  , <span class="at">data =</span> df_long_apim</span>
-<span id="cb23-35"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb23-28"><a href></a>  <span class="co"># Accounting for daily non-independence</span></span>
+<span id="cb23-29"><a href></a>  <span class="fu">us</span>(<span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female <span class="sc">|</span> coupleID<span class="sc">:</span>diaryday)</span>
+<span id="cb23-30"><a href></a></span>
+<span id="cb23-31"><a href></a>  <span class="co"># heteroscedastic residuals</span></span>
+<span id="cb23-32"><a href></a>  , <span class="at">dispformula =</span> <span class="sc">~</span> <span class="dv">0</span></span>
+<span id="cb23-33"><a href></a>  , <span class="at">data =</span> df_long_apim</span>
+<span id="cb23-34"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Note that we could also add <code>us</code> before the first random effect term, as this is equivalent. But because the lowest-level random effects block is the one that represents the residual covariance structure, we only use it there.</p>
 </section>
@@ -3575,99 +3641,115 @@ All Pareto k estimates are good (k &lt; 0.7).</code></pre>
 </div>
 </div>
 </section>
-<section id="comparing-outputs-between-nlme-and-glmmtmb" class="slide level2">
+<section id="comparing-outputs-between-nlme-and-glmmtmb" class="slide level2 model-comparison">
 <h2>Comparing outputs between nlme and glmmTMB</h2>
 <p>Let’s compare the random effects outputs to see if the models are truly equivalent.</p>
-<p><strong>nlme:</strong> StdDev Corr<br>
-is_male 0.83645552 is_mal is_fml is_m:_ is_female 0.90199634 0.189<br>
-is_male:diaryday_c 0.01634796 0.544 0.033<br>
-is_female:diaryday_c 0.01612665 0.204 0.534 -0.012 Residual 0.72170702</p>
-<p>Correlation Structure: Compound symmetry Formula: ~1 | coupleID/diaryday Parameter estimate(s): Rho 0.04094751 Variance function: Structure: Different standard deviations per stratum Formula: ~1 | gender Parameter estimates: 1 2 1.000000 1.554608</p>
-<p>We need to compute the residual for each partner ourselves from the nlme output:</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href></a><span class="fl">0.72170702</span> <span class="sc">*</span> <span class="fl">1.000000</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 0.721707</code></pre>
+<p><code>nlme</code> reports standard deviations. To compare with <code>glmmTMB</code> variances, square the SDs; residual SDs first use the variance-function multiplier, e.g., <code>(0.721707 * 1)^2 = 0.521</code> and <code>(0.721707 * 1.554608)^2 = 1.259</code>. {.model-compare-note}</p>
+<div class="model-compare-grid">
+<div class="model-compare-panel">
+<strong>nlme:</strong>
+<pre class="model-compare-output"><code>                     StdDev     Corr
+is_male              0.83645552 is_mal is_fml is_m:_
+is_female            0.90199634  0.189              
+is_male:diaryday_c   0.01634796  0.544  0.033       
+is_female:diaryday_c 0.01612665  0.204  0.534 -0.012
+Residual             0.72170702
+
+Correlation Structure: Compound symmetry
+ Formula: ~1 | coupleID/diaryday
+ Parameter estimate(s):
+       Rho
+0.04094751
+Variance function:
+ Structure: Different standard deviations per stratum
+ Formula: ~1 | gender
+ Parameter estimates:
+       1        2
+1.000000 1.554608
+
+Residual SDs by partner:
+  Partner 1: 0.721707
+  Partner 2: 1.121972</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href></a><span class="fl">0.72170702</span> <span class="sc">*</span> <span class="fl">1.554608</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 1.121972</code></pre>
+<div class="model-compare-panel">
+<strong>glmmTMB:</strong>
+<pre class="model-compare-output"><code>Random effects:
+Conditional model:
+ Groups            Name                 Variance  Std.Dev. Corr
+ coupleID          is_male              0.6814498 0.82550
+                   is_female            0.7930407 0.89053   0.19             
+                   is_male:diaryday_c   0.0002637 0.01624   0.55  0.03       
+                   is_female:diaryday_c 0.0002571 0.01603   0.21  0.54 -0.01
+ coupleID:diaryday is_male              1.2583552 1.12176
+                   is_female            0.5206608 0.72157  0.04</code></pre>
 </div>
 </div>
-<p><strong>glmmTMB:</strong></p>
-<p>Random effects:</p>
-<p>Conditional model: Groups Name Variance Std.Dev. Corr<br>
-coupleID is_male 0.6814498 0.82550<br>
-is_female 0.7930407 0.89053 0.19<br>
-is_male:diaryday_c 0.0002637 0.01624 0.55 0.03<br>
-is_female:diaryday_c 0.0002571 0.01603 0.21 0.54 -0.01 coupleID:diaryday is_male 1.2583552 1.12176<br>
-is_female 0.5206608 0.72157 0.04</p>
 </section>
 <section id="distinguishable-dyads---l-apim---model-brms" class="slide level2">
 <h2>Distinguishable Dyads - L-APIM - Model brms</h2>
 <p>Equivalent <code>brms</code> model.</p>
 <p>Longitudinal brms residual priors differ by model type. Distinguishable models estimate partner-specific residual SDs via <code>sigma ~ 0 + is_male + is_female</code>; because brms models these log-sigma predictors as distributional regression coefficients, their priors use <code>class = &quot;b&quot;, dpar = &quot;sigma&quot;</code>. Exchangeable longitudinal models keep one pooled residual <code>sigma</code>, so their priors use <code>prior(student_t(3, 0, 1.5), class = &quot;sigma&quot;)</code> directly.</p>
 <div class="cell code-50vh">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href></a>formula_dist_apim_long_simple <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
-<span id="cb29-2"><a href></a>  closeness <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female <span class="sc">+</span></span>
-<span id="cb29-3"><a href></a>    </span>
-<span id="cb29-4"><a href></a>    <span class="co"># Time Slopes</span></span>
-<span id="cb29-5"><a href></a>    is_male<span class="sc">:</span>diaryday_c <span class="sc">+</span></span>
-<span id="cb29-6"><a href></a>    is_female<span class="sc">:</span>diaryday_c <span class="sc">+</span></span>
-<span id="cb29-7"><a href></a>    </span>
-<span id="cb29-8"><a href></a>    <span class="co"># Between-Person APIM</span></span>
-<span id="cb29-9"><a href></a>    is_male<span class="sc">:</span>provided_support_actor_cbp <span class="sc">+</span> </span>
-<span id="cb29-10"><a href></a>    is_male<span class="sc">:</span>provided_support_partner_cbp <span class="sc">+</span> </span>
-<span id="cb29-11"><a href></a>    </span>
-<span id="cb29-12"><a href></a>    is_female<span class="sc">:</span>provided_support_actor_cbp <span class="sc">+</span> </span>
-<span id="cb29-13"><a href></a>    is_female<span class="sc">:</span>provided_support_partner_cbp <span class="sc">+</span></span>
-<span id="cb29-14"><a href></a>  </span>
-<span id="cb29-15"><a href></a>    <span class="co"># Within-Person APIM</span></span>
-<span id="cb29-16"><a href></a>    is_male<span class="sc">:</span>provided_support_actor_cwp <span class="sc">+</span> </span>
-<span id="cb29-17"><a href></a>    is_male<span class="sc">:</span>provided_support_partner_cwp <span class="sc">+</span></span>
-<span id="cb29-18"><a href></a>    </span>
-<span id="cb29-19"><a href></a>    is_female<span class="sc">:</span>provided_support_actor_cwp <span class="sc">+</span> </span>
-<span id="cb29-20"><a href></a>    is_female<span class="sc">:</span>provided_support_partner_cwp <span class="sc">+</span></span>
-<span id="cb29-21"><a href></a>  </span>
-<span id="cb29-22"><a href></a>  <span class="co"># Accounting for non-independence between partners&#39; means and trajectories </span></span>
-<span id="cb29-23"><a href></a>  <span class="co"># and effect sensitivities via random effects:</span></span>
-<span id="cb29-24"><a href></a>  (<span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female</span>
-<span id="cb29-25"><a href></a>    <span class="sc">+</span> is_male<span class="sc">:</span>diaryday_c <span class="sc">+</span> is_female<span class="sc">:</span>diaryday_c</span>
-<span id="cb29-26"><a href></a>  <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
-<span id="cb29-27"><a href></a>    </span>
-<span id="cb29-28"><a href></a>    </span>
-<span id="cb29-29"><a href></a>  <span class="co"># Accounting for same-day residual correlation</span></span>
-<span id="cb29-30"><a href></a>  <span class="fu">cosy</span>(<span class="at">gr =</span> coupleID<span class="sc">:</span>diaryday)</span>
-<span id="cb29-31"><a href></a></span>
-<span id="cb29-32"><a href></a>  <span class="co"># heteroscedastic residuals</span></span>
-<span id="cb29-33"><a href></a>  , sigma <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female </span>
-<span id="cb29-34"><a href></a>)</span>
-<span id="cb29-35"><a href></a></span>
-<span id="cb29-36"><a href></a><span class="co"># brms&#39; defaults for group-level SDs and correlations are sensible weak defaults</span></span>
-<span id="cb29-37"><a href></a><span class="co"># (half Student-t priors for SDs and LKJ priors for correlation matrices). Here we</span></span>
-<span id="cb29-38"><a href></a><span class="co"># set weakly regularizing priors explicitly so the modelling assumptions are visible.</span></span>
-<span id="cb29-39"><a href></a>priors_dist_apim_long_simple <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb29-40"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">4</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>, <span class="at">coef =</span> <span class="st">&quot;is_male&quot;</span>), <span class="co"># male intercept</span></span>
-<span id="cb29-41"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">4</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>, <span class="at">coef =</span> <span class="st">&quot;is_female&quot;</span>), <span class="co"># female intercept</span></span>
-<span id="cb29-42"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>), <span class="co"># other beta coefficients</span></span>
-<span id="cb29-43"><a href></a>  <span class="fu">prior</span>(<span class="fu">exponential</span>(<span class="dv">1</span>), <span class="at">class =</span> <span class="st">&quot;sd&quot;</span>),</span>
-<span id="cb29-44"><a href></a>  <span class="fu">prior</span>(<span class="fu">lkj</span>(<span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;cor&quot;</span>),</span>
-<span id="cb29-45"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="fl">0.7</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>, <span class="at">dpar =</span> <span class="st">&quot;sigma&quot;</span>),</span>
-<span id="cb29-46"><a href></a>  <span class="fu">prior</span>(<span class="fu">beta</span>(<span class="dv">1</span>, <span class="dv">3</span>), <span class="at">class =</span> <span class="st">&quot;cosy&quot;</span>)</span>
-<span id="cb29-47"><a href></a>)</span>
-<span id="cb29-48"><a href></a></span>
-<span id="cb29-49"><a href></a>model_dist_apim_long_simple <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
-<span id="cb29-50"><a href></a>  <span class="at">formula =</span> formula_dist_apim_long_simple,</span>
-<span id="cb29-51"><a href></a>  <span class="at">data =</span> df_long_apim,</span>
-<span id="cb29-52"><a href></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(<span class="at">link =</span> identity), <span class="co"># student() is also often a nice robust option. </span></span>
-<span id="cb29-53"><a href></a>  <span class="at">prior =</span> priors_dist_apim_long_simple,</span>
-<span id="cb29-54"><a href></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
-<span id="cb29-55"><a href></a>  <span class="at">cores =</span> <span class="dv">4</span>,</span>
-<span id="cb29-56"><a href></a>  <span class="at">iter =</span> <span class="dv">2000</span>,</span>
-<span id="cb29-57"><a href></a>  <span class="at">warmup =</span> <span class="dv">1000</span>, </span>
-<span id="cb29-58"><a href></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
-<span id="cb29-59"><a href></a>  <span class="at">file =</span> <span class="fu">file.path</span>(<span class="st">&#39;brms_cache&#39;</span>, <span class="st">&#39;example1_dist_apim_long_simpel&#39;</span>) <span class="co"># Cache the model</span></span>
-<span id="cb29-60"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href></a>formula_dist_apim_long_simple <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
+<span id="cb25-2"><a href></a>  closeness <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female <span class="sc">+</span></span>
+<span id="cb25-3"><a href></a>    </span>
+<span id="cb25-4"><a href></a>    <span class="co"># Time Slopes</span></span>
+<span id="cb25-5"><a href></a>    is_male<span class="sc">:</span>diaryday_c <span class="sc">+</span></span>
+<span id="cb25-6"><a href></a>    is_female<span class="sc">:</span>diaryday_c <span class="sc">+</span></span>
+<span id="cb25-7"><a href></a>    </span>
+<span id="cb25-8"><a href></a>    <span class="co"># Between-Person APIM</span></span>
+<span id="cb25-9"><a href></a>    is_male<span class="sc">:</span>provided_support_actor_cbp <span class="sc">+</span> </span>
+<span id="cb25-10"><a href></a>    is_male<span class="sc">:</span>provided_support_partner_cbp <span class="sc">+</span> </span>
+<span id="cb25-11"><a href></a>    </span>
+<span id="cb25-12"><a href></a>    is_female<span class="sc">:</span>provided_support_actor_cbp <span class="sc">+</span> </span>
+<span id="cb25-13"><a href></a>    is_female<span class="sc">:</span>provided_support_partner_cbp <span class="sc">+</span></span>
+<span id="cb25-14"><a href></a>  </span>
+<span id="cb25-15"><a href></a>    <span class="co"># Within-Person APIM</span></span>
+<span id="cb25-16"><a href></a>    is_male<span class="sc">:</span>provided_support_actor_cwp <span class="sc">+</span> </span>
+<span id="cb25-17"><a href></a>    is_male<span class="sc">:</span>provided_support_partner_cwp <span class="sc">+</span></span>
+<span id="cb25-18"><a href></a>    </span>
+<span id="cb25-19"><a href></a>    is_female<span class="sc">:</span>provided_support_actor_cwp <span class="sc">+</span> </span>
+<span id="cb25-20"><a href></a>    is_female<span class="sc">:</span>provided_support_partner_cwp <span class="sc">+</span></span>
+<span id="cb25-21"><a href></a>  </span>
+<span id="cb25-22"><a href></a>  <span class="co"># Accounting for non-independence between partners&#39; means and trajectories </span></span>
+<span id="cb25-23"><a href></a>  <span class="co"># and effect sensitivities via random effects:</span></span>
+<span id="cb25-24"><a href></a>  (<span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female</span>
+<span id="cb25-25"><a href></a>    <span class="sc">+</span> is_male<span class="sc">:</span>diaryday_c <span class="sc">+</span> is_female<span class="sc">:</span>diaryday_c</span>
+<span id="cb25-26"><a href></a>  <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
+<span id="cb25-27"><a href></a>    </span>
+<span id="cb25-28"><a href></a>    </span>
+<span id="cb25-29"><a href></a>  <span class="co"># Accounting for same-day residual correlation</span></span>
+<span id="cb25-30"><a href></a>  <span class="fu">cosy</span>(<span class="at">gr =</span> coupleID<span class="sc">:</span>diaryday)</span>
+<span id="cb25-31"><a href></a></span>
+<span id="cb25-32"><a href></a>  <span class="co"># heteroscedastic residuals</span></span>
+<span id="cb25-33"><a href></a>  , sigma <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female </span>
+<span id="cb25-34"><a href></a>)</span>
+<span id="cb25-35"><a href></a></span>
+<span id="cb25-36"><a href></a><span class="co"># brms&#39; defaults for group-level SDs and correlations are sensible weak defaults</span></span>
+<span id="cb25-37"><a href></a><span class="co"># (half Student-t priors for SDs and LKJ priors for correlation matrices). Here we</span></span>
+<span id="cb25-38"><a href></a><span class="co"># set weakly regularizing priors explicitly so the modelling assumptions are visible.</span></span>
+<span id="cb25-39"><a href></a>priors_dist_apim_long_simple <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb25-40"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">4</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>, <span class="at">coef =</span> <span class="st">&quot;is_male&quot;</span>), <span class="co"># male intercept</span></span>
+<span id="cb25-41"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">4</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>, <span class="at">coef =</span> <span class="st">&quot;is_female&quot;</span>), <span class="co"># female intercept</span></span>
+<span id="cb25-42"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>), <span class="co"># other beta coefficients</span></span>
+<span id="cb25-43"><a href></a>  <span class="fu">prior</span>(<span class="fu">exponential</span>(<span class="dv">1</span>), <span class="at">class =</span> <span class="st">&quot;sd&quot;</span>),</span>
+<span id="cb25-44"><a href></a>  <span class="fu">prior</span>(<span class="fu">lkj</span>(<span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;cor&quot;</span>),</span>
+<span id="cb25-45"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="fl">0.7</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>, <span class="at">dpar =</span> <span class="st">&quot;sigma&quot;</span>),</span>
+<span id="cb25-46"><a href></a>  <span class="fu">prior</span>(<span class="fu">beta</span>(<span class="dv">1</span>, <span class="dv">3</span>), <span class="at">class =</span> <span class="st">&quot;cosy&quot;</span>)</span>
+<span id="cb25-47"><a href></a>)</span>
+<span id="cb25-48"><a href></a></span>
+<span id="cb25-49"><a href></a>model_dist_apim_long_simple <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
+<span id="cb25-50"><a href></a>  <span class="at">formula =</span> formula_dist_apim_long_simple,</span>
+<span id="cb25-51"><a href></a>  <span class="at">data =</span> df_long_apim,</span>
+<span id="cb25-52"><a href></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(<span class="at">link =</span> identity), <span class="co"># student() is also often a nice robust option. </span></span>
+<span id="cb25-53"><a href></a>  <span class="at">prior =</span> priors_dist_apim_long_simple,</span>
+<span id="cb25-54"><a href></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb25-55"><a href></a>  <span class="at">cores =</span> <span class="dv">4</span>,</span>
+<span id="cb25-56"><a href></a>  <span class="at">iter =</span> <span class="dv">2000</span>,</span>
+<span id="cb25-57"><a href></a>  <span class="at">warmup =</span> <span class="dv">1000</span>, </span>
+<span id="cb25-58"><a href></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
+<span id="cb25-59"><a href></a>  <span class="at">file =</span> <span class="fu">file.path</span>(<span class="st">&#39;brms_cache&#39;</span>, <span class="st">&#39;example1_dist_apim_long_simpel&#39;</span>) <span class="co"># Cache the model</span></span>
+<span id="cb25-60"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="distinguishable-dyads---l-apim---results-scrollable" class="slide level2">
@@ -3911,30 +3993,30 @@ is_female 0.5206608 0.72157 0.04</p>
 <p>A dynamic MLM can account for temporal dependence by including lagged within-person centered outcomes as predictors. In dyadic data, this can include actor inertia and partner spillover: today’s closeness is predicted by yesterday’s own deviation from typical closeness and yesterday’s partner deviation from typical closeness, in addition to the concurrent APIM predictors.</p>
 <p>This is not a drop-in replacement for residual AR(1). The APIM coefficients become effects conditional on prior closeness, not total within-person associations. Lagged-outcome models can also suffer from dynamic-panel bias, often called Nickell bias <span class="citation" data-cites="nickellBiasesDynamicModels1981">(<a href="#/references" role="doc-biblioref" onclick>Nickell, 1981</a>)</span>, because the lagged outcome is related to person/couple effects and prior residuals. This is especially problematic with short time series.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href></a>df_long_dyn <span class="ot">&lt;-</span> df_long_apim <span class="sc">%&gt;%</span></span>
-<span id="cb30-2"><a href></a>  dplyr<span class="sc">::</span><span class="fu">arrange</span>(userID, diaryday) <span class="sc">%&gt;%</span></span>
-<span id="cb30-3"><a href></a>  dplyr<span class="sc">::</span><span class="fu">group_by</span>(userID) <span class="sc">%&gt;%</span></span>
-<span id="cb30-4"><a href></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
-<span id="cb30-5"><a href></a>    <span class="at">closeness_cwp =</span> closeness <span class="sc">-</span> <span class="fu">mean</span>(closeness, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb30-6"><a href></a>    <span class="at">closeness_actor_lag_cwp =</span> dplyr<span class="sc">::</span><span class="fu">lag</span>(closeness_cwp)</span>
-<span id="cb30-7"><a href></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb30-8"><a href></a>  dplyr<span class="sc">::</span><span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb30-9"><a href></a>  dplyr<span class="sc">::</span><span class="fu">group_by</span>(coupleID, diaryday) <span class="sc">%&gt;%</span></span>
-<span id="cb30-10"><a href></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
-<span id="cb30-11"><a href></a>    <span class="at">closeness_partner_lag_cwp =</span> closeness_actor_lag_cwp[<span class="fu">match</span>(<span class="dv">3</span> <span class="sc">-</span> gender, gender)]</span>
-<span id="cb30-12"><a href></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb30-13"><a href></a>  dplyr<span class="sc">::</span><span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb30-14"><a href></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(closeness_actor_lag_cwp), <span class="sc">!</span><span class="fu">is.na</span>(closeness_partner_lag_cwp))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href></a>df_long_dyn <span class="ot">&lt;-</span> df_long_apim <span class="sc">%&gt;%</span></span>
+<span id="cb26-2"><a href></a>  dplyr<span class="sc">::</span><span class="fu">arrange</span>(userID, diaryday) <span class="sc">%&gt;%</span></span>
+<span id="cb26-3"><a href></a>  dplyr<span class="sc">::</span><span class="fu">group_by</span>(userID) <span class="sc">%&gt;%</span></span>
+<span id="cb26-4"><a href></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
+<span id="cb26-5"><a href></a>    <span class="at">closeness_cwp =</span> closeness <span class="sc">-</span> <span class="fu">mean</span>(closeness, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb26-6"><a href></a>    <span class="at">closeness_actor_lag_cwp =</span> dplyr<span class="sc">::</span><span class="fu">lag</span>(closeness_cwp)</span>
+<span id="cb26-7"><a href></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb26-8"><a href></a>  dplyr<span class="sc">::</span><span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb26-9"><a href></a>  dplyr<span class="sc">::</span><span class="fu">group_by</span>(coupleID, diaryday) <span class="sc">%&gt;%</span></span>
+<span id="cb26-10"><a href></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
+<span id="cb26-11"><a href></a>    <span class="at">closeness_partner_lag_cwp =</span> closeness_actor_lag_cwp[<span class="fu">match</span>(<span class="dv">3</span> <span class="sc">-</span> gender, gender)]</span>
+<span id="cb26-12"><a href></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb26-13"><a href></a>  dplyr<span class="sc">::</span><span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb26-14"><a href></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(closeness_actor_lag_cwp), <span class="sc">!</span><span class="fu">is.na</span>(closeness_partner_lag_cwp))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="distinguishable-dyads---l-apim---dynamic-workaround" class="slide level2">
 <h2>Distinguishable Dyads - L-APIM - Dynamic Workaround</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href></a><span class="co"># Add these terms to the fixed-effects part of the APIM:</span></span>
-<span id="cb31-2"><a href></a>is_male<span class="sc">:</span>closeness_actor_lag_cwp <span class="sc">+</span></span>
-<span id="cb31-3"><a href></a>is_male<span class="sc">:</span>closeness_partner_lag_cwp <span class="sc">+</span></span>
-<span id="cb31-4"><a href></a>is_female<span class="sc">:</span>closeness_actor_lag_cwp <span class="sc">+</span></span>
-<span id="cb31-5"><a href></a>is_female<span class="sc">:</span>closeness_partner_lag_cwp</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href></a><span class="co"># Add these terms to the fixed-effects part of the APIM:</span></span>
+<span id="cb27-2"><a href></a>is_male<span class="sc">:</span>closeness_actor_lag_cwp <span class="sc">+</span></span>
+<span id="cb27-3"><a href></a>is_male<span class="sc">:</span>closeness_partner_lag_cwp <span class="sc">+</span></span>
+<span id="cb27-4"><a href></a>is_female<span class="sc">:</span>closeness_actor_lag_cwp <span class="sc">+</span></span>
+<span id="cb27-5"><a href></a>is_female<span class="sc">:</span>closeness_partner_lag_cwp</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>You way want to use this as a sensitivity analysis for temporal dynamics, not as the primary APIM unless the conditional-on-lag interpretation matches the research question (due to the Nickell-bias).</p>
 </section>
@@ -3942,74 +4024,74 @@ is_female 0.5206608 0.72157 0.04</p>
 <h2>Maximal Model Specification (non-dynamic/no AR(1))</h2>
 <p>We add all random slopes and their correlations. This is neither converging in <code>nlme</code> nor <code>glmmTMB</code>.</p>
 <div class="cell code-50vh">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href></a>formula_dist_apim_long_complex <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
-<span id="cb32-2"><a href></a>  closeness <span class="sc">~</span> </span>
-<span id="cb32-3"><a href></a>    </span>
-<span id="cb32-4"><a href></a>    <span class="co"># Intercepts</span></span>
-<span id="cb32-5"><a href></a>    <span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female <span class="sc">+</span></span>
-<span id="cb32-6"><a href></a>    </span>
-<span id="cb32-7"><a href></a>    <span class="co"># Time Slopes</span></span>
-<span id="cb32-8"><a href></a>    is_male<span class="sc">:</span>diaryday_c <span class="sc">+</span></span>
-<span id="cb32-9"><a href></a>    is_female<span class="sc">:</span>diaryday_c <span class="sc">+</span></span>
-<span id="cb32-10"><a href></a>    </span>
-<span id="cb32-11"><a href></a>    <span class="co"># Between-Person APIM</span></span>
-<span id="cb32-12"><a href></a>    is_male<span class="sc">:</span>provided_support_actor_cbp <span class="sc">+</span> </span>
-<span id="cb32-13"><a href></a>    is_male<span class="sc">:</span>provided_support_partner_cbp <span class="sc">+</span></span>
-<span id="cb32-14"><a href></a>    </span>
-<span id="cb32-15"><a href></a>    is_female<span class="sc">:</span>provided_support_actor_cbp <span class="sc">+</span> </span>
-<span id="cb32-16"><a href></a>    is_female<span class="sc">:</span>provided_support_partner_cbp <span class="sc">+</span></span>
-<span id="cb32-17"><a href></a>  </span>
-<span id="cb32-18"><a href></a>    <span class="co"># Within-Person APIM</span></span>
-<span id="cb32-19"><a href></a>    is_male<span class="sc">:</span>provided_support_actor_cwp <span class="sc">+</span> </span>
-<span id="cb32-20"><a href></a>    is_male<span class="sc">:</span>provided_support_partner_cwp <span class="sc">+</span></span>
-<span id="cb32-21"><a href></a>    </span>
-<span id="cb32-22"><a href></a>    is_female<span class="sc">:</span>provided_support_actor_cwp <span class="sc">+</span> </span>
-<span id="cb32-23"><a href></a>    is_female<span class="sc">:</span>provided_support_partner_cwp <span class="sc">+</span></span>
-<span id="cb32-24"><a href></a>    </span>
-<span id="cb32-25"><a href></a>    <span class="co"># Accounting for non-independence between partners&#39; means and trajectories </span></span>
-<span id="cb32-26"><a href></a>    <span class="co"># and effect sensitivities via random effects:</span></span>
-<span id="cb32-27"><a href></a>    (<span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female <span class="sc">+</span>  </span>
-<span id="cb32-28"><a href></a>       </span>
-<span id="cb32-29"><a href></a>       is_male<span class="sc">:</span>diaryday_c <span class="sc">+</span> is_female<span class="sc">:</span>diaryday_c <span class="sc">+</span></span>
-<span id="cb32-30"><a href></a>       </span>
-<span id="cb32-31"><a href></a>       is_male<span class="sc">:</span>provided_support_actor_cwp <span class="sc">+</span> </span>
-<span id="cb32-32"><a href></a>       is_male<span class="sc">:</span>provided_support_partner_cwp <span class="sc">+</span></span>
-<span id="cb32-33"><a href></a>       is_female<span class="sc">:</span>provided_support_actor_cwp <span class="sc">+</span> </span>
-<span id="cb32-34"><a href></a>       is_female<span class="sc">:</span>provided_support_partner_cwp </span>
-<span id="cb32-35"><a href></a>    <span class="sc">|</span> coupleID ) <span class="sc">+</span> </span>
-<span id="cb32-36"><a href></a>    </span>
-<span id="cb32-37"><a href></a>    </span>
-<span id="cb32-38"><a href></a>    <span class="co"># Accounting for daily non-independence</span></span>
-<span id="cb32-39"><a href></a>    <span class="fu">cosy</span>(<span class="at">gr =</span> coupleID<span class="sc">:</span>diaryday), </span>
-<span id="cb32-40"><a href></a>  </span>
-<span id="cb32-41"><a href></a>  <span class="co"># No more AR1. You could also test MA or ARMA. </span></span>
-<span id="cb32-42"><a href></a>    </span>
-<span id="cb32-43"><a href></a>  sigma <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female   <span class="co"># heteroscedastic residuals</span></span>
-<span id="cb32-44"><a href></a>)</span>
-<span id="cb32-45"><a href></a></span>
-<span id="cb32-46"><a href></a>priors_dist_apim_long_complex <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb32-47"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">4</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>, <span class="at">coef =</span> <span class="st">&quot;is_male&quot;</span>),</span>
-<span id="cb32-48"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">4</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>, <span class="at">coef =</span> <span class="st">&quot;is_female&quot;</span>),</span>
-<span id="cb32-49"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>),</span>
-<span id="cb32-50"><a href></a>  <span class="fu">prior</span>(<span class="fu">exponential</span>(<span class="dv">1</span>), <span class="at">class =</span> <span class="st">&quot;sd&quot;</span>),</span>
-<span id="cb32-51"><a href></a>  <span class="fu">prior</span>(<span class="fu">lkj</span>(<span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;cor&quot;</span>),</span>
-<span id="cb32-52"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="fl">0.7</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>, <span class="at">dpar =</span> <span class="st">&quot;sigma&quot;</span>),</span>
-<span id="cb32-53"><a href></a>  <span class="fu">prior</span>(<span class="fu">beta</span>(<span class="dv">1</span>, <span class="dv">3</span>), <span class="at">class =</span> <span class="st">&quot;cosy&quot;</span>)</span>
-<span id="cb32-54"><a href></a>)</span>
-<span id="cb32-55"><a href></a></span>
-<span id="cb32-56"><a href></a></span>
-<span id="cb32-57"><a href></a>model_dist_apim_long_complex <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
-<span id="cb32-58"><a href></a>  <span class="at">formula =</span> formula_dist_apim_long_complex,</span>
-<span id="cb32-59"><a href></a>  <span class="at">data =</span> df_long_apim,</span>
-<span id="cb32-60"><a href></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(<span class="at">link =</span> identity),</span>
-<span id="cb32-61"><a href></a>  <span class="at">prior =</span> priors_dist_apim_long_complex,</span>
-<span id="cb32-62"><a href></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
-<span id="cb32-63"><a href></a>  <span class="at">cores =</span> <span class="dv">4</span>,</span>
-<span id="cb32-64"><a href></a>  <span class="at">iter =</span> <span class="dv">2000</span>,</span>
-<span id="cb32-65"><a href></a>  <span class="at">warmup =</span> <span class="dv">1000</span>, </span>
-<span id="cb32-66"><a href></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
-<span id="cb32-67"><a href></a>  <span class="at">file =</span> <span class="fu">file.path</span>(<span class="st">&#39;brms_cache&#39;</span>, <span class="st">&#39;example1_dist_apim_long_complex&#39;</span>) <span class="co"># Cache the model</span></span>
-<span id="cb32-68"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href></a>formula_dist_apim_long_complex <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
+<span id="cb28-2"><a href></a>  closeness <span class="sc">~</span> </span>
+<span id="cb28-3"><a href></a>    </span>
+<span id="cb28-4"><a href></a>    <span class="co"># Intercepts</span></span>
+<span id="cb28-5"><a href></a>    <span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female <span class="sc">+</span></span>
+<span id="cb28-6"><a href></a>    </span>
+<span id="cb28-7"><a href></a>    <span class="co"># Time Slopes</span></span>
+<span id="cb28-8"><a href></a>    is_male<span class="sc">:</span>diaryday_c <span class="sc">+</span></span>
+<span id="cb28-9"><a href></a>    is_female<span class="sc">:</span>diaryday_c <span class="sc">+</span></span>
+<span id="cb28-10"><a href></a>    </span>
+<span id="cb28-11"><a href></a>    <span class="co"># Between-Person APIM</span></span>
+<span id="cb28-12"><a href></a>    is_male<span class="sc">:</span>provided_support_actor_cbp <span class="sc">+</span> </span>
+<span id="cb28-13"><a href></a>    is_male<span class="sc">:</span>provided_support_partner_cbp <span class="sc">+</span></span>
+<span id="cb28-14"><a href></a>    </span>
+<span id="cb28-15"><a href></a>    is_female<span class="sc">:</span>provided_support_actor_cbp <span class="sc">+</span> </span>
+<span id="cb28-16"><a href></a>    is_female<span class="sc">:</span>provided_support_partner_cbp <span class="sc">+</span></span>
+<span id="cb28-17"><a href></a>  </span>
+<span id="cb28-18"><a href></a>    <span class="co"># Within-Person APIM</span></span>
+<span id="cb28-19"><a href></a>    is_male<span class="sc">:</span>provided_support_actor_cwp <span class="sc">+</span> </span>
+<span id="cb28-20"><a href></a>    is_male<span class="sc">:</span>provided_support_partner_cwp <span class="sc">+</span></span>
+<span id="cb28-21"><a href></a>    </span>
+<span id="cb28-22"><a href></a>    is_female<span class="sc">:</span>provided_support_actor_cwp <span class="sc">+</span> </span>
+<span id="cb28-23"><a href></a>    is_female<span class="sc">:</span>provided_support_partner_cwp <span class="sc">+</span></span>
+<span id="cb28-24"><a href></a>    </span>
+<span id="cb28-25"><a href></a>    <span class="co"># Accounting for non-independence between partners&#39; means and trajectories </span></span>
+<span id="cb28-26"><a href></a>    <span class="co"># and effect sensitivities via random effects:</span></span>
+<span id="cb28-27"><a href></a>    (<span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female <span class="sc">+</span>  </span>
+<span id="cb28-28"><a href></a>       </span>
+<span id="cb28-29"><a href></a>       is_male<span class="sc">:</span>diaryday_c <span class="sc">+</span> is_female<span class="sc">:</span>diaryday_c <span class="sc">+</span></span>
+<span id="cb28-30"><a href></a>       </span>
+<span id="cb28-31"><a href></a>       is_male<span class="sc">:</span>provided_support_actor_cwp <span class="sc">+</span> </span>
+<span id="cb28-32"><a href></a>       is_male<span class="sc">:</span>provided_support_partner_cwp <span class="sc">+</span></span>
+<span id="cb28-33"><a href></a>       is_female<span class="sc">:</span>provided_support_actor_cwp <span class="sc">+</span> </span>
+<span id="cb28-34"><a href></a>       is_female<span class="sc">:</span>provided_support_partner_cwp </span>
+<span id="cb28-35"><a href></a>    <span class="sc">|</span> coupleID ) <span class="sc">+</span> </span>
+<span id="cb28-36"><a href></a>    </span>
+<span id="cb28-37"><a href></a>    </span>
+<span id="cb28-38"><a href></a>    <span class="co"># Accounting for daily non-independence</span></span>
+<span id="cb28-39"><a href></a>    <span class="fu">cosy</span>(<span class="at">gr =</span> coupleID<span class="sc">:</span>diaryday), </span>
+<span id="cb28-40"><a href></a>  </span>
+<span id="cb28-41"><a href></a>  <span class="co"># No more AR1. You could also test MA or ARMA. </span></span>
+<span id="cb28-42"><a href></a>    </span>
+<span id="cb28-43"><a href></a>  sigma <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female   <span class="co"># heteroscedastic residuals</span></span>
+<span id="cb28-44"><a href></a>)</span>
+<span id="cb28-45"><a href></a></span>
+<span id="cb28-46"><a href></a>priors_dist_apim_long_complex <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb28-47"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">4</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>, <span class="at">coef =</span> <span class="st">&quot;is_male&quot;</span>),</span>
+<span id="cb28-48"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">4</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>, <span class="at">coef =</span> <span class="st">&quot;is_female&quot;</span>),</span>
+<span id="cb28-49"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>),</span>
+<span id="cb28-50"><a href></a>  <span class="fu">prior</span>(<span class="fu">exponential</span>(<span class="dv">1</span>), <span class="at">class =</span> <span class="st">&quot;sd&quot;</span>),</span>
+<span id="cb28-51"><a href></a>  <span class="fu">prior</span>(<span class="fu">lkj</span>(<span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;cor&quot;</span>),</span>
+<span id="cb28-52"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="fl">0.7</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>, <span class="at">dpar =</span> <span class="st">&quot;sigma&quot;</span>),</span>
+<span id="cb28-53"><a href></a>  <span class="fu">prior</span>(<span class="fu">beta</span>(<span class="dv">1</span>, <span class="dv">3</span>), <span class="at">class =</span> <span class="st">&quot;cosy&quot;</span>)</span>
+<span id="cb28-54"><a href></a>)</span>
+<span id="cb28-55"><a href></a></span>
+<span id="cb28-56"><a href></a></span>
+<span id="cb28-57"><a href></a>model_dist_apim_long_complex <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
+<span id="cb28-58"><a href></a>  <span class="at">formula =</span> formula_dist_apim_long_complex,</span>
+<span id="cb28-59"><a href></a>  <span class="at">data =</span> df_long_apim,</span>
+<span id="cb28-60"><a href></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(<span class="at">link =</span> identity),</span>
+<span id="cb28-61"><a href></a>  <span class="at">prior =</span> priors_dist_apim_long_complex,</span>
+<span id="cb28-62"><a href></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb28-63"><a href></a>  <span class="at">cores =</span> <span class="dv">4</span>,</span>
+<span id="cb28-64"><a href></a>  <span class="at">iter =</span> <span class="dv">2000</span>,</span>
+<span id="cb28-65"><a href></a>  <span class="at">warmup =</span> <span class="dv">1000</span>, </span>
+<span id="cb28-66"><a href></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
+<span id="cb28-67"><a href></a>  <span class="at">file =</span> <span class="fu">file.path</span>(<span class="st">&#39;brms_cache&#39;</span>, <span class="st">&#39;example1_dist_apim_long_complex&#39;</span>) <span class="co"># Cache the model</span></span>
+<span id="cb28-68"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="maximal-model-specification-results" class="slide level2">
@@ -4463,15 +4545,15 @@ is_female 0.5206608 0.72157 0.04</p>
 <section id="maximal-model-specification-diagnostics-1" class="slide level2">
 <h2>Maximal Model Specification: Diagnostics</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href></a>loo1 <span class="ot">&lt;-</span> <span class="fu">loo</span>(model_dist_apim_long_simple)</span>
-<span id="cb33-2"><a href></a>loo2 <span class="ot">&lt;-</span> <span class="fu">loo</span>(model_dist_apim_long_complex)</span>
-<span id="cb33-3"><a href></a></span>
-<span id="cb33-4"><a href></a>loo<span class="sc">::</span><span class="fu">pareto_k_table</span>(loo1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href></a>loo1 <span class="ot">&lt;-</span> <span class="fu">loo</span>(model_dist_apim_long_simple)</span>
+<span id="cb29-2"><a href></a>loo2 <span class="ot">&lt;-</span> <span class="fu">loo</span>(model_dist_apim_long_complex)</span>
+<span id="cb29-3"><a href></a></span>
+<span id="cb29-4"><a href></a>loo<span class="sc">::</span><span class="fu">pareto_k_table</span>(loo1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 All Pareto k estimates are good (k &lt; 0.7).</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href></a>loo<span class="sc">::</span><span class="fu">pareto_k_table</span>(loo2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href></a>loo<span class="sc">::</span><span class="fu">pareto_k_table</span>(loo2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 All Pareto k estimates are good (k &lt; 0.7).</code></pre>
@@ -4483,8 +4565,8 @@ All Pareto k estimates are good (k &lt; 0.7).</code></pre>
 <section id="maximal-model-specification-diagnostics-2" class="slide level2">
 <h2>Maximal Model Specification: Diagnostics</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href></a>a <span class="ot">&lt;-</span> <span class="fu">loo_compare</span>(loo1, loo2)</span>
-<span id="cb37-2"><a href></a><span class="fu">print</span>(a)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href></a>a <span class="ot">&lt;-</span> <span class="fu">loo_compare</span>(loo1, loo2)</span>
+<span id="cb33-2"><a href></a><span class="fu">print</span>(a)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>                             elpd_diff se_diff
 model_dist_apim_long_complex   0.0       0.0  
@@ -4499,7 +4581,7 @@ model_dist_apim_long_simple  -14.9       6.8  </code></pre>
 <h2>Maximal Model Specification: Diagnostics</h2>
 <p>One approach is to use the <code>report</code> package’s approach to obtain a p-value for the comparison (see their documentation for which assumptions they make):</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href></a>report<span class="sc">::</span><span class="fu">report</span>(a)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href></a>report<span class="sc">::</span><span class="fu">report</span>(a)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>The difference in predictive accuracy, as indexed by Expected Log Predictive
 Density (ELPD-LOO), suggests that &#39;model_dist_apim_long_complex&#39; is the best
@@ -5069,7 +5151,7 @@ model (ELPD = -14609.33), followed by &#39;model_dist_apim_long_simple&#39; (dif
 <h2>Exchangeable Dyads - Cross-Sectional APIM: Data</h2>
 <p>Same cross-sectional data in the same 4-field actor-partner format as before.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href></a><span class="fu">print_df</span>(<span class="fu">head</span>(df_apim))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href></a><span class="fu">print_df</span>(<span class="fu">head</span>(df_apim))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:auto; overflow-x: scroll; width:100%; ">
 <table class="table table-striped caption-top" style="font-size: 20px; width: auto !important; ">
@@ -5186,25 +5268,25 @@ model (ELPD = -14609.33), followed by &#39;model_dist_apim_long_simple&#39; (dif
 </ul>
 <p>One solution in glmmTMB is the following:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42" data-code-line-numbers="1-3|5-6|8-12"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href></a>model_exch_apim_glmmtmb <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
-<span id="cb42-2"><a href></a>  satisfaction <span class="sc">~</span> </span>
-<span id="cb42-3"><a href></a>    </span>
-<span id="cb42-4"><a href></a>    <span class="co"># Pooled single intercept</span></span>
-<span id="cb42-5"><a href></a>    <span class="dv">1</span> <span class="sc">+</span></span>
-<span id="cb42-6"><a href></a>    </span>
-<span id="cb42-7"><a href></a>    <span class="co"># Pooled actor and partner effects</span></span>
-<span id="cb42-8"><a href></a>    communication_actor_gmc <span class="sc">+</span> communication_partner_gmc <span class="sc">+</span></span>
-<span id="cb42-9"><a href></a>  </span>
-<span id="cb42-10"><a href></a>    <span class="co"># Homogeneous compound symmetry constrains the variances to be equal.</span></span>
-<span id="cb42-11"><a href></a>    <span class="co"># we do not need to take gender here, we could construct an arbitrary categorization. </span></span>
-<span id="cb42-12"><a href></a>    <span class="fu">homcs</span>(<span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female <span class="sc">|</span> coupleID)</span>
-<span id="cb42-13"><a href></a>  </span>
-<span id="cb42-14"><a href></a>    <span class="co"># Since we model residuals via a cs random effects structure, glmmTMB requires us to remove an </span></span>
-<span id="cb42-15"><a href></a>    <span class="co"># additional independent residual</span></span>
-<span id="cb42-16"><a href></a>    , <span class="at">dispformula =</span> <span class="sc">~</span> <span class="dv">0</span></span>
-<span id="cb42-17"><a href></a>  </span>
-<span id="cb42-18"><a href></a>    , <span class="at">data =</span> df_apim</span>
-<span id="cb42-19"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38" data-code-line-numbers="1-3|5-6|8-12"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href></a>model_exch_apim_glmmtmb <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
+<span id="cb38-2"><a href></a>  satisfaction <span class="sc">~</span> </span>
+<span id="cb38-3"><a href></a>    </span>
+<span id="cb38-4"><a href></a>    <span class="co"># Pooled single intercept</span></span>
+<span id="cb38-5"><a href></a>    <span class="dv">1</span> <span class="sc">+</span></span>
+<span id="cb38-6"><a href></a>    </span>
+<span id="cb38-7"><a href></a>    <span class="co"># Pooled actor and partner effects</span></span>
+<span id="cb38-8"><a href></a>    communication_actor_gmc <span class="sc">+</span> communication_partner_gmc <span class="sc">+</span></span>
+<span id="cb38-9"><a href></a>  </span>
+<span id="cb38-10"><a href></a>    <span class="co"># Homogeneous compound symmetry constrains the variances to be equal.</span></span>
+<span id="cb38-11"><a href></a>    <span class="co"># we do not need to take gender here, we could construct an arbitrary categorization. </span></span>
+<span id="cb38-12"><a href></a>    <span class="fu">homcs</span>(<span class="dv">0</span> <span class="sc">+</span> is_male <span class="sc">+</span> is_female <span class="sc">|</span> coupleID)</span>
+<span id="cb38-13"><a href></a>  </span>
+<span id="cb38-14"><a href></a>    <span class="co"># Since we model residuals via a cs random effects structure, glmmTMB requires us to remove an </span></span>
+<span id="cb38-15"><a href></a>    <span class="co"># additional independent residual</span></span>
+<span id="cb38-16"><a href></a>    , <span class="at">dispformula =</span> <span class="sc">~</span> <span class="dv">0</span></span>
+<span id="cb38-17"><a href></a>  </span>
+<span id="cb38-18"><a href></a>    , <span class="at">data =</span> df_apim</span>
+<span id="cb38-19"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="exchangeable-dyads---cross-sectional-apim-glmmtmb-1" class="slide level2">
@@ -5212,30 +5294,30 @@ model (ELPD = -14609.33), followed by &#39;model_dist_apim_long_simple&#39; (dif
 <p>This successfully returns a single pooled residual variance, and a correlation between partners:</p>
 <div class="cell">
 <div class="cell-output cell-output-stdout">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43"><pre class="sourceCode numberSource model-summary-output number-lines code-with-copy"><code class="sourceCode"><span id="cb43-1"><a href></a> Family: gaussian  ( identity )</span>
-<span id="cb43-2"><a href></a>Formula:          </span>
-<span id="cb43-3"><a href></a>satisfaction ~ 1 + communication_actor_gmc + communication_partner_gmc +  </span>
-<span id="cb43-4"><a href></a>    homcs(0 + is_male + is_female | coupleID)</span>
-<span id="cb43-5"><a href></a>Dispersion:                    ~0</span>
-<span id="cb43-6"><a href></a>Data: df_apim</span>
-<span id="cb43-7"><a href></a></span>
-<span id="cb43-8"><a href></a>      AIC       BIC    logLik -2*log(L)  df.resid </span>
-<span id="cb43-9"><a href></a>   4026.6    4051.7   -2008.3    4016.6      1095 </span>
-<span id="cb43-10"><a href></a></span>
-<span id="cb43-11"><a href></a>Random effects:</span>
-<span id="cb43-12"><a href></a></span>
-<span id="cb43-13"><a href></a>Conditional model:</span>
-<span id="cb43-14"><a href></a> Groups   Name    Variance Std.Dev. Corr     </span>
-<span id="cb43-15"><a href></a> coupleID is_male 2.403    1.55     0.34 (cs)</span>
-<span id="cb43-16"><a href></a>Number of obs: 1100, groups:  coupleID, 550</span>
-<span id="cb43-17"><a href></a></span>
-<span id="cb43-18"><a href></a>Conditional model:</span>
-<span id="cb43-19"><a href></a>                          Estimate Std. Error z value Pr(&gt;|z|)    </span>
-<span id="cb43-20"><a href></a>(Intercept)                5.10934    0.05418   94.30  &lt; 2e-16 ***</span>
-<span id="cb43-21"><a href></a>communication_actor_gmc    1.71990    0.03177   54.13  &lt; 2e-16 ***</span>
-<span id="cb43-22"><a href></a>communication_partner_gmc  0.24137    0.03177    7.60 3.04e-14 ***</span>
-<span id="cb43-23"><a href></a>---</span>
-<span id="cb43-24"><a href></a>Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39"><pre class="sourceCode numberSource model-summary-output number-lines code-with-copy"><code class="sourceCode"><span id="cb39-1"><a href></a> Family: gaussian  ( identity )</span>
+<span id="cb39-2"><a href></a>Formula:          </span>
+<span id="cb39-3"><a href></a>satisfaction ~ 1 + communication_actor_gmc + communication_partner_gmc +  </span>
+<span id="cb39-4"><a href></a>    homcs(0 + is_male + is_female | coupleID)</span>
+<span id="cb39-5"><a href></a>Dispersion:                    ~0</span>
+<span id="cb39-6"><a href></a>Data: df_apim</span>
+<span id="cb39-7"><a href></a></span>
+<span id="cb39-8"><a href></a>      AIC       BIC    logLik -2*log(L)  df.resid </span>
+<span id="cb39-9"><a href></a>   4026.6    4051.7   -2008.3    4016.6      1095 </span>
+<span id="cb39-10"><a href></a></span>
+<span id="cb39-11"><a href></a>Random effects:</span>
+<span id="cb39-12"><a href></a></span>
+<span id="cb39-13"><a href></a>Conditional model:</span>
+<span id="cb39-14"><a href></a> Groups   Name    Variance Std.Dev. Corr     </span>
+<span id="cb39-15"><a href></a> coupleID is_male 2.403    1.55     0.34 (cs)</span>
+<span id="cb39-16"><a href></a>Number of obs: 1100, groups:  coupleID, 550</span>
+<span id="cb39-17"><a href></a></span>
+<span id="cb39-18"><a href></a>Conditional model:</span>
+<span id="cb39-19"><a href></a>                          Estimate Std. Error z value Pr(&gt;|z|)    </span>
+<span id="cb39-20"><a href></a>(Intercept)                5.10934    0.05418   94.30  &lt; 2e-16 ***</span>
+<span id="cb39-21"><a href></a>communication_actor_gmc    1.71990    0.03177   54.13  &lt; 2e-16 ***</span>
+<span id="cb39-22"><a href></a>communication_partner_gmc  0.24137    0.03177    7.60 3.04e-14 ***</span>
+<span id="cb39-23"><a href></a>---</span>
+<span id="cb39-24"><a href></a>Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </div>
 </section>
@@ -5247,39 +5329,39 @@ model (ELPD = -14609.33), followed by &#39;model_dist_apim_long_simple&#39; (dif
 <h2>Exchangeable Dyads - Cross-Sectional APIM: brms</h2>
 <p>In brms, this issue can also be solved more elegantly immediately by simply providing a group argument to the <code>cosy</code> function and not specifying different residual variances:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44" data-code-line-numbers="1-13|15-20|22-33"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href></a>formula_exch_apim <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
-<span id="cb44-2"><a href></a>  satisfaction <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> </span>
-<span id="cb44-3"><a href></a>    communication_actor_gmc <span class="sc">+</span> communication_partner_gmc <span class="sc">+</span> </span>
-<span id="cb44-4"><a href></a>  </span>
-<span id="cb44-5"><a href></a>    <span class="co"># To achieve a homogeneous compound symmetry covariance structure we use</span></span>
-<span id="cb44-6"><a href></a>    <span class="co"># cosy exactly as before... </span></span>
-<span id="cb44-7"><a href></a>    <span class="fu">cosy</span>(<span class="at">gr =</span> coupleID)</span>
-<span id="cb44-8"><a href></a>  </span>
-<span id="cb44-9"><a href></a>  <span class="co"># ... but now, we do not allow individual variances anymore.</span></span>
-<span id="cb44-10"><a href></a>  <span class="co"># We want one pooled residual variance. So we do not specify a sigma formula. </span></span>
-<span id="cb44-11"><a href></a>  <span class="co"># This implies: </span></span>
-<span id="cb44-12"><a href></a>  <span class="co"># , sigma = ~ 1</span></span>
-<span id="cb44-13"><a href></a>)</span>
-<span id="cb44-14"><a href></a></span>
-<span id="cb44-15"><a href></a>priors_exch_apim <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb44-16"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">2</span>, <span class="dv">10</span>), <span class="at">class =</span> <span class="st">&quot;Intercept&quot;</span>),</span>
-<span id="cb44-17"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">5</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>),</span>
-<span id="cb44-18"><a href></a>  <span class="fu">prior</span>(<span class="fu">student_t</span>(<span class="dv">3</span>, <span class="dv">0</span>, <span class="fl">1.5</span>), <span class="at">class =</span> <span class="st">&quot;sigma&quot;</span>),</span>
-<span id="cb44-19"><a href></a>  <span class="fu">prior</span>(<span class="fu">beta</span>(<span class="dv">1</span>, <span class="dv">3</span>), <span class="at">class =</span> <span class="st">&quot;cosy&quot;</span>)</span>
-<span id="cb44-20"><a href></a>)</span>
-<span id="cb44-21"><a href></a></span>
-<span id="cb44-22"><a href></a>model_exch_apim <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
-<span id="cb44-23"><a href></a>  <span class="at">formula =</span> formula_exch_apim,</span>
-<span id="cb44-24"><a href></a>  <span class="at">data =</span> df_apim,</span>
-<span id="cb44-25"><a href></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(<span class="at">link =</span> identity),</span>
-<span id="cb44-26"><a href></a>  <span class="at">prior =</span> priors_exch_apim,</span>
-<span id="cb44-27"><a href></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
-<span id="cb44-28"><a href></a>  <span class="at">cores =</span> <span class="dv">4</span>,</span>
-<span id="cb44-29"><a href></a>  <span class="at">iter =</span> <span class="dv">2000</span>,</span>
-<span id="cb44-30"><a href></a>  <span class="at">warmup =</span> <span class="dv">1000</span>, </span>
-<span id="cb44-31"><a href></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
-<span id="cb44-32"><a href></a>  <span class="at">file =</span> <span class="fu">file.path</span>(<span class="st">&#39;brms_cache&#39;</span>, <span class="st">&#39;example1_ind_apim&#39;</span>) <span class="co"># Cache the model</span></span>
-<span id="cb44-33"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40" data-code-line-numbers="1-13|15-20|22-33"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href></a>formula_exch_apim <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
+<span id="cb40-2"><a href></a>  satisfaction <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> </span>
+<span id="cb40-3"><a href></a>    communication_actor_gmc <span class="sc">+</span> communication_partner_gmc <span class="sc">+</span> </span>
+<span id="cb40-4"><a href></a>  </span>
+<span id="cb40-5"><a href></a>    <span class="co"># To achieve a homogeneous compound symmetry covariance structure we use</span></span>
+<span id="cb40-6"><a href></a>    <span class="co"># cosy exactly as before... </span></span>
+<span id="cb40-7"><a href></a>    <span class="fu">cosy</span>(<span class="at">gr =</span> coupleID)</span>
+<span id="cb40-8"><a href></a>  </span>
+<span id="cb40-9"><a href></a>  <span class="co"># ... but now, we do not allow individual variances anymore.</span></span>
+<span id="cb40-10"><a href></a>  <span class="co"># We want one pooled residual variance. So we do not specify a sigma formula. </span></span>
+<span id="cb40-11"><a href></a>  <span class="co"># This implies: </span></span>
+<span id="cb40-12"><a href></a>  <span class="co"># , sigma = ~ 1</span></span>
+<span id="cb40-13"><a href></a>)</span>
+<span id="cb40-14"><a href></a></span>
+<span id="cb40-15"><a href></a>priors_exch_apim <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb40-16"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">2</span>, <span class="dv">10</span>), <span class="at">class =</span> <span class="st">&quot;Intercept&quot;</span>),</span>
+<span id="cb40-17"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">5</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>),</span>
+<span id="cb40-18"><a href></a>  <span class="fu">prior</span>(<span class="fu">student_t</span>(<span class="dv">3</span>, <span class="dv">0</span>, <span class="fl">1.5</span>), <span class="at">class =</span> <span class="st">&quot;sigma&quot;</span>),</span>
+<span id="cb40-19"><a href></a>  <span class="fu">prior</span>(<span class="fu">beta</span>(<span class="dv">1</span>, <span class="dv">3</span>), <span class="at">class =</span> <span class="st">&quot;cosy&quot;</span>)</span>
+<span id="cb40-20"><a href></a>)</span>
+<span id="cb40-21"><a href></a></span>
+<span id="cb40-22"><a href></a>model_exch_apim <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
+<span id="cb40-23"><a href></a>  <span class="at">formula =</span> formula_exch_apim,</span>
+<span id="cb40-24"><a href></a>  <span class="at">data =</span> df_apim,</span>
+<span id="cb40-25"><a href></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(<span class="at">link =</span> identity),</span>
+<span id="cb40-26"><a href></a>  <span class="at">prior =</span> priors_exch_apim,</span>
+<span id="cb40-27"><a href></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb40-28"><a href></a>  <span class="at">cores =</span> <span class="dv">4</span>,</span>
+<span id="cb40-29"><a href></a>  <span class="at">iter =</span> <span class="dv">2000</span>,</span>
+<span id="cb40-30"><a href></a>  <span class="at">warmup =</span> <span class="dv">1000</span>, </span>
+<span id="cb40-31"><a href></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
+<span id="cb40-32"><a href></a>  <span class="at">file =</span> <span class="fu">file.path</span>(<span class="st">&#39;brms_cache&#39;</span>, <span class="st">&#39;example1_ind_apim&#39;</span>) <span class="co"># Cache the model</span></span>
+<span id="cb40-33"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="exchangeable-dyads---cross-sectional-apim-results" class="slide level2">
@@ -5355,11 +5437,11 @@ model (ELPD = -14609.33), followed by &#39;model_dist_apim_long_simple&#39; (dif
 <h2>Exchangeable Dyads - Cross-Sectional APIM: Test for Distinguishability</h2>
 <p>Leave-one-out (loo) cross-validation compares out-of-sample predictive accuracy. It can be meaningful for non-nested models when they are fit to the same outcome and observations, and when the pointwise log-likelihoods are comparable.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href></a>a <span class="ot">&lt;-</span> <span class="fu">loo_compare</span>(</span>
-<span id="cb45-2"><a href></a>  <span class="fu">loo</span>(model_exch_apim),</span>
-<span id="cb45-3"><a href></a>  <span class="fu">loo</span>(model_dist_apim_b)</span>
-<span id="cb45-4"><a href></a>)</span>
-<span id="cb45-5"><a href></a><span class="fu">print</span>(a)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href></a>a <span class="ot">&lt;-</span> <span class="fu">loo_compare</span>(</span>
+<span id="cb41-2"><a href></a>  <span class="fu">loo</span>(model_exch_apim),</span>
+<span id="cb41-3"><a href></a>  <span class="fu">loo</span>(model_dist_apim_b)</span>
+<span id="cb41-4"><a href></a>)</span>
+<span id="cb41-5"><a href></a><span class="fu">print</span>(a)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <table class="caption-top">
 <thead>
@@ -5383,7 +5465,7 @@ model (ELPD = -14609.33), followed by &#39;model_dist_apim_long_simple&#39; (dif
 </tbody>
 </table>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href></a>report<span class="sc">::</span><span class="fu">report</span>(a)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href></a>report<span class="sc">::</span><span class="fu">report</span>(a)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p style="font-size:80%; line-height:1.35">
 The difference in predictive accuracy, as indexed by Expected Log Predictive Density (ELPD-LOO), suggests that ‘model_dist_apim_b’ is the best model (ELPD = -1806.42), followed by ‘model_exch_apim’ (diff-ELPD = -172.85 +- 16.53, p &lt; .001).<br> See: <a href="https://easystats.github.io/report/reference/report.compare.loo.html">documentation of “report”</a>
@@ -5468,17 +5550,17 @@ The difference in predictive accuracy, as indexed by Expected Log Predictive Den
 <section id="exchangeable-dyads---cross-sectional-dim-centering-1" class="slide level2">
 <h2>Exchangeable Dyads - Cross-Sectional DIM: Centering</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href></a>df_dim <span class="ot">&lt;-</span> df_apim2 <span class="sc">%&gt;%</span></span>
-<span id="cb47-2"><a href></a>  <span class="fu">group_by</span>(coupleID) <span class="sc">%&gt;%</span></span>
-<span id="cb47-3"><a href></a>  <span class="fu">mutate</span>(</span>
-<span id="cb47-4"><a href></a>    <span class="at">communication_cm =</span> <span class="fu">mean</span>(communication, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb47-5"><a href></a>    <span class="at">communication_cwc=</span> communication <span class="sc">-</span> communication_cm</span>
-<span id="cb47-6"><a href></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb47-7"><a href></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb47-8"><a href></a>  <span class="fu">mutate</span>(</span>
-<span id="cb47-9"><a href></a>    <span class="at">communication_cbc=</span> communication_cm <span class="sc">-</span> <span class="fu">mean</span>(communication_cm, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb47-10"><a href></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb47-11"><a href></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">c</span>(<span class="st">&#39;userID&#39;</span>, <span class="st">&#39;coupleID&#39;</span>, <span class="st">&#39;satisfaction&#39;</span>, <span class="st">&#39;communication_cwc&#39;</span>, <span class="st">&#39;communication_cbc&#39;</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href></a>df_dim <span class="ot">&lt;-</span> df_apim2 <span class="sc">%&gt;%</span></span>
+<span id="cb43-2"><a href></a>  <span class="fu">group_by</span>(coupleID) <span class="sc">%&gt;%</span></span>
+<span id="cb43-3"><a href></a>  <span class="fu">mutate</span>(</span>
+<span id="cb43-4"><a href></a>    <span class="at">communication_cm =</span> <span class="fu">mean</span>(communication, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb43-5"><a href></a>    <span class="at">communication_cwc=</span> communication <span class="sc">-</span> communication_cm</span>
+<span id="cb43-6"><a href></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb43-7"><a href></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb43-8"><a href></a>  <span class="fu">mutate</span>(</span>
+<span id="cb43-9"><a href></a>    <span class="at">communication_cbc=</span> communication_cm <span class="sc">-</span> <span class="fu">mean</span>(communication_cm, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb43-10"><a href></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb43-11"><a href></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">c</span>(<span class="st">&#39;userID&#39;</span>, <span class="st">&#39;coupleID&#39;</span>, <span class="st">&#39;satisfaction&#39;</span>, <span class="st">&#39;communication_cwc&#39;</span>, <span class="st">&#39;communication_cbc&#39;</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="exchangeable-dyads---cross-sectional-dim-centering-2" class="slide level2">
@@ -5548,33 +5630,33 @@ The difference in predictive accuracy, as indexed by Expected Log Predictive Den
 <section id="exchangeable-dyads---cross-sectional-dim-model" class="slide level2">
 <h2>Exchangeable Dyads - Cross-Sectional DIM: Model</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48" data-code-line-numbers="1-7|9-14|16-27"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href></a>formula_exch_dim <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
-<span id="cb48-2"><a href></a>  satisfaction <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> </span>
-<span id="cb48-3"><a href></a>    communication_cbc<span class="sc">+</span> communication_cwc <span class="sc">+</span> </span>
-<span id="cb48-4"><a href></a>    <span class="fu">cosy</span>(<span class="at">gr =</span> coupleID) </span>
-<span id="cb48-5"><a href></a>  </span>
-<span id="cb48-6"><a href></a>    <span class="co"># sigma ~ 1 is implied.  </span></span>
-<span id="cb48-7"><a href></a>)</span>
-<span id="cb48-8"><a href></a></span>
-<span id="cb48-9"><a href></a>priors_exch_dim <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb48-10"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">2</span>, <span class="dv">10</span>), <span class="at">class =</span> <span class="st">&quot;Intercept&quot;</span>),</span>
-<span id="cb48-11"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">5</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>),</span>
-<span id="cb48-12"><a href></a>  <span class="fu">prior</span>(<span class="fu">student_t</span>(<span class="dv">3</span>, <span class="dv">0</span>, <span class="fl">1.5</span>), <span class="at">class =</span> <span class="st">&quot;sigma&quot;</span>),</span>
-<span id="cb48-13"><a href></a>  <span class="fu">prior</span>(<span class="fu">beta</span>(<span class="dv">1</span>, <span class="dv">3</span>), <span class="at">class =</span> <span class="st">&quot;cosy&quot;</span>)</span>
-<span id="cb48-14"><a href></a>)</span>
-<span id="cb48-15"><a href></a></span>
-<span id="cb48-16"><a href></a>model_exch_dim <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
-<span id="cb48-17"><a href></a>  <span class="at">formula =</span> formula_exch_dim,</span>
-<span id="cb48-18"><a href></a>  <span class="at">data =</span> df_dim,</span>
-<span id="cb48-19"><a href></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(<span class="at">link =</span> identity),</span>
-<span id="cb48-20"><a href></a>  <span class="at">prior =</span> priors_exch_dim,</span>
-<span id="cb48-21"><a href></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
-<span id="cb48-22"><a href></a>  <span class="at">cores =</span> <span class="dv">4</span>,</span>
-<span id="cb48-23"><a href></a>  <span class="at">iter =</span> <span class="dv">2000</span>,</span>
-<span id="cb48-24"><a href></a>  <span class="at">warmup =</span> <span class="dv">1000</span>, </span>
-<span id="cb48-25"><a href></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
-<span id="cb48-26"><a href></a>  <span class="at">file =</span> <span class="fu">file.path</span>(<span class="st">&#39;brms_cache&#39;</span>, <span class="st">&#39;example1_ind_dim&#39;</span>) <span class="co"># Cache the model</span></span>
-<span id="cb48-27"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44" data-code-line-numbers="1-7|9-14|16-27"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href></a>formula_exch_dim <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
+<span id="cb44-2"><a href></a>  satisfaction <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> </span>
+<span id="cb44-3"><a href></a>    communication_cbc<span class="sc">+</span> communication_cwc <span class="sc">+</span> </span>
+<span id="cb44-4"><a href></a>    <span class="fu">cosy</span>(<span class="at">gr =</span> coupleID) </span>
+<span id="cb44-5"><a href></a>  </span>
+<span id="cb44-6"><a href></a>    <span class="co"># sigma ~ 1 is implied.  </span></span>
+<span id="cb44-7"><a href></a>)</span>
+<span id="cb44-8"><a href></a></span>
+<span id="cb44-9"><a href></a>priors_exch_dim <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb44-10"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">2</span>, <span class="dv">10</span>), <span class="at">class =</span> <span class="st">&quot;Intercept&quot;</span>),</span>
+<span id="cb44-11"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">5</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>),</span>
+<span id="cb44-12"><a href></a>  <span class="fu">prior</span>(<span class="fu">student_t</span>(<span class="dv">3</span>, <span class="dv">0</span>, <span class="fl">1.5</span>), <span class="at">class =</span> <span class="st">&quot;sigma&quot;</span>),</span>
+<span id="cb44-13"><a href></a>  <span class="fu">prior</span>(<span class="fu">beta</span>(<span class="dv">1</span>, <span class="dv">3</span>), <span class="at">class =</span> <span class="st">&quot;cosy&quot;</span>)</span>
+<span id="cb44-14"><a href></a>)</span>
+<span id="cb44-15"><a href></a></span>
+<span id="cb44-16"><a href></a>model_exch_dim <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
+<span id="cb44-17"><a href></a>  <span class="at">formula =</span> formula_exch_dim,</span>
+<span id="cb44-18"><a href></a>  <span class="at">data =</span> df_dim,</span>
+<span id="cb44-19"><a href></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(<span class="at">link =</span> identity),</span>
+<span id="cb44-20"><a href></a>  <span class="at">prior =</span> priors_exch_dim,</span>
+<span id="cb44-21"><a href></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb44-22"><a href></a>  <span class="at">cores =</span> <span class="dv">4</span>,</span>
+<span id="cb44-23"><a href></a>  <span class="at">iter =</span> <span class="dv">2000</span>,</span>
+<span id="cb44-24"><a href></a>  <span class="at">warmup =</span> <span class="dv">1000</span>, </span>
+<span id="cb44-25"><a href></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
+<span id="cb44-26"><a href></a>  <span class="at">file =</span> <span class="fu">file.path</span>(<span class="st">&#39;brms_cache&#39;</span>, <span class="st">&#39;example1_ind_dim&#39;</span>) <span class="co"># Cache the model</span></span>
+<span id="cb44-27"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="exchangeable-dyads---cross-sectional-dim-results" class="slide level2">
@@ -6113,12 +6195,12 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <h2>Equivalence APIM and DIM</h2>
 <p>Example: using APIM coefficients to obtain DIM coefficients and computing <em>Credible Intervals</em> of DIM coefficients.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href></a>a <span class="ot">&lt;-</span> <span class="fu">hypothesis</span>(</span>
-<span id="cb49-2"><a href></a>  model_exch_apim,</span>
-<span id="cb49-3"><a href></a>  <span class="st">&quot;communication_actor_gmc + communication_partner_gmc = 0&quot;</span></span>
-<span id="cb49-4"><a href></a>)</span>
-<span id="cb49-5"><a href></a></span>
-<span id="cb49-6"><a href></a><span class="fu">round</span>(a<span class="sc">$</span>hypothesis[,<span class="fu">c</span>(<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>)], <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href></a>a <span class="ot">&lt;-</span> <span class="fu">hypothesis</span>(</span>
+<span id="cb45-2"><a href></a>  model_exch_apim,</span>
+<span id="cb45-3"><a href></a>  <span class="st">&quot;communication_actor_gmc + communication_partner_gmc = 0&quot;</span></span>
+<span id="cb45-4"><a href></a>)</span>
+<span id="cb45-5"><a href></a></span>
+<span id="cb45-6"><a href></a><span class="fu">round</span>(a<span class="sc">$</span>hypothesis[,<span class="fu">c</span>(<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>)], <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>  Estimate Est.Error CI.Lower CI.Upper
 1     1.96      0.04     1.88     2.04</code></pre>
@@ -6365,17 +6447,17 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 </ul>
 <p>If we want a within-person DIM:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href></a>df_long_dim <span class="ot">&lt;-</span> df_long_apim2 <span class="sc">%&gt;%</span></span>
-<span id="cb51-2"><a href></a>  <span class="fu">mutate</span>(</span>
-<span id="cb51-3"><a href></a>    </span>
-<span id="cb51-4"><a href></a>    <span class="co"># Between Person Level DIM (centering between couples and within couple between person)</span></span>
-<span id="cb51-5"><a href></a>    <span class="at">provided_support_cbc =</span> (provided_support_actor_cbp <span class="sc">+</span> provided_support_partner_cbp) <span class="sc">/</span> <span class="dv">2</span>,</span>
-<span id="cb51-6"><a href></a>    <span class="at">provided_support_cwcbp =</span> (provided_support_actor_cbp <span class="sc">-</span> provided_support_partner_cbp) <span class="sc">/</span> <span class="dv">2</span>,</span>
-<span id="cb51-7"><a href></a>    </span>
-<span id="cb51-8"><a href></a>    <span class="co"># Within Person Level DIM (couple mean and deviation on each day)</span></span>
-<span id="cb51-9"><a href></a>    <span class="at">provided_support_cwp_mean =</span> (provided_support_actor_cwp <span class="sc">+</span> provided_support_partner_cwp) <span class="sc">/</span> <span class="dv">2</span>,</span>
-<span id="cb51-10"><a href></a>    <span class="at">provided_support_cwp_halfdiff =</span> (provided_support_actor_cwp <span class="sc">-</span> provided_support_partner_cwp) <span class="sc">/</span> <span class="dv">2</span></span>
-<span id="cb51-11"><a href></a>  ) </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href></a>df_long_dim <span class="ot">&lt;-</span> df_long_apim2 <span class="sc">%&gt;%</span></span>
+<span id="cb47-2"><a href></a>  <span class="fu">mutate</span>(</span>
+<span id="cb47-3"><a href></a>    </span>
+<span id="cb47-4"><a href></a>    <span class="co"># Between Person Level DIM (centering between couples and within couple between person)</span></span>
+<span id="cb47-5"><a href></a>    <span class="at">provided_support_cbc =</span> (provided_support_actor_cbp <span class="sc">+</span> provided_support_partner_cbp) <span class="sc">/</span> <span class="dv">2</span>,</span>
+<span id="cb47-6"><a href></a>    <span class="at">provided_support_cwcbp =</span> (provided_support_actor_cbp <span class="sc">-</span> provided_support_partner_cbp) <span class="sc">/</span> <span class="dv">2</span>,</span>
+<span id="cb47-7"><a href></a>    </span>
+<span id="cb47-8"><a href></a>    <span class="co"># Within Person Level DIM (couple mean and deviation on each day)</span></span>
+<span id="cb47-9"><a href></a>    <span class="at">provided_support_cwp_mean =</span> (provided_support_actor_cwp <span class="sc">+</span> provided_support_partner_cwp) <span class="sc">/</span> <span class="dv">2</span>,</span>
+<span id="cb47-10"><a href></a>    <span class="at">provided_support_cwp_halfdiff =</span> (provided_support_actor_cwp <span class="sc">-</span> provided_support_partner_cwp) <span class="sc">/</span> <span class="dv">2</span></span>
+<span id="cb47-11"><a href></a>  ) </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="exchangeable-dyads---longitudinal-dimapim-preparing-the-sum-and-difference-approach" class="slide level2">
@@ -6383,25 +6465,25 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <p>We need to randomly assign -1 and +1 for each Partner within each couple. This will be needed for contrast coding the intercept.</p>
 <p>For example:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href></a>df_long_dim <span class="ot">&lt;-</span> df_long_dim <span class="sc">%&gt;%</span></span>
-<span id="cb52-2"><a href></a>  <span class="fu">group_by</span>(coupleID) <span class="sc">%&gt;%</span></span>
-<span id="cb52-3"><a href></a>  <span class="fu">mutate</span>(</span>
-<span id="cb52-4"><a href></a>    <span class="at">base =</span> <span class="fu">ifelse</span>(userID <span class="sc">==</span> <span class="fu">min</span>(userID), <span class="dv">1</span>, <span class="sc">-</span><span class="dv">1</span>),</span>
-<span id="cb52-5"><a href></a>    <span class="at">flip =</span> <span class="dv">1</span> <span class="sc">-</span> <span class="dv">2</span> <span class="sc">*</span> <span class="fu">rbinom</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="fl">0.5</span>),   <span class="co"># yields +1 or -1 once per couple</span></span>
-<span id="cb52-6"><a href></a>    <span class="at">Idiff =</span> base <span class="sc">*</span> flip,</span>
-<span id="cb52-7"><a href></a>    </span>
-<span id="cb52-8"><a href></a>    <span class="co"># Not needed for brms, but for glmmTMB we create two dummy variables representing</span></span>
-<span id="cb52-9"><a href></a>    <span class="co"># randomly selected partner 1 and partner 2.</span></span>
-<span id="cb52-10"><a href></a>    <span class="at">is_partner1 =</span> <span class="fu">as.numeric</span>(Idiff <span class="sc">==</span> <span class="dv">1</span>),</span>
-<span id="cb52-11"><a href></a>    <span class="at">is_partner2 =</span> <span class="fu">as.numeric</span>(Idiff <span class="sc">==</span> <span class="sc">-</span><span class="dv">1</span>)</span>
-<span id="cb52-12"><a href></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb52-13"><a href></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb52-14"><a href></a>  <span class="fu">relocate</span>(Idiff, <span class="at">.after =</span> coupleID) <span class="sc">%&gt;%</span></span>
-<span id="cb52-15"><a href></a>  <span class="fu">relocate</span>(is_partner1, is_partner2, <span class="at">.after =</span> Idiff) <span class="sc">%&gt;%</span></span>
-<span id="cb52-16"><a href></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span>base, <span class="sc">-</span>flip)</span>
-<span id="cb52-17"><a href></a></span>
-<span id="cb52-18"><a href></a></span>
-<span id="cb52-19"><a href></a><span class="fu">print_df</span>(<span class="fu">print_couple_preview</span>(df_long_dim, <span class="at">couple_id =</span> <span class="st">&quot;31&quot;</span>))  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href></a>df_long_dim <span class="ot">&lt;-</span> df_long_dim <span class="sc">%&gt;%</span></span>
+<span id="cb48-2"><a href></a>  <span class="fu">group_by</span>(coupleID) <span class="sc">%&gt;%</span></span>
+<span id="cb48-3"><a href></a>  <span class="fu">mutate</span>(</span>
+<span id="cb48-4"><a href></a>    <span class="at">base =</span> <span class="fu">ifelse</span>(userID <span class="sc">==</span> <span class="fu">min</span>(userID), <span class="dv">1</span>, <span class="sc">-</span><span class="dv">1</span>),</span>
+<span id="cb48-5"><a href></a>    <span class="at">flip =</span> <span class="dv">1</span> <span class="sc">-</span> <span class="dv">2</span> <span class="sc">*</span> <span class="fu">rbinom</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="fl">0.5</span>),   <span class="co"># yields +1 or -1 once per couple</span></span>
+<span id="cb48-6"><a href></a>    <span class="at">Idiff =</span> base <span class="sc">*</span> flip,</span>
+<span id="cb48-7"><a href></a>    </span>
+<span id="cb48-8"><a href></a>    <span class="co"># Not needed for brms, but for glmmTMB we create two dummy variables representing</span></span>
+<span id="cb48-9"><a href></a>    <span class="co"># randomly selected partner 1 and partner 2.</span></span>
+<span id="cb48-10"><a href></a>    <span class="at">is_partner1 =</span> <span class="fu">as.numeric</span>(Idiff <span class="sc">==</span> <span class="dv">1</span>),</span>
+<span id="cb48-11"><a href></a>    <span class="at">is_partner2 =</span> <span class="fu">as.numeric</span>(Idiff <span class="sc">==</span> <span class="sc">-</span><span class="dv">1</span>)</span>
+<span id="cb48-12"><a href></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb48-13"><a href></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb48-14"><a href></a>  <span class="fu">relocate</span>(Idiff, <span class="at">.after =</span> coupleID) <span class="sc">%&gt;%</span></span>
+<span id="cb48-15"><a href></a>  <span class="fu">relocate</span>(is_partner1, is_partner2, <span class="at">.after =</span> Idiff) <span class="sc">%&gt;%</span></span>
+<span id="cb48-16"><a href></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span>base, <span class="sc">-</span>flip)</span>
+<span id="cb48-17"><a href></a></span>
+<span id="cb48-18"><a href></a></span>
+<span id="cb48-19"><a href></a><span class="fu">print_df</span>(<span class="fu">print_couple_preview</span>(df_long_dim, <span class="at">couple_id =</span> <span class="st">&quot;31&quot;</span>))  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="exchangeable-dyads---longitudinal-dimapim-preparing-the-sum-and-difference-approach-1" class="slide level2">
@@ -6662,100 +6744,100 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <section id="exchangeable-dyads---longitudinal-apimdim-glmmtmb" class="slide level2">
 <h2>Exchangeable Dyads - Longitudinal APIM/DIM: glmmTMB</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href></a>model_exch_long_apim_glmmtmb <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
-<span id="cb53-2"><a href></a>  closeness <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> </span>
-<span id="cb53-3"><a href></a>    </span>
-<span id="cb53-4"><a href></a>    diaryday_c <span class="sc">+</span></span>
-<span id="cb53-5"><a href></a>  </span>
-<span id="cb53-6"><a href></a>    <span class="co"># Within-person APIM</span></span>
-<span id="cb53-7"><a href></a>    provided_support_actor_cwp <span class="sc">+</span> </span>
-<span id="cb53-8"><a href></a>    provided_support_partner_cwp <span class="sc">+</span></span>
-<span id="cb53-9"><a href></a>    <span class="co"># Equivalent to within-person DIM:</span></span>
-<span id="cb53-10"><a href></a>    <span class="co"># provided_support_cwp_mean + </span></span>
-<span id="cb53-11"><a href></a>    <span class="co"># provided_support_cwp_halfdiff +</span></span>
-<span id="cb53-12"><a href></a>  </span>
-<span id="cb53-13"><a href></a>    <span class="co"># Between-person APIM</span></span>
-<span id="cb53-14"><a href></a>    provided_support_actor_cbp <span class="sc">+</span></span>
-<span id="cb53-15"><a href></a>    provided_support_partner_cbp <span class="sc">+</span></span>
-<span id="cb53-16"><a href></a>    <span class="co"># Equivalent to between-person DIM</span></span>
-<span id="cb53-17"><a href></a>    <span class="co"># provided_support_cwcbp+</span></span>
-<span id="cb53-18"><a href></a>    <span class="co"># provided_support_cbc +</span></span>
-<span id="cb53-19"><a href></a>    </span>
-<span id="cb53-20"><a href></a>    <span class="co"># Dyad-Level intercept and slopes for time-varying predictors</span></span>
-<span id="cb53-21"><a href></a>    (<span class="dv">1</span> <span class="sc">+</span> diaryday_c <span class="sc">+</span> provided_support_actor_cwp <span class="sc">+</span> provided_support_partner_cwp <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
-<span id="cb53-22"><a href></a>    </span>
-<span id="cb53-23"><a href></a>    <span class="co"># Both partners&#39; deviations from these dyad-level means and slopes.</span></span>
-<span id="cb53-24"><a href></a>    <span class="co"># Note: separate random effects block to make them uncorrelated form dyad-level REs. </span></span>
-<span id="cb53-25"><a href></a>    (<span class="dv">0</span> <span class="sc">+</span> Idiff <span class="sc">+</span> </span>
-<span id="cb53-26"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> diaryday_c) <span class="sc">+</span> </span>
-<span id="cb53-27"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> provided_support_actor_cwp) <span class="sc">+</span> </span>
-<span id="cb53-28"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> provided_support_partner_cwp) <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
-<span id="cb53-29"><a href></a>    </span>
-<span id="cb53-30"><a href></a>    <span class="co"># After accounting for stable differences between partners, they may still be</span></span>
-<span id="cb53-31"><a href></a>    <span class="co"># non-independent each day due to external occurrences and daily exchange processes</span></span>
-<span id="cb53-32"><a href></a>    <span class="co"># not captured in the fixed effects. Thus, residuals are not yet independent. </span></span>
-<span id="cb53-33"><a href></a>    <span class="co"># Homogeneous same-day residual covariance between partners:</span></span>
-<span id="cb53-34"><a href></a>    <span class="fu">homcs</span>(<span class="dv">0</span> <span class="sc">+</span> is_partner1 <span class="sc">+</span> is_partner2 <span class="sc">|</span> coupleID<span class="sc">:</span>diaryday)</span>
-<span id="cb53-35"><a href></a>  </span>
-<span id="cb53-36"><a href></a>  <span class="co"># In glmmTMB always remove the residual variance if modelling via random effects.</span></span>
-<span id="cb53-37"><a href></a>  , <span class="at">dispformula =</span> <span class="sc">~</span> <span class="dv">0</span></span>
-<span id="cb53-38"><a href></a>  , <span class="at">data =</span> df_long_dim</span>
-<span id="cb53-39"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href></a>model_exch_long_apim_glmmtmb <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
+<span id="cb49-2"><a href></a>  closeness <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> </span>
+<span id="cb49-3"><a href></a>    </span>
+<span id="cb49-4"><a href></a>    diaryday_c <span class="sc">+</span></span>
+<span id="cb49-5"><a href></a>  </span>
+<span id="cb49-6"><a href></a>    <span class="co"># Within-person APIM</span></span>
+<span id="cb49-7"><a href></a>    provided_support_actor_cwp <span class="sc">+</span> </span>
+<span id="cb49-8"><a href></a>    provided_support_partner_cwp <span class="sc">+</span></span>
+<span id="cb49-9"><a href></a>    <span class="co"># Equivalent to within-person DIM:</span></span>
+<span id="cb49-10"><a href></a>    <span class="co"># provided_support_cwp_mean + </span></span>
+<span id="cb49-11"><a href></a>    <span class="co"># provided_support_cwp_halfdiff +</span></span>
+<span id="cb49-12"><a href></a>  </span>
+<span id="cb49-13"><a href></a>    <span class="co"># Between-person APIM</span></span>
+<span id="cb49-14"><a href></a>    provided_support_actor_cbp <span class="sc">+</span></span>
+<span id="cb49-15"><a href></a>    provided_support_partner_cbp <span class="sc">+</span></span>
+<span id="cb49-16"><a href></a>    <span class="co"># Equivalent to between-person DIM</span></span>
+<span id="cb49-17"><a href></a>    <span class="co"># provided_support_cwcbp+</span></span>
+<span id="cb49-18"><a href></a>    <span class="co"># provided_support_cbc +</span></span>
+<span id="cb49-19"><a href></a>    </span>
+<span id="cb49-20"><a href></a>    <span class="co"># Dyad-Level intercept and slopes for time-varying predictors</span></span>
+<span id="cb49-21"><a href></a>    (<span class="dv">1</span> <span class="sc">+</span> diaryday_c <span class="sc">+</span> provided_support_actor_cwp <span class="sc">+</span> provided_support_partner_cwp <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
+<span id="cb49-22"><a href></a>    </span>
+<span id="cb49-23"><a href></a>    <span class="co"># Both partners&#39; deviations from these dyad-level means and slopes.</span></span>
+<span id="cb49-24"><a href></a>    <span class="co"># Note: separate random effects block to make them uncorrelated form dyad-level REs. </span></span>
+<span id="cb49-25"><a href></a>    (<span class="dv">0</span> <span class="sc">+</span> Idiff <span class="sc">+</span> </span>
+<span id="cb49-26"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> diaryday_c) <span class="sc">+</span> </span>
+<span id="cb49-27"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> provided_support_actor_cwp) <span class="sc">+</span> </span>
+<span id="cb49-28"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> provided_support_partner_cwp) <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
+<span id="cb49-29"><a href></a>    </span>
+<span id="cb49-30"><a href></a>    <span class="co"># After accounting for stable differences between partners, they may still be</span></span>
+<span id="cb49-31"><a href></a>    <span class="co"># non-independent each day due to external occurrences and daily exchange processes</span></span>
+<span id="cb49-32"><a href></a>    <span class="co"># not captured in the fixed effects. Thus, residuals are not yet independent. </span></span>
+<span id="cb49-33"><a href></a>    <span class="co"># Homogeneous same-day residual covariance between partners:</span></span>
+<span id="cb49-34"><a href></a>    <span class="fu">homcs</span>(<span class="dv">0</span> <span class="sc">+</span> is_partner1 <span class="sc">+</span> is_partner2 <span class="sc">|</span> coupleID<span class="sc">:</span>diaryday)</span>
+<span id="cb49-35"><a href></a>  </span>
+<span id="cb49-36"><a href></a>  <span class="co"># In glmmTMB always remove the residual variance if modelling via random effects.</span></span>
+<span id="cb49-37"><a href></a>  , <span class="at">dispformula =</span> <span class="sc">~</span> <span class="dv">0</span></span>
+<span id="cb49-38"><a href></a>  , <span class="at">data =</span> df_long_dim</span>
+<span id="cb49-39"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="exchangeable-dyads---longitudinal-apimdim-glmmtmb-1" class="slide level2">
 <h2>Exchangeable Dyads - Longitudinal APIM/DIM: glmmTMB</h2>
 <div class="cell">
 <div class="cell-output cell-output-stdout">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb54"><pre class="sourceCode numberSource model-summary-output number-lines code-with-copy"><code class="sourceCode"><span id="cb54-1"><a href></a> Family: gaussian  ( identity )</span>
-<span id="cb54-2"><a href></a>Formula:          </span>
-<span id="cb54-3"><a href></a>closeness ~ 1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp +  </span>
-<span id="cb54-4"><a href></a>    provided_support_actor_cbp + provided_support_partner_cbp +  </span>
-<span id="cb54-5"><a href></a>    (1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp |  </span>
-<span id="cb54-6"><a href></a>        coupleID) + (0 + Idiff + I(Idiff * diaryday_c) + I(Idiff *  </span>
-<span id="cb54-7"><a href></a>    provided_support_actor_cwp) + I(Idiff * provided_support_partner_cwp) |  </span>
-<span id="cb54-8"><a href></a>    coupleID) + homcs(0 + is_partner1 + is_partner2 | coupleID:diaryday)</span>
-<span id="cb54-9"><a href></a>Dispersion:                 ~0</span>
-<span id="cb54-10"><a href></a>Data: df_long_dim</span>
-<span id="cb54-11"><a href></a></span>
-<span id="cb54-12"><a href></a>      AIC       BIC    logLik -2*log(L)  df.resid </span>
-<span id="cb54-13"><a href></a>       NA        NA        NA        NA     10972 </span>
-<span id="cb54-14"><a href></a></span>
-<span id="cb54-15"><a href></a>Random effects:</span>
-<span id="cb54-16"><a href></a></span>
-<span id="cb54-17"><a href></a>Conditional model:</span>
-<span id="cb54-18"><a href></a> Groups            Name                                    Variance  Std.Dev.</span>
-<span id="cb54-19"><a href></a> coupleID          (Intercept)                             0.4287596 0.65480 </span>
-<span id="cb54-20"><a href></a>                   diaryday_c                              0.0001289 0.01135 </span>
-<span id="cb54-21"><a href></a>                   provided_support_actor_cwp              0.0011347 0.03369 </span>
-<span id="cb54-22"><a href></a>                   provided_support_partner_cwp            0.0077869 0.08824 </span>
-<span id="cb54-23"><a href></a> coupleID.1        Idiff                                   0.7230660 0.85033 </span>
-<span id="cb54-24"><a href></a>                   I(Idiff * diaryday_c)                   0.0001757 0.01326 </span>
-<span id="cb54-25"><a href></a>                   I(Idiff * provided_support_actor_cwp)   0.0194556 0.13948 </span>
-<span id="cb54-26"><a href></a>                   I(Idiff * provided_support_partner_cwp) 0.0050412 0.07100 </span>
-<span id="cb54-27"><a href></a> coupleID.diaryday is_partner1                             0.8770090 0.93649 </span>
-<span id="cb54-28"><a href></a> Corr                </span>
-<span id="cb54-29"><a href></a>                     </span>
-<span id="cb54-30"><a href></a> 0.57                </span>
-<span id="cb54-31"><a href></a> 0.66      0.99      </span>
-<span id="cb54-32"><a href></a> 0.21      0.17 0.19 </span>
-<span id="cb54-33"><a href></a>                     </span>
-<span id="cb54-34"><a href></a> 0.64                </span>
-<span id="cb54-35"><a href></a> 0.73      0.48      </span>
-<span id="cb54-36"><a href></a> 0.15      0.14 0.45 </span>
-<span id="cb54-37"><a href></a> 0.04 (cs)           </span>
-<span id="cb54-38"><a href></a>Number of obs: 11000, groups:  coupleID, 100; coupleID:diaryday, 5500</span>
-<span id="cb54-39"><a href></a></span>
-<span id="cb54-40"><a href></a>Conditional model:</span>
-<span id="cb54-41"><a href></a>                             Estimate Std. Error z value Pr(&gt;|z|)    </span>
-<span id="cb54-42"><a href></a>(Intercept)                  5.109468   0.066078   77.32  &lt; 2e-16 ***</span>
-<span id="cb54-43"><a href></a>diaryday_c                   0.003764   0.001274    2.95  0.00315 ** </span>
-<span id="cb54-44"><a href></a>provided_support_actor_cwp   0.299875   0.012681   23.65  &lt; 2e-16 ***</span>
-<span id="cb54-45"><a href></a>provided_support_partner_cwp 0.149096   0.015066    9.90  &lt; 2e-16 ***</span>
-<span id="cb54-46"><a href></a>provided_support_actor_cbp   1.306253   0.083123   15.71  &lt; 2e-16 ***</span>
-<span id="cb54-47"><a href></a>provided_support_partner_cbp 0.398849   0.083062    4.80 1.57e-06 ***</span>
-<span id="cb54-48"><a href></a>---</span>
-<span id="cb54-49"><a href></a>Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb50"><pre class="sourceCode numberSource model-summary-output number-lines code-with-copy"><code class="sourceCode"><span id="cb50-1"><a href></a> Family: gaussian  ( identity )</span>
+<span id="cb50-2"><a href></a>Formula:          </span>
+<span id="cb50-3"><a href></a>closeness ~ 1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp +  </span>
+<span id="cb50-4"><a href></a>    provided_support_actor_cbp + provided_support_partner_cbp +  </span>
+<span id="cb50-5"><a href></a>    (1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp |  </span>
+<span id="cb50-6"><a href></a>        coupleID) + (0 + Idiff + I(Idiff * diaryday_c) + I(Idiff *  </span>
+<span id="cb50-7"><a href></a>    provided_support_actor_cwp) + I(Idiff * provided_support_partner_cwp) |  </span>
+<span id="cb50-8"><a href></a>    coupleID) + homcs(0 + is_partner1 + is_partner2 | coupleID:diaryday)</span>
+<span id="cb50-9"><a href></a>Dispersion:                 ~0</span>
+<span id="cb50-10"><a href></a>Data: df_long_dim</span>
+<span id="cb50-11"><a href></a></span>
+<span id="cb50-12"><a href></a>      AIC       BIC    logLik -2*log(L)  df.resid </span>
+<span id="cb50-13"><a href></a>       NA        NA        NA        NA     10972 </span>
+<span id="cb50-14"><a href></a></span>
+<span id="cb50-15"><a href></a>Random effects:</span>
+<span id="cb50-16"><a href></a></span>
+<span id="cb50-17"><a href></a>Conditional model:</span>
+<span id="cb50-18"><a href></a> Groups            Name                                    Variance  Std.Dev.</span>
+<span id="cb50-19"><a href></a> coupleID          (Intercept)                             0.4287596 0.65480 </span>
+<span id="cb50-20"><a href></a>                   diaryday_c                              0.0001289 0.01135 </span>
+<span id="cb50-21"><a href></a>                   provided_support_actor_cwp              0.0011347 0.03369 </span>
+<span id="cb50-22"><a href></a>                   provided_support_partner_cwp            0.0077869 0.08824 </span>
+<span id="cb50-23"><a href></a> coupleID.1        Idiff                                   0.7230660 0.85033 </span>
+<span id="cb50-24"><a href></a>                   I(Idiff * diaryday_c)                   0.0001757 0.01326 </span>
+<span id="cb50-25"><a href></a>                   I(Idiff * provided_support_actor_cwp)   0.0194556 0.13948 </span>
+<span id="cb50-26"><a href></a>                   I(Idiff * provided_support_partner_cwp) 0.0050412 0.07100 </span>
+<span id="cb50-27"><a href></a> coupleID.diaryday is_partner1                             0.8770090 0.93649 </span>
+<span id="cb50-28"><a href></a> Corr                </span>
+<span id="cb50-29"><a href></a>                     </span>
+<span id="cb50-30"><a href></a> 0.57                </span>
+<span id="cb50-31"><a href></a> 0.66      0.99      </span>
+<span id="cb50-32"><a href></a> 0.21      0.17 0.19 </span>
+<span id="cb50-33"><a href></a>                     </span>
+<span id="cb50-34"><a href></a> 0.64                </span>
+<span id="cb50-35"><a href></a> 0.73      0.48      </span>
+<span id="cb50-36"><a href></a> 0.15      0.14 0.45 </span>
+<span id="cb50-37"><a href></a> 0.04 (cs)           </span>
+<span id="cb50-38"><a href></a>Number of obs: 11000, groups:  coupleID, 100; coupleID:diaryday, 5500</span>
+<span id="cb50-39"><a href></a></span>
+<span id="cb50-40"><a href></a>Conditional model:</span>
+<span id="cb50-41"><a href></a>                             Estimate Std. Error z value Pr(&gt;|z|)    </span>
+<span id="cb50-42"><a href></a>(Intercept)                  5.109468   0.066078   77.32  &lt; 2e-16 ***</span>
+<span id="cb50-43"><a href></a>diaryday_c                   0.003764   0.001274    2.95  0.00315 ** </span>
+<span id="cb50-44"><a href></a>provided_support_actor_cwp   0.299875   0.012681   23.65  &lt; 2e-16 ***</span>
+<span id="cb50-45"><a href></a>provided_support_partner_cwp 0.149096   0.015066    9.90  &lt; 2e-16 ***</span>
+<span id="cb50-46"><a href></a>provided_support_actor_cbp   1.306253   0.083123   15.71  &lt; 2e-16 ***</span>
+<span id="cb50-47"><a href></a>provided_support_partner_cbp 0.398849   0.083062    4.80 1.57e-06 ***</span>
+<span id="cb50-48"><a href></a>---</span>
+<span id="cb50-49"><a href></a>Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </div>
 <p>In this example, the glmmTMB model does not converge properly. The random-effects structure is too complex for the information available in these data, so we would have to simplify it. Instead, we use brms below.</p>
@@ -6764,105 +6846,105 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <h2>Exchangeable Dyads - Longitudinal APIM/DIM: brms</h2>
 <p>In brms, the same model can be estimated as:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href></a>formula_exch_long_apim <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
-<span id="cb55-2"><a href></a>  closeness <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> </span>
-<span id="cb55-3"><a href></a>    </span>
-<span id="cb55-4"><a href></a>    diaryday_c <span class="sc">+</span></span>
-<span id="cb55-5"><a href></a>  </span>
-<span id="cb55-6"><a href></a>    <span class="co"># Within-person APIM</span></span>
-<span id="cb55-7"><a href></a>    provided_support_actor_cwp <span class="sc">+</span> </span>
-<span id="cb55-8"><a href></a>    provided_support_partner_cwp <span class="sc">+</span></span>
-<span id="cb55-9"><a href></a>  </span>
-<span id="cb55-10"><a href></a>    <span class="co"># Between-person APIM</span></span>
-<span id="cb55-11"><a href></a>    provided_support_actor_cbp <span class="sc">+</span></span>
-<span id="cb55-12"><a href></a>    provided_support_partner_cbp <span class="sc">+</span></span>
-<span id="cb55-13"><a href></a>    </span>
-<span id="cb55-14"><a href></a>    <span class="co"># Dyad-Level intercept and slopes for time-varying predictors</span></span>
-<span id="cb55-15"><a href></a>    (<span class="dv">1</span> <span class="sc">+</span> diaryday_c <span class="sc">+</span> provided_support_actor_cwp <span class="sc">+</span> provided_support_partner_cwp <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
-<span id="cb55-16"><a href></a>    </span>
-<span id="cb55-17"><a href></a>    <span class="co"># Both partners&#39; deviations from these dyad-level means and slopes.</span></span>
-<span id="cb55-18"><a href></a>    <span class="co"># Note: separate random effects block to make them uncorrelated form dyad-level REs. </span></span>
-<span id="cb55-19"><a href></a>    (<span class="dv">0</span> <span class="sc">+</span> Idiff <span class="sc">+</span> </span>
-<span id="cb55-20"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> diaryday_c) <span class="sc">+</span> </span>
-<span id="cb55-21"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> provided_support_actor_cwp) <span class="sc">+</span> </span>
-<span id="cb55-22"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> provided_support_partner_cwp) <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
-<span id="cb55-23"><a href></a>    </span>
-<span id="cb55-24"><a href></a>    <span class="co"># Modelling Level 1 residuals in brms: </span></span>
-<span id="cb55-25"><a href></a>    <span class="fu">cosy</span>(<span class="at">gr =</span> coupleID<span class="sc">:</span>diaryday)</span>
-<span id="cb55-26"><a href></a>  </span>
-<span id="cb55-27"><a href></a>  <span class="co"># Again, no need to model heterogeneous residual variances (sigma)</span></span>
-<span id="cb55-28"><a href></a>  <span class="co"># Implied: sigma = ~ 1</span></span>
-<span id="cb55-29"><a href></a>)</span>
-<span id="cb55-30"><a href></a></span>
-<span id="cb55-31"><a href></a>priors_exch_long_apim <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb55-32"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">4</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;Intercept&quot;</span>),</span>
-<span id="cb55-33"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>),</span>
-<span id="cb55-34"><a href></a>  <span class="fu">prior</span>(<span class="fu">exponential</span>(<span class="dv">1</span>), <span class="at">class =</span> <span class="st">&quot;sd&quot;</span>),</span>
-<span id="cb55-35"><a href></a>  <span class="fu">prior</span>(<span class="fu">lkj</span>(<span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;cor&quot;</span>),</span>
-<span id="cb55-36"><a href></a>  <span class="fu">prior</span>(<span class="fu">student_t</span>(<span class="dv">3</span>, <span class="dv">0</span>, <span class="fl">1.5</span>), <span class="at">class =</span> <span class="st">&quot;sigma&quot;</span>),</span>
-<span id="cb55-37"><a href></a>  <span class="fu">prior</span>(<span class="fu">beta</span>(<span class="dv">1</span>, <span class="dv">3</span>), <span class="at">class =</span> <span class="st">&quot;cosy&quot;</span>)</span>
-<span id="cb55-38"><a href></a>)</span>
-<span id="cb55-39"><a href></a></span>
-<span id="cb55-40"><a href></a>model_exch_long_apim <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
-<span id="cb55-41"><a href></a>  <span class="at">formula =</span> formula_exch_long_apim,</span>
-<span id="cb55-42"><a href></a>  <span class="at">data =</span> df_long_dim,</span>
-<span id="cb55-43"><a href></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(<span class="at">link =</span> identity),</span>
-<span id="cb55-44"><a href></a>  <span class="at">prior =</span> priors_exch_long_apim,</span>
-<span id="cb55-45"><a href></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
-<span id="cb55-46"><a href></a>  <span class="at">cores =</span> <span class="dv">4</span>,</span>
-<span id="cb55-47"><a href></a>  <span class="at">iter =</span> <span class="dv">2000</span>,</span>
-<span id="cb55-48"><a href></a>  <span class="at">warmup =</span> <span class="dv">1000</span>, </span>
-<span id="cb55-49"><a href></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
-<span id="cb55-50"><a href></a>  <span class="at">file =</span> <span class="fu">file.path</span>(<span class="st">&#39;brms_cache&#39;</span>, <span class="st">&#39;model_apim_ind_long_apim&#39;</span>)</span>
-<span id="cb55-51"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href></a>formula_exch_long_apim <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
+<span id="cb51-2"><a href></a>  closeness <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> </span>
+<span id="cb51-3"><a href></a>    </span>
+<span id="cb51-4"><a href></a>    diaryday_c <span class="sc">+</span></span>
+<span id="cb51-5"><a href></a>  </span>
+<span id="cb51-6"><a href></a>    <span class="co"># Within-person APIM</span></span>
+<span id="cb51-7"><a href></a>    provided_support_actor_cwp <span class="sc">+</span> </span>
+<span id="cb51-8"><a href></a>    provided_support_partner_cwp <span class="sc">+</span></span>
+<span id="cb51-9"><a href></a>  </span>
+<span id="cb51-10"><a href></a>    <span class="co"># Between-person APIM</span></span>
+<span id="cb51-11"><a href></a>    provided_support_actor_cbp <span class="sc">+</span></span>
+<span id="cb51-12"><a href></a>    provided_support_partner_cbp <span class="sc">+</span></span>
+<span id="cb51-13"><a href></a>    </span>
+<span id="cb51-14"><a href></a>    <span class="co"># Dyad-Level intercept and slopes for time-varying predictors</span></span>
+<span id="cb51-15"><a href></a>    (<span class="dv">1</span> <span class="sc">+</span> diaryday_c <span class="sc">+</span> provided_support_actor_cwp <span class="sc">+</span> provided_support_partner_cwp <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
+<span id="cb51-16"><a href></a>    </span>
+<span id="cb51-17"><a href></a>    <span class="co"># Both partners&#39; deviations from these dyad-level means and slopes.</span></span>
+<span id="cb51-18"><a href></a>    <span class="co"># Note: separate random effects block to make them uncorrelated form dyad-level REs. </span></span>
+<span id="cb51-19"><a href></a>    (<span class="dv">0</span> <span class="sc">+</span> Idiff <span class="sc">+</span> </span>
+<span id="cb51-20"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> diaryday_c) <span class="sc">+</span> </span>
+<span id="cb51-21"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> provided_support_actor_cwp) <span class="sc">+</span> </span>
+<span id="cb51-22"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> provided_support_partner_cwp) <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
+<span id="cb51-23"><a href></a>    </span>
+<span id="cb51-24"><a href></a>    <span class="co"># Modelling Level 1 residuals in brms: </span></span>
+<span id="cb51-25"><a href></a>    <span class="fu">cosy</span>(<span class="at">gr =</span> coupleID<span class="sc">:</span>diaryday)</span>
+<span id="cb51-26"><a href></a>  </span>
+<span id="cb51-27"><a href></a>  <span class="co"># Again, no need to model heterogeneous residual variances (sigma)</span></span>
+<span id="cb51-28"><a href></a>  <span class="co"># Implied: sigma = ~ 1</span></span>
+<span id="cb51-29"><a href></a>)</span>
+<span id="cb51-30"><a href></a></span>
+<span id="cb51-31"><a href></a>priors_exch_long_apim <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb51-32"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">4</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;Intercept&quot;</span>),</span>
+<span id="cb51-33"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>),</span>
+<span id="cb51-34"><a href></a>  <span class="fu">prior</span>(<span class="fu">exponential</span>(<span class="dv">1</span>), <span class="at">class =</span> <span class="st">&quot;sd&quot;</span>),</span>
+<span id="cb51-35"><a href></a>  <span class="fu">prior</span>(<span class="fu">lkj</span>(<span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;cor&quot;</span>),</span>
+<span id="cb51-36"><a href></a>  <span class="fu">prior</span>(<span class="fu">student_t</span>(<span class="dv">3</span>, <span class="dv">0</span>, <span class="fl">1.5</span>), <span class="at">class =</span> <span class="st">&quot;sigma&quot;</span>),</span>
+<span id="cb51-37"><a href></a>  <span class="fu">prior</span>(<span class="fu">beta</span>(<span class="dv">1</span>, <span class="dv">3</span>), <span class="at">class =</span> <span class="st">&quot;cosy&quot;</span>)</span>
+<span id="cb51-38"><a href></a>)</span>
+<span id="cb51-39"><a href></a></span>
+<span id="cb51-40"><a href></a>model_exch_long_apim <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
+<span id="cb51-41"><a href></a>  <span class="at">formula =</span> formula_exch_long_apim,</span>
+<span id="cb51-42"><a href></a>  <span class="at">data =</span> df_long_dim,</span>
+<span id="cb51-43"><a href></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(<span class="at">link =</span> identity),</span>
+<span id="cb51-44"><a href></a>  <span class="at">prior =</span> priors_exch_long_apim,</span>
+<span id="cb51-45"><a href></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb51-46"><a href></a>  <span class="at">cores =</span> <span class="dv">4</span>,</span>
+<span id="cb51-47"><a href></a>  <span class="at">iter =</span> <span class="dv">2000</span>,</span>
+<span id="cb51-48"><a href></a>  <span class="at">warmup =</span> <span class="dv">1000</span>, </span>
+<span id="cb51-49"><a href></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
+<span id="cb51-50"><a href></a>  <span class="at">file =</span> <span class="fu">file.path</span>(<span class="st">&#39;brms_cache&#39;</span>, <span class="st">&#39;model_apim_ind_long_apim&#39;</span>)</span>
+<span id="cb51-51"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="exchangeable-dyads---longitudinal-apimdim-brms-1" class="slide level2">
 <h2>Exchangeable Dyads - Longitudinal APIM/DIM: brms</h2>
 <p>The equivalent DIM specification:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href></a><span class="co"># DIM Version</span></span>
-<span id="cb56-2"><a href></a>formula_exch_long_dim <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
-<span id="cb56-3"><a href></a>  closeness <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> </span>
-<span id="cb56-4"><a href></a>    </span>
-<span id="cb56-5"><a href></a>    diaryday_c <span class="sc">+</span></span>
-<span id="cb56-6"><a href></a>    </span>
-<span id="cb56-7"><a href></a>    provided_support_cwp_mean <span class="sc">+</span> </span>
-<span id="cb56-8"><a href></a>    provided_support_cwp_halfdiff <span class="sc">+</span></span>
-<span id="cb56-9"><a href></a>  </span>
-<span id="cb56-10"><a href></a>    provided_support_cbc <span class="sc">+</span></span>
-<span id="cb56-11"><a href></a>    provided_support_cwcbp <span class="sc">+</span></span>
-<span id="cb56-12"><a href></a>    </span>
-<span id="cb56-13"><a href></a>    (<span class="dv">1</span> <span class="sc">+</span> diaryday_c <span class="sc">+</span> provided_support_actor_cwp <span class="sc">+</span> provided_support_partner_cwp <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
-<span id="cb56-14"><a href></a>    (<span class="dv">0</span> <span class="sc">+</span> Idiff <span class="sc">+</span> </span>
-<span id="cb56-15"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> diaryday_c) <span class="sc">+</span> </span>
-<span id="cb56-16"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> provided_support_actor_cwp) <span class="sc">+</span> </span>
-<span id="cb56-17"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> provided_support_partner_cwp) <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
-<span id="cb56-18"><a href></a>    </span>
-<span id="cb56-19"><a href></a>    <span class="fu">cosy</span>(<span class="at">gr =</span> coupleID<span class="sc">:</span>diaryday)</span>
-<span id="cb56-20"><a href></a>)</span>
-<span id="cb56-21"><a href></a></span>
-<span id="cb56-22"><a href></a>priors_exch_long_dim <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb56-23"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">4</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;Intercept&quot;</span>),</span>
-<span id="cb56-24"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>),</span>
-<span id="cb56-25"><a href></a>  <span class="fu">prior</span>(<span class="fu">exponential</span>(<span class="dv">1</span>), <span class="at">class =</span> <span class="st">&quot;sd&quot;</span>),</span>
-<span id="cb56-26"><a href></a>  <span class="fu">prior</span>(<span class="fu">lkj</span>(<span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;cor&quot;</span>),</span>
-<span id="cb56-27"><a href></a>  <span class="fu">prior</span>(<span class="fu">student_t</span>(<span class="dv">3</span>, <span class="dv">0</span>, <span class="fl">1.5</span>), <span class="at">class =</span> <span class="st">&quot;sigma&quot;</span>),</span>
-<span id="cb56-28"><a href></a>  <span class="fu">prior</span>(<span class="fu">beta</span>(<span class="dv">1</span>, <span class="dv">3</span>), <span class="at">class =</span> <span class="st">&quot;cosy&quot;</span>)</span>
-<span id="cb56-29"><a href></a>)</span>
-<span id="cb56-30"><a href></a></span>
-<span id="cb56-31"><a href></a>model_exch_long_dim <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
-<span id="cb56-32"><a href></a>  <span class="at">formula =</span> formula_exch_long_dim,</span>
-<span id="cb56-33"><a href></a>  <span class="at">data =</span> df_long_dim,</span>
-<span id="cb56-34"><a href></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(<span class="at">link =</span> identity),</span>
-<span id="cb56-35"><a href></a>  <span class="at">prior =</span> priors_exch_long_dim,</span>
-<span id="cb56-36"><a href></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
-<span id="cb56-37"><a href></a>  <span class="at">cores =</span> <span class="dv">4</span>,</span>
-<span id="cb56-38"><a href></a>  <span class="at">iter =</span> <span class="dv">2000</span>,</span>
-<span id="cb56-39"><a href></a>  <span class="at">warmup =</span> <span class="dv">1000</span>, </span>
-<span id="cb56-40"><a href></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
-<span id="cb56-41"><a href></a>  <span class="at">file =</span> <span class="fu">file.path</span>(<span class="st">&#39;brms_cache&#39;</span>, <span class="st">&#39;model_apim_ind_long_dim&#39;</span>)</span>
-<span id="cb56-42"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href></a><span class="co"># DIM Version</span></span>
+<span id="cb52-2"><a href></a>formula_exch_long_dim <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
+<span id="cb52-3"><a href></a>  closeness <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> </span>
+<span id="cb52-4"><a href></a>    </span>
+<span id="cb52-5"><a href></a>    diaryday_c <span class="sc">+</span></span>
+<span id="cb52-6"><a href></a>    </span>
+<span id="cb52-7"><a href></a>    provided_support_cwp_mean <span class="sc">+</span> </span>
+<span id="cb52-8"><a href></a>    provided_support_cwp_halfdiff <span class="sc">+</span></span>
+<span id="cb52-9"><a href></a>  </span>
+<span id="cb52-10"><a href></a>    provided_support_cbc <span class="sc">+</span></span>
+<span id="cb52-11"><a href></a>    provided_support_cwcbp <span class="sc">+</span></span>
+<span id="cb52-12"><a href></a>    </span>
+<span id="cb52-13"><a href></a>    (<span class="dv">1</span> <span class="sc">+</span> diaryday_c <span class="sc">+</span> provided_support_actor_cwp <span class="sc">+</span> provided_support_partner_cwp <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
+<span id="cb52-14"><a href></a>    (<span class="dv">0</span> <span class="sc">+</span> Idiff <span class="sc">+</span> </span>
+<span id="cb52-15"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> diaryday_c) <span class="sc">+</span> </span>
+<span id="cb52-16"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> provided_support_actor_cwp) <span class="sc">+</span> </span>
+<span id="cb52-17"><a href></a>         <span class="fu">I</span>(Idiff <span class="sc">*</span> provided_support_partner_cwp) <span class="sc">|</span> coupleID) <span class="sc">+</span></span>
+<span id="cb52-18"><a href></a>    </span>
+<span id="cb52-19"><a href></a>    <span class="fu">cosy</span>(<span class="at">gr =</span> coupleID<span class="sc">:</span>diaryday)</span>
+<span id="cb52-20"><a href></a>)</span>
+<span id="cb52-21"><a href></a></span>
+<span id="cb52-22"><a href></a>priors_exch_long_dim <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb52-23"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">4</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;Intercept&quot;</span>),</span>
+<span id="cb52-24"><a href></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;b&quot;</span>),</span>
+<span id="cb52-25"><a href></a>  <span class="fu">prior</span>(<span class="fu">exponential</span>(<span class="dv">1</span>), <span class="at">class =</span> <span class="st">&quot;sd&quot;</span>),</span>
+<span id="cb52-26"><a href></a>  <span class="fu">prior</span>(<span class="fu">lkj</span>(<span class="dv">2</span>), <span class="at">class =</span> <span class="st">&quot;cor&quot;</span>),</span>
+<span id="cb52-27"><a href></a>  <span class="fu">prior</span>(<span class="fu">student_t</span>(<span class="dv">3</span>, <span class="dv">0</span>, <span class="fl">1.5</span>), <span class="at">class =</span> <span class="st">&quot;sigma&quot;</span>),</span>
+<span id="cb52-28"><a href></a>  <span class="fu">prior</span>(<span class="fu">beta</span>(<span class="dv">1</span>, <span class="dv">3</span>), <span class="at">class =</span> <span class="st">&quot;cosy&quot;</span>)</span>
+<span id="cb52-29"><a href></a>)</span>
+<span id="cb52-30"><a href></a></span>
+<span id="cb52-31"><a href></a>model_exch_long_dim <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
+<span id="cb52-32"><a href></a>  <span class="at">formula =</span> formula_exch_long_dim,</span>
+<span id="cb52-33"><a href></a>  <span class="at">data =</span> df_long_dim,</span>
+<span id="cb52-34"><a href></a>  <span class="at">family =</span> <span class="fu">gaussian</span>(<span class="at">link =</span> identity),</span>
+<span id="cb52-35"><a href></a>  <span class="at">prior =</span> priors_exch_long_dim,</span>
+<span id="cb52-36"><a href></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb52-37"><a href></a>  <span class="at">cores =</span> <span class="dv">4</span>,</span>
+<span id="cb52-38"><a href></a>  <span class="at">iter =</span> <span class="dv">2000</span>,</span>
+<span id="cb52-39"><a href></a>  <span class="at">warmup =</span> <span class="dv">1000</span>, </span>
+<span id="cb52-40"><a href></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
+<span id="cb52-41"><a href></a>  <span class="at">file =</span> <span class="fu">file.path</span>(<span class="st">&#39;brms_cache&#39;</span>, <span class="st">&#39;model_apim_ind_long_dim&#39;</span>)</span>
+<span id="cb52-42"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="exchangeable-dyads---longitudinal-apimdim-explanation-idiff" class="slide level2">
@@ -7260,46 +7342,46 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <section id="extract-full-apim-random-effects-variance-covariance-matrix-1" class="slide level2">
 <h2>Extract Full APIM Random Effects Variance-Covariance Matrix</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb57"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb57-1"><a href></a><span class="co"># Custom function </span></span>
-<span id="cb57-2"><a href></a>rotate_apim_covariance <span class="ot">&lt;-</span> <span class="cf">function</span>(</span>
-<span id="cb57-3"><a href></a>    fit,</span>
-<span id="cb57-4"><a href></a>    <span class="at">gr =</span> <span class="st">&quot;coupleID&quot;</span>,</span>
-<span id="cb57-5"><a href></a>    <span class="at">Idiff =</span> <span class="st">&quot;Idiff&quot;</span></span>
-<span id="cb57-6"><a href></a>) {</span>
-<span id="cb57-7"><a href></a>  random_effects <span class="ot">&lt;-</span> fit<span class="sc">$</span>ranef</span>
-<span id="cb57-8"><a href></a>  random_effects <span class="ot">&lt;-</span> random_effects[random_effects<span class="sc">$</span>group <span class="sc">==</span> gr,]</span>
-<span id="cb57-9"><a href></a></span>
-<span id="cb57-10"><a href></a>  SUM <span class="ot">&lt;-</span> random_effects<span class="sc">$</span>coef[<span class="sc">!</span><span class="fu">grepl</span>(Idiff, random_effects<span class="sc">$</span>coef)]</span>
-<span id="cb57-11"><a href></a>  DIFF <span class="ot">&lt;-</span> random_effects<span class="sc">$</span>coef[<span class="fu">grepl</span>(Idiff, random_effects<span class="sc">$</span>coef)]</span>
-<span id="cb57-12"><a href></a>  </span>
-<span id="cb57-13"><a href></a>  varcor <span class="ot">&lt;-</span> <span class="fu">VarCorr</span>(fit)[[gr]]</span>
-<span id="cb57-14"><a href></a>  </span>
-<span id="cb57-15"><a href></a>  within_person_covariance_matrix <span class="ot">&lt;-</span> varcor<span class="sc">$</span>cov[SUM,<span class="st">&#39;Estimate&#39;</span>,SUM] <span class="sc">+</span> varcor<span class="sc">$</span>cov[DIFF,<span class="st">&#39;Estimate&#39;</span>,DIFF]</span>
-<span id="cb57-16"><a href></a>  cross_person_covariance_matrix <span class="ot">&lt;-</span> varcor<span class="sc">$</span>cov[SUM,<span class="st">&#39;Estimate&#39;</span>,SUM] <span class="sc">-</span> varcor<span class="sc">$</span>cov[DIFF,<span class="st">&#39;Estimate&#39;</span>,DIFF]</span>
-<span id="cb57-17"><a href></a>  </span>
-<span id="cb57-18"><a href></a>  p <span class="ot">&lt;-</span> <span class="fu">nrow</span>(within_person_covariance_matrix)</span>
-<span id="cb57-19"><a href></a>  </span>
-<span id="cb57-20"><a href></a>  Full <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
-<span id="cb57-21"><a href></a>    <span class="fu">cbind</span>(within_person_covariance_matrix,  cross_person_covariance_matrix),</span>
-<span id="cb57-22"><a href></a>    <span class="fu">cbind</span>(cross_person_covariance_matrix, within_person_covariance_matrix)</span>
-<span id="cb57-23"><a href></a>  )</span>
-<span id="cb57-24"><a href></a>  </span>
-<span id="cb57-25"><a href></a>  <span class="co"># nice labels</span></span>
-<span id="cb57-26"><a href></a>  base <span class="ot">&lt;-</span> SUM</span>
-<span id="cb57-27"><a href></a>  rn <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;PartnerA_&quot;</span>, base), <span class="fu">paste0</span>(<span class="st">&quot;PartnerB_&quot;</span>, base))</span>
-<span id="cb57-28"><a href></a>  <span class="fu">colnames</span>(Full) <span class="ot">&lt;-</span> rn</span>
-<span id="cb57-29"><a href></a>  <span class="fu">rownames</span>(Full) <span class="ot">&lt;-</span> rn</span>
-<span id="cb57-30"><a href></a>  </span>
-<span id="cb57-31"><a href></a>  <span class="fu">return</span>(<span class="fu">list</span>(<span class="at">within_person_covariance_matrix=</span>within_person_covariance_matrix, <span class="at">cross_person_covariance_matrix=</span>cross_person_covariance_matrix, <span class="at">full_covariance_matrix=</span>Full))</span>
-<span id="cb57-32"><a href></a>}</span>
-<span id="cb57-33"><a href></a></span>
-<span id="cb57-34"><a href></a>a <span class="ot">&lt;-</span> <span class="fu">rotate_apim_covariance</span>(model_exch_long_apim)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href></a><span class="co"># Custom function </span></span>
+<span id="cb53-2"><a href></a>rotate_apim_covariance <span class="ot">&lt;-</span> <span class="cf">function</span>(</span>
+<span id="cb53-3"><a href></a>    fit,</span>
+<span id="cb53-4"><a href></a>    <span class="at">gr =</span> <span class="st">&quot;coupleID&quot;</span>,</span>
+<span id="cb53-5"><a href></a>    <span class="at">Idiff =</span> <span class="st">&quot;Idiff&quot;</span></span>
+<span id="cb53-6"><a href></a>) {</span>
+<span id="cb53-7"><a href></a>  random_effects <span class="ot">&lt;-</span> fit<span class="sc">$</span>ranef</span>
+<span id="cb53-8"><a href></a>  random_effects <span class="ot">&lt;-</span> random_effects[random_effects<span class="sc">$</span>group <span class="sc">==</span> gr,]</span>
+<span id="cb53-9"><a href></a></span>
+<span id="cb53-10"><a href></a>  SUM <span class="ot">&lt;-</span> random_effects<span class="sc">$</span>coef[<span class="sc">!</span><span class="fu">grepl</span>(Idiff, random_effects<span class="sc">$</span>coef)]</span>
+<span id="cb53-11"><a href></a>  DIFF <span class="ot">&lt;-</span> random_effects<span class="sc">$</span>coef[<span class="fu">grepl</span>(Idiff, random_effects<span class="sc">$</span>coef)]</span>
+<span id="cb53-12"><a href></a>  </span>
+<span id="cb53-13"><a href></a>  varcor <span class="ot">&lt;-</span> <span class="fu">VarCorr</span>(fit)[[gr]]</span>
+<span id="cb53-14"><a href></a>  </span>
+<span id="cb53-15"><a href></a>  within_person_covariance_matrix <span class="ot">&lt;-</span> varcor<span class="sc">$</span>cov[SUM,<span class="st">&#39;Estimate&#39;</span>,SUM] <span class="sc">+</span> varcor<span class="sc">$</span>cov[DIFF,<span class="st">&#39;Estimate&#39;</span>,DIFF]</span>
+<span id="cb53-16"><a href></a>  cross_person_covariance_matrix <span class="ot">&lt;-</span> varcor<span class="sc">$</span>cov[SUM,<span class="st">&#39;Estimate&#39;</span>,SUM] <span class="sc">-</span> varcor<span class="sc">$</span>cov[DIFF,<span class="st">&#39;Estimate&#39;</span>,DIFF]</span>
+<span id="cb53-17"><a href></a>  </span>
+<span id="cb53-18"><a href></a>  p <span class="ot">&lt;-</span> <span class="fu">nrow</span>(within_person_covariance_matrix)</span>
+<span id="cb53-19"><a href></a>  </span>
+<span id="cb53-20"><a href></a>  Full <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb53-21"><a href></a>    <span class="fu">cbind</span>(within_person_covariance_matrix,  cross_person_covariance_matrix),</span>
+<span id="cb53-22"><a href></a>    <span class="fu">cbind</span>(cross_person_covariance_matrix, within_person_covariance_matrix)</span>
+<span id="cb53-23"><a href></a>  )</span>
+<span id="cb53-24"><a href></a>  </span>
+<span id="cb53-25"><a href></a>  <span class="co"># nice labels</span></span>
+<span id="cb53-26"><a href></a>  base <span class="ot">&lt;-</span> SUM</span>
+<span id="cb53-27"><a href></a>  rn <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;PartnerA_&quot;</span>, base), <span class="fu">paste0</span>(<span class="st">&quot;PartnerB_&quot;</span>, base))</span>
+<span id="cb53-28"><a href></a>  <span class="fu">colnames</span>(Full) <span class="ot">&lt;-</span> rn</span>
+<span id="cb53-29"><a href></a>  <span class="fu">rownames</span>(Full) <span class="ot">&lt;-</span> rn</span>
+<span id="cb53-30"><a href></a>  </span>
+<span id="cb53-31"><a href></a>  <span class="fu">return</span>(<span class="fu">list</span>(<span class="at">within_person_covariance_matrix=</span>within_person_covariance_matrix, <span class="at">cross_person_covariance_matrix=</span>cross_person_covariance_matrix, <span class="at">full_covariance_matrix=</span>Full))</span>
+<span id="cb53-32"><a href></a>}</span>
+<span id="cb53-33"><a href></a></span>
+<span id="cb53-34"><a href></a>a <span class="ot">&lt;-</span> <span class="fu">rotate_apim_covariance</span>(model_exch_long_apim)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="extract-full-apim-random-effects-variance-covariance-matrix-within-person-matrix" class="slide level2">
 <h2>Extract Full APIM Random Effects Variance-Covariance Matrix: Within-Person Matrix</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href></a><span class="fu">print_df</span>(a<span class="sc">$</span>within_person_covariance_matrix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href></a><span class="fu">print_df</span>(a<span class="sc">$</span>within_person_covariance_matrix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:auto; overflow-x: scroll; width:100%; ">
 <table class="table table-striped caption-top" style="font-size: 20px; width: auto !important; ">
@@ -7350,7 +7432,7 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <section id="extract-full-apim-random-effects-variance-covariance-matrix-cross-person-matrix" class="slide level2">
 <h2>Extract Full APIM Random Effects Variance-Covariance Matrix: Cross-Person Matrix</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb59"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb59-1"><a href></a><span class="fu">print_df</span>(a<span class="sc">$</span>cross_person_covariance_matrix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href></a><span class="fu">print_df</span>(a<span class="sc">$</span>cross_person_covariance_matrix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:auto; overflow-x: scroll; width:100%; ">
 <table class="table table-striped caption-top" style="font-size: 20px; width: auto !important; ">
@@ -7401,7 +7483,7 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <section id="extract-full-apim-random-effects-variance-covariance-matrix-full-matrix" class="slide level2">
 <h2>Extract Full APIM Random Effects Variance-Covariance Matrix: Full Matrix</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb60"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href></a><span class="fu">print_df</span>(a<span class="sc">$</span>full_covariance_matrix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href></a><span class="fu">print_df</span>(a<span class="sc">$</span>full_covariance_matrix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:auto; overflow-x: scroll; width:100%; ">
 <table class="table table-striped caption-top" style="font-size: 20px; width: auto !important; ">
@@ -7516,20 +7598,20 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <section id="convert-to-correlation-matrix-of-random-effects" class="slide level2">
 <h2>Convert to correlation matrix of random effects</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb61"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb61-1"><a href></a><span class="co"># Custom function</span></span>
-<span id="cb61-2"><a href></a>sd_cor <span class="ot">&lt;-</span> <span class="cf">function</span>(Sigma) {</span>
-<span id="cb61-3"><a href></a>  sds  <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">diag</span>(Sigma))</span>
-<span id="cb61-4"><a href></a>  cors <span class="ot">&lt;-</span> <span class="fu">cov2cor</span>(Sigma)  </span>
-<span id="cb61-5"><a href></a>  <span class="fu">list</span>(<span class="at">sd =</span> sds, <span class="at">cor =</span> cors)</span>
-<span id="cb61-6"><a href></a>}</span>
-<span id="cb61-7"><a href></a></span>
-<span id="cb61-8"><a href></a>full <span class="ot">&lt;-</span> <span class="fu">sd_cor</span>(a<span class="sc">$</span>full_covariance_matrix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb57"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb57-1"><a href></a><span class="co"># Custom function</span></span>
+<span id="cb57-2"><a href></a>sd_cor <span class="ot">&lt;-</span> <span class="cf">function</span>(Sigma) {</span>
+<span id="cb57-3"><a href></a>  sds  <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">diag</span>(Sigma))</span>
+<span id="cb57-4"><a href></a>  cors <span class="ot">&lt;-</span> <span class="fu">cov2cor</span>(Sigma)  </span>
+<span id="cb57-5"><a href></a>  <span class="fu">list</span>(<span class="at">sd =</span> sds, <span class="at">cor =</span> cors)</span>
+<span id="cb57-6"><a href></a>}</span>
+<span id="cb57-7"><a href></a></span>
+<span id="cb57-8"><a href></a>full <span class="ot">&lt;-</span> <span class="fu">sd_cor</span>(a<span class="sc">$</span>full_covariance_matrix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="random-effects-sds" class="slide level2">
 <h2>Random effects SDs</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb62"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb62-1"><a href></a><span class="fu">print_df</span>(<span class="fu">as.data.frame</span>(<span class="fu">round</span>(full<span class="sc">$</span>sd, <span class="dv">3</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href></a><span class="fu">print_df</span>(<span class="fu">as.data.frame</span>(<span class="fu">round</span>(full<span class="sc">$</span>sd, <span class="dv">3</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:auto; overflow-x: scroll; width:100%; ">
 <table class="table table-striped caption-top" style="font-size: 20px; width: auto !important; ">
@@ -7581,7 +7663,7 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <section id="random-effect-correlation-matrix" class="slide level2">
 <h2>Random effect correlation matrix</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb63"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb63-1"><a href></a><span class="fu">print_df</span>(<span class="fu">as.data.frame</span>(<span class="fu">round</span>(full<span class="sc">$</span>cor, <span class="dv">3</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb59"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb59-1"><a href></a><span class="fu">print_df</span>(<span class="fu">as.data.frame</span>(<span class="fu">round</span>(full<span class="sc">$</span>cor, <span class="dv">3</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:auto; overflow-x: scroll; width:100%; ">
 <table class="table table-striped caption-top" style="font-size: 20px; width: auto !important; ">
