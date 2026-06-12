@@ -1,0 +1,238 @@
+---
+title: "Negative Partner Correlations: Binary brms/glmmTMB Stress Tests"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+---
+
+```{r setup, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(
+  cache = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 8,
+  fig.height = 4
+)
+
+suppressPackageStartupMessages({
+  library(brms)
+  library(glmmTMB)
+  library(knitr)
+})
+
+options(mc.cores = min(2, parallel::detectCores()))
+brms_backend <- if (requireNamespace("cmdstanr", quietly = TRUE)) "cmdstanr" else "rstan"
+
+fit_brms <- function(formula, data, seed) {
+  brm(
+    formula = formula,
+    data = data,
+    family = bernoulli(link = "logit"),
+    prior = c(
+      prior(normal(0, 2), class = "b"),
+      prior(student_t(3, 0, 1.5), class = "sd"),
+      prior(lkj(2), class = "cor")
+    ),
+    chains = 2,
+    cores = 2,
+    iter = 600,
+    warmup = 300,
+    seed = seed,
+    backend = brms_backend,
+    refresh = 0,
+    control = list(adapt_delta = 0.95)
+  )
+}
+
+rmvn2 <- function(n, sd_1, sd_2, cor) {
+  cov <- matrix(
+    c(sd_1^2, cor * sd_1 * sd_2, cor * sd_1 * sd_2, sd_2^2),
+    nrow = 2
+  )
+  matrix(rnorm(n * 2), ncol = 2) %*% chol(cov)
+}
+
+make_table <- function(rows) {
+  rows[] <- lapply(rows, function(x) if (is.numeric(x)) round(x, 3) else x)
+  kable(rows)
+}
+
+extract_glmm_us <- function(model, group) {
+  vc <- VarCorr(model)$cond[[group]]
+  c(
+    sd_1 = unname(attr(vc, "stddev")[1]),
+    sd_2 = unname(attr(vc, "stddev")[2]),
+    cor_12 = unname(attr(vc, "correlation")[1, 2])
+  )
+}
+
+extract_brms_us <- function(model, group) {
+  s <- summary(model)$random[[group]]
+  c(
+    sd_1 = s["sd(is_male)", "Estimate"],
+    sd_2 = s["sd(is_female)", "Estimate"],
+    cor_12 = s["cor(is_male,is_female)", "Estimate"]
+  )
+}
+```
+
+For binary models, the covariance parameters are latent Gaussian random effects
+on the logit scale. They are not observed-scale residual correlations.
+
+These examples are intentionally treated as stress tests. With a single binary
+outcome per partner and occasion, the lowest-level latent covariance is much
+harder to identify than in Gaussian or count models. Boundary estimates or
+larger package-to-package differences are therefore informative rather than
+surprising.
+
+## Cross-Sectional Distinguishable Dyads
+
+This is the direct cross-sectional analogue of the non-Gaussian random-effect
+formulation. Each dyad contributes only two binary observations, so the latent
+correlation is expected to be weakly identified.
+
+```{r cross-dist-bernoulli}
+set.seed(3101)
+n_couples <- 1200
+
+beta <- c(is_male = -0.35, is_female = -0.65)
+true_latent <- c(sd_1 = 1.2, sd_2 = 1.0, cor_12 = -0.7)
+latent <- rmvn2(
+  n_couples,
+  true_latent["sd_1"],
+  true_latent["sd_2"],
+  true_latent["cor_12"]
+)
+
+df <- data.frame(
+  coupleID = factor(rep(seq_len(n_couples), each = 2)),
+  member = rep(1:2, n_couples),
+  is_male = rep(c(1, 0), n_couples),
+  is_female = rep(c(0, 1), n_couples)
+)
+
+df$latent <- ifelse(
+  df$is_male == 1,
+  rep(latent[, 1], each = 2),
+  rep(latent[, 2], each = 2)
+)
+eta <- with(df, beta["is_male"] * is_male + beta["is_female"] * is_female + latent)
+df$y <- rbinom(nrow(df), size = 1, prob = plogis(eta))
+
+model_glmm <- glmmTMB(
+  y ~ 0 + is_male + is_female +
+    (0 + is_male + is_female | coupleID),
+  data = df,
+  family = binomial(link = "logit")
+)
+
+model_brms <- fit_brms(
+  bf(
+    y ~ 0 + is_male + is_female +
+      (0 + is_male + is_female | coupleID)
+  ),
+  data = df,
+  seed = 3101
+)
+
+make_table(data.frame(
+  parameter = names(true_latent),
+  true = unname(true_latent),
+  glmmTMB = unname(extract_glmm_us(model_glmm, "coupleID")),
+  brms = unname(extract_brms_us(model_brms, "coupleID"))
+))
+```
+
+## ILD Distinguishable Dyads
+
+The ILD example adds both a stable couple-level latent covariance and a
+same-day partner covariance. The same-day block is the hardest part because
+each couple-day contributes only one binary observation per partner.
+
+```{r ild-dist-bernoulli}
+set.seed(3102)
+n_couples <- 180
+n_days <- 4
+
+beta <- c(is_male = -0.35, is_female = -0.65)
+true_couple <- c(sd_1 = 0.9, sd_2 = 0.75, cor_12 = -0.55)
+true_day <- c(sd_1 = 1.0, sd_2 = 0.85, cor_12 = -0.65)
+couple_re <- rmvn2(
+  n_couples,
+  true_couple["sd_1"],
+  true_couple["sd_2"],
+  true_couple["cor_12"]
+)
+
+df <- expand.grid(
+  coupleID = seq_len(n_couples),
+  day = seq_len(n_days),
+  member = 1:2
+)
+df <- df[order(df$coupleID, df$day, df$member), ]
+df$coupleID <- factor(df$coupleID)
+df$couple_day <- interaction(df$coupleID, df$day, drop = TRUE)
+df$is_male <- as.numeric(df$member == 1)
+df$is_female <- as.numeric(df$member == 2)
+
+day_re <- rmvn2(
+  n_couples * n_days,
+  true_day["sd_1"],
+  true_day["sd_2"],
+  true_day["cor_12"]
+)
+day_index <- (as.integer(df$coupleID) - 1) * n_days + df$day
+df$couple_re <- ifelse(
+  df$is_male == 1,
+  couple_re[as.integer(df$coupleID), 1],
+  couple_re[as.integer(df$coupleID), 2]
+)
+df$day_re <- ifelse(
+  df$is_male == 1,
+  day_re[day_index, 1],
+  day_re[day_index, 2]
+)
+eta <- with(
+  df,
+  beta["is_male"] * is_male +
+    beta["is_female"] * is_female +
+    couple_re + day_re
+)
+df$y <- rbinom(nrow(df), size = 1, prob = plogis(eta))
+
+model_glmm <- glmmTMB(
+  y ~ 0 + is_male + is_female +
+    (0 + is_male + is_female | coupleID) +
+    (0 + is_male + is_female | couple_day),
+  data = df,
+  family = binomial(link = "logit")
+)
+
+model_brms <- fit_brms(
+  bf(
+    y ~ 0 + is_male + is_female +
+      (0 + is_male + is_female | coupleID) +
+      (0 + is_male + is_female | couple_day)
+  ),
+  data = df,
+  seed = 3102
+)
+
+make_table(rbind(
+  data.frame(
+    block = "couple",
+    parameter = names(true_couple),
+    true = unname(true_couple),
+    glmmTMB = unname(extract_glmm_us(model_glmm, "coupleID")),
+    brms = unname(extract_brms_us(model_brms, "coupleID"))
+  ),
+  data.frame(
+    block = "same-day latent",
+    parameter = names(true_day),
+    true = unname(true_day),
+    glmmTMB = unname(extract_glmm_us(model_glmm, "couple_day")),
+    brms = unname(extract_brms_us(model_brms, "couple_day"))
+  )
+))
+```

@@ -46,14 +46,14 @@ library(glue)
 * Distinguishable Dyads
   * Cross-Sectional APIM
   * Longitudinal APIM
-  
+
 * Exchangeable Dyads
   * Cross-Sectional APIM
   * Cross-Sectional DIM
   * Equivalence between APIM and DIM
   * Longitudinal DIM
   * Longitudinal APIM
-  
+
 ## Loading Libraries and setting CmdStan Backend
 
 Some functions used in this presentation are sourced from the files available
@@ -292,7 +292,7 @@ df_filt <- df %>%
     person_id = 'userID',
     dyad_id = 'coupleID',
     vars_to_reshape = c('communication', 'gender')
-  )  
+  )
 
 df <- df[df_filt$gender_actor != df_filt$gender_partner, ]
 
@@ -318,11 +318,12 @@ df_apim <- df %>%
     # Optional: grand-mean centering
     communication_actor_gmc = communication_actor - mean(communication_actor),
     communication_partner_gmc = communication_partner - mean(communication_partner),
-    
+
     # Create Dummy-Variables for male and female
     is_female = ifelse(gender == 1, 1, 0),
     is_male = ifelse(gender == 2, 1, 0),
-  ) 
+    member = ifelse(is_female == 1, 1, 2)
+  )
 
 print_df(head(df_apim))
 
@@ -333,6 +334,7 @@ print_df(head(df_apim))
 # Selecting only distinguishable Dyads
 
 df_apim <- relocate(df_apim, 'is_male', 'is_female', .after = 'gender')
+df_apim <- relocate(df_apim, 'member', .after = 'coupleID')
 
 ```
 
@@ -362,27 +364,27 @@ print_df(head(df_apim))
 ```{r fit-dist-apim-glmmtmb, results='hide', message=FALSE, warning=FALSE}
 #| code-line-numbers: "1-13|15-16|18-21|23-27|29-30"
 model_dist_apim_glmmtmb <- glmmTMB(
-  satisfaction ~ 
-    
+  satisfaction ~
+
     # Remove global intercept, introduce male and female intercepts.
     0 + is_male + is_female +
-    
+
     # Actor effect for male and female
-    communication_actor_gmc:is_male + 
-    communication_actor_gmc:is_female + 
-    
+    communication_actor_gmc:is_male +
+    communication_actor_gmc:is_female +
+
     # Partner effect for male and female
-    communication_partner_gmc:is_male + 
+    communication_partner_gmc:is_male +
     communication_partner_gmc:is_female +
-  
-    # Modelling residual non-independence with an unstructured 2x2 covariance. 
+
+    # Modelling residual non-independence with an unstructured 2x2 covariance.
     us(0 + is_male + is_female | coupleID)
-  
+
     # Gaussian response:
     # dispformula = ~ 0 fixes residual variance to a tiny value,
     # pushing the Gaussian residual variance into this random-effect block.
     , dispformula = ~ 0
-  
+
     # Non-Gaussian responses:
     # dispformula is family-specific dispersion, or ignored for families
     # without a dispersion parameter. Do not use ~0 as a residual trick.
@@ -424,23 +426,23 @@ Therefore, we can achieve the same model as before via:
 ```{r fit-dist-apim-brms, results='hide', message=FALSE, warning=FALSE}
 #| code-line-numbers: "1-13|15-21|23-28|30-41"
 formula_dist_apim_b <- bf(
-  satisfaction ~ 
-    
+  satisfaction ~
+
     # Remove global intercept, introduce male and female intercepts.
     0 + is_male + is_female +
-    
+
     # Actor effect for male and female
-    communication_actor_gmc:is_male + 
-    communication_actor_gmc:is_female + 
-    
+    communication_actor_gmc:is_male +
+    communication_actor_gmc:is_female +
+
     # Partner effect for male and female
-    communication_partner_gmc:is_male + 
+    communication_partner_gmc:is_male +
     communication_partner_gmc:is_female +
-  
-    # Modelling residual correlation. With two partners and sex-specific sigma,
-    # this gives the needed two variances and one correlation for this example.
-    cosy(gr = coupleID),
-  
+
+    # Modelling residual correlation. The member variable indexes the two
+    # within-couple residual positions used by the unstructured correlation.
+    unstr(time = member, gr = coupleID),
+
   # Allowing two distinct residual variances for males vs females:
   sigma = ~ 0 + is_male + is_female
 
@@ -450,7 +452,7 @@ priors_dist_apim_b <- c(
   # prior(normal(2, 3), class = "Intercept"),
   prior(normal(0, 5), class = "b"),
   prior(student_t(3, 0, 1.5), class = "b", dpar = "sigma"),
-  prior(beta(1, 3), class = "cosy")
+  prior(lkj(2), class = "cortime")
 )
 
 model_dist_apim_b <- brm(
@@ -461,7 +463,7 @@ model_dist_apim_b <- brm(
   chains = 4,
   cores = 4,
   iter = 2000,
-  warmup = 1000, 
+  warmup = 1000,
   seed = 123,
   file = file.path('brms_cache', 'example1_dist_apim_b') # Cache the model
 )
@@ -470,53 +472,52 @@ summary(model_dist_apim_b)
 
 ```
 
+`unstr()` is used here instead of `cosy()` because `cosy()` currently restricts correlations to nonnegative values in brms. The unstructured residual correlation can be negative and is therefore the closer analogue to the `glmmTMB` `us(...)` formulation.
+
 ## Distinguishable Dyads - Fitting the Model in brms
 
-However, for families that have no residuals, this does not work and we need to model the 
-non-independence in the random effects. 
+For families that have no residuals, this does not work and we need to model the
+non-independence in the random effects:
 
-To have a single model specification that works for all model families, we can use this: 
-
-```{r fit-dist-apim-brms, results='hide', message=FALSE, warning=FALSE}
+```{r fit-dist-apim-brms-poisson, results='hide', message=FALSE, warning=FALSE}
 #| code-line-numbers: "1-13|15-21|23-28|30-41"
 formula_dist_apim_c <- bf(
-  satisfaction ~ 
-    
+  as.integer(satisfaction + 6) ~
+
     # Remove global intercept, introduce male and female intercepts.
     0 + is_male + is_female +
-    
+
     # Actor effect for male and female
-    communication_actor_gmc:is_male + 
-    communication_actor_gmc:is_female + 
-    
+    communication_actor_gmc:is_male +
+    communication_actor_gmc:is_female +
+
     # Partner effect for male and female
-    communication_partner_gmc:is_male + 
+    communication_partner_gmc:is_male +
     communication_partner_gmc:is_female +
-  
-    # Modelling residual correlation.
+
+    # Modelling residual correlation as random effects, because we cannot specify
+    # a sigma parameter, as this distribution has no residuals.
+
     (0 + is_male + is_female | coupleID)
-  
-  # For non-Gaussian models, we omit the sigma argument.  
-  # For Gaussion models, we can force sigma to a small value:
-  , sigma = 1e-6
+
+    # sigma ~ 0 + is_male + is_female
 )
 
 priors_dist_apim_c <- c(
-  # prior(normal(2, 3), class = "Intercept"),
-  prior(normal(0, 5), class = "b")
-  #prior(student_t(3, 0, 1.5), class = "b", dpar = "sigma"),
-  #prior(beta(1, 3), class = "cosy")
-)
+    prior(normal(0, 5), class = "b"),
+    prior(student_t(3, 0, 1.5), class = "sd"),
+    prior(lkj(2), class = "cor")
+  )
 
 model_dist_apim_c <- brm(
   formula = formula_dist_apim_c,
   data = df_apim,
-  family = gaussian(link = identity),
+  family = poisson(),
   prior = priors_dist_apim_c,
   chains = 4,
   cores = 4,
   iter = 2000,
-  warmup = 1000, 
+  warmup = 1000,
   seed = 123,
   file = file.path('brms_cache', 'example1_dist_apim_c') # Cache the model
 )
@@ -524,6 +525,34 @@ model_dist_apim_c <- brm(
 summary(model_dist_apim_c)
 
 ```
+
+
+```{r fit-dist-apim-glmmtmb-poisson}
+model_glmmTMB_dist_apim_c <- glmmTMB(
+  as.integer(satisfaction + 6) ~
+
+    # Remove global intercept, introduce male and female intercepts.
+    0 + is_male + is_female +
+
+    # Actor effect for male and female
+    communication_actor_gmc:is_male +
+    communication_actor_gmc:is_female +
+
+    # Partner effect for male and female
+    communication_partner_gmc:is_male +
+    communication_partner_gmc:is_female +
+
+    # Modelling residual correlation as random effects, because we cannot specify
+    # a sigma parameter, as this distribution has no residuals.
+
+    (0 + is_male + is_female | coupleID)
+  , data = df_apim
+  , family = poisson()
+)
+
+summary(model_glmmTMB_dist_apim_c)
+```
+
 
 ## Distinguishable Dyads - Check Model Convergence and Fit
 
@@ -572,19 +601,65 @@ DHARMa.check_brms(model_dist_apim_b)
 
 ## Distinguishable Dyads - Check Model Convergence and Fit
 
-In case of non-convergence, bad residuals or low predictive accuracy, the model is likely miss-specified. 
+In case of non-convergence, bad residuals or low predictive accuracy, the model is likely miss-specified.
 
-You can try different families that match your data by using the `family` argument. For instance, you can easily conduct an ordinal regression by simply setting `family = cumulative()` and adjusting your priors. For dichotomous outcomes you can use `family = bernoulli()`. brms supports a variety of families and link functions for these families. In general, you should use the default link function (check `?brms::family.brmsfit()`). 
+You can try different families that match your data by using the `family` argument. For instance, you can easily conduct an ordinal regression by simply setting `family = cumulative()` and adjusting your priors. For dichotomous outcomes you can use `family = bernoulli()`. brms supports a variety of families and link functions for these families. In general, you should use the default link function (check `?brms::family.brmsfit()`).
 
-Note that for some of the later models in this tutorial, some ESS values are too low. In this case, usually we would increase iterations (and warmup), and/or adapt_delta (see brms documentation). 
+Note that for some of the later models in this tutorial, some ESS values are too low. In this case, usually we would increase iterations (and warmup), and/or adapt_delta (see brms documentation).
 
+
+## Excursion: Generalized Dyadic Models
+
+For Gaussian outcomes, residual covariance has a direct response-scale interpretation:
+
+- partner-specific residual variances
+- partner residual correlations
+- same-day residual covariance in ILD data
+
+For non-Gaussian outcomes, the same syntax usually does **not** estimate an ordinary residual covariance.
+
+Instead, random-effect covariance terms represent latent Gaussian heterogeneity on the link scale.
+
+## Excursion: Count vs Binary Outcomes
+
+For count outcomes, latent partner covariance is often useful and can be estimable:
+
+- Poisson or negative-binomial models can include dyad-level latent covariance terms
+- estimates live on the log-link scale
+- covariance parameters need diagnostics and sensitivity checks
+
+For dichotomous outcomes, the same idea is much harder:
+
+- each partner contributes only `0` or `1` per occasion
+- many latent variance-correlation combinations can imply similar pair probabilities
+- same-day binary covariance is especially weakly identified
+
+## Excursion: Practical Warning
+
+Binary dyadic covariance models can converge mechanically while still being unreliable.
+
+Watch for:
+
+- variance estimates near zero or extremely large
+- correlations near `-1` or `1`
+- low ESS, divergent transitions, or strong prior sensitivity
+- different software giving very different covariance estimates
+
+## Excursion: Practical Strategy
+
+Practical default:
+
+- estimate simpler structures first
+- use informative priors if fitting latent binary covariance in brms
+- treat same-day binary partner covariance as a specialized model, not a routine extension
+- if the main goal is fixed effects, consider simpler random effects or robust/clustered inference
 
 ## Distinguishable Dyads - Results
 
 ```{r results-dist-apim-brms, echo = FALSE}
 
 summary_dist_apim_b <- summarize_brms(
-    model_dist_apim_b, 
+    model_dist_apim_b,
     exponentiate_sigma = TRUE,
     stats_to_report = c('CI', 'Rhat', 'ESS')
     )
@@ -599,7 +674,7 @@ print_df(
 
 ```
 
-CAREFUL: In contrast to glmmTMB, brms estimates sigma on the log scale (see `?brms::family.brmsfit()`). In the table above, sigma rows are exponentiated to show residual SDs on the response scale and to align with the glmmTMB model. 
+CAREFUL: In contrast to glmmTMB, brms estimates sigma on the log scale (see `?brms::family.brmsfit()`). In the table above, sigma rows are exponentiated to show residual SDs on the response scale and to align with the glmmTMB model.
 
 # Distinguishable Dyads
 ### Intensive Longitudinal APIM (L-APIM)
@@ -614,7 +689,7 @@ set.seed(123)
 # 1) Design
 # ===============================
 n_couples <- 100
-days      <- 0:54 
+days      <- 0:54
 T_per     <- length(days)
 
 # People per couple: p1 = female, p2 = male
@@ -631,7 +706,7 @@ persons <- tibble(
 # 2) Fixed effects (edit as desired)
 # ===============================
 # Intercepts & time trends by gender
-b0_female <- 5.5; b0_male <- 4.7 # depends on centering, not meaningful when recovered. 
+b0_female <- 5.5; b0_male <- 4.7 # depends on centering, not meaningful when recovered.
 b_time_female <-  0.01; b_time_male <- -0.005 # must be small because over 55 days!
 
 # Between-person APIM (effects of person-mean support)
@@ -819,7 +894,7 @@ df_long <- panel |>
 
 ```{r data-dist-long-apim-reshape, echo = FALSE, results='hide', warning=FALSE, message=FALSE}
 
-df_long_apim <- df_long %>% 
+df_long_apim <- df_long %>%
   reshape_dyadic_data(
     person_id = 'userID',
     dyad_id = 'coupleID',
@@ -827,12 +902,16 @@ df_long_apim <- df_long %>%
     vars_to_reshape = c('provided_support')
   ) %>%
   mutate(
-    is_female = ifelse(gender == 1, 1, 0), 
+    is_female = ifelse(gender == 1, 1, 0),
     is_male = ifelse(gender ==2, 1, 0),
+    member = ifelse(is_female == 1, 1, 2),
+    couple_day = interaction(coupleID, diaryday, drop = TRUE),
     diaryday_c = diaryday - mean(diaryday)
-  ) %>% 
+  ) %>%
   dplyr::select(
-    userID, coupleID, diaryday, diaryday_c, gender, is_male, is_female, closeness, provided_support_actor, provided_support_partner
+    userID, coupleID, couple_day, diaryday, diaryday_c, gender, member,
+    is_male, is_female, closeness, provided_support_actor,
+    provided_support_partner
   )
 
 
@@ -865,7 +944,7 @@ print_couple_preview <- function(df, couple_id,
   # Coerce everything to character explicitly (belt-and-suspenders on coupleID)
   to_chr <- function(x) x %>%
     dplyr::mutate(
-      dplyr::across(where(is.numeric), ~round(., 2)), 
+      dplyr::across(where(is.numeric), ~round(., 2)),
       dplyr::across(dplyr::everything(), as.character),
       coupleID = as.character(coupleID)
       )
@@ -886,29 +965,29 @@ print_couple_preview <- function(df, couple_id,
 
 ```{r data-dist-long-apim-preview, echo=FALSE}
 
-print_df(print_couple_preview(df_long_apim, couple_id = "31"))  
+print_df(print_couple_preview(df_long_apim, couple_id = "31"))
 
 ```
 
 
-## Distinguishable Dyads - L-APIM - Centering 
+## Distinguishable Dyads - L-APIM - Centering
 
 With repeated measures we need to center variables in order to not conflate levels of analysis:
 
 * Between-Person: The person-mean in relation to the grand mean
 * Within-Person: Daily fluctuations of an individual from their person-mean
 
-While it may seem like we have 3-levels (couple/person/day), by including the means of both partners and their correlations in the model, all information about the couple-level (level 3) is included. This will become clear when comparing the exchangeable APIM to the DIM. We thus use a 2-level model with the dyad as the level of analysis. 
+While it may seem like we have 3-levels (couple/person/day), by including the means of both partners and their correlations in the model, all information about the couple-level (level 3) is included. This will become clear when comparing the exchangeable APIM to the DIM. We thus use a 2-level model with the dyad as the level of analysis.
 
 
-## Distinguishable Dyads - L-APIM - Centering 
+## Distinguishable Dyads - L-APIM - Centering
 
 ```{r data-dist-long-apim-center, results='hide'}
 df_long_apim <- bmlm::isolate(
-  df_long_apim, 
+  df_long_apim,
   by = 'userID', # NOT coupleID
   value = c('provided_support_actor', 'provided_support_partner'),
-  which = 'both' 
+  which = 'both'
 ) %>%
 # renaming to avoid confusion with between- and within COUPLE centred DIM variables
   rename(
@@ -929,7 +1008,7 @@ df_long_apim <- bmlm::isolate(
 
 `nlme` model of this data for reference (simplified random effects structure to achieve convergence).
 
-This package is old, but still often used and cited. So here, we briefly show it to demonstrate that we can achieve the same model with much more modern and powerful methods. 
+This package is old, but still often used and cited. So here, we briefly show it to demonstrate that we can achieve the same model with much more modern and powerful methods.
 
 ```{r fit-dist-apim-long-nlme, cache = TRUE, eval = FALSE}
 #| classes: code-45vh
@@ -937,45 +1016,45 @@ This package is old, but still often used and cited. So here, we briefly show it
 library(nlme)
 
 model1 <- lme(
-  fixed = 
+  fixed =
     # Intercepts
     closeness ~ 0 + is_male + is_female +
-    
+
     # Time Slopes
     is_male:diaryday_c +
     is_female:diaryday_c +
-    
+
     # Between-Person APIM
-    is_male:provided_support_actor_cbp + 
+    is_male:provided_support_actor_cbp +
     is_male:provided_support_partner_cbp +
-    
-    is_female:provided_support_actor_cbp + 
+
+    is_female:provided_support_actor_cbp +
     is_female:provided_support_partner_cbp +
-  
+
     # Within-Person APIM
-    is_male:provided_support_actor_cwp + 
+    is_male:provided_support_actor_cwp +
     is_male:provided_support_partner_cwp +
-    
-    is_female:provided_support_actor_cwp + 
+
+    is_female:provided_support_actor_cwp +
     is_female:provided_support_partner_cwp,
-  
-  random = 
-    ~ 0 + is_male + is_female 
-       
+
+  random =
+    ~ 0 + is_male + is_female
+
     + is_male:diaryday_c + is_female:diaryday_c
-   
+
   # in nlme we need to remove many random slopes to achieve convergence
-  # alternatively, we could try to remove correlations between the slopes. 
-    #+ is_male:provided_support_actor_cwp 
+  # alternatively, we could try to remove correlations between the slopes.
+    #+ is_male:provided_support_actor_cwp
     #+ is_male:provided_support_partner_cwp
-    #+ is_female:provided_support_actor_cwp 
-    #+ is_female:provided_support_partner_cwp 
-  | coupleID, 
-  
+    #+ is_female:provided_support_actor_cwp
+    #+ is_female:provided_support_partner_cwp
+  | coupleID,
+
   weights = varIdent(form = ~ 1 | gender), # heterogeneous residual variances
   corr = corCompSymm(form = ~ 1 | coupleID/diaryday), # compound symmetry (partner's values on each day)
-  
-  data = df_long_apim, 
+
+  data = df_long_apim,
   control = list(maxIter=1000)
 )
 
@@ -989,31 +1068,31 @@ summary(model1)
 #| code-line-numbers: "1-6|8-13|15-20|22-26|28-34"
 model_dist_apim_long_glmmtmb <- glmmTMB(
   closeness ~ 0 + is_male + is_female +
-    
+
     # Time Slopes
     is_male:diaryday_c +
     is_female:diaryday_c +
-    
+
     # Between-Person APIM
-    is_male:provided_support_actor_cbp + 
+    is_male:provided_support_actor_cbp +
     is_male:provided_support_partner_cbp +
-    
-    is_female:provided_support_actor_cbp + 
+
+    is_female:provided_support_actor_cbp +
     is_female:provided_support_partner_cbp +
-  
+
     # Within-Person APIM
-    is_male:provided_support_actor_cwp + 
+    is_male:provided_support_actor_cwp +
     is_male:provided_support_partner_cwp +
-    
-    is_female:provided_support_actor_cwp + 
+
+    is_female:provided_support_actor_cwp +
     is_female:provided_support_partner_cwp +
-  
-  # Accounting for non-independence between partners' means and trajectories 
+
+  # Accounting for non-independence between partners' means and trajectories
   # and effect sensitivities via random effects:
   (0 + is_male + is_female
     + is_male:diaryday_c + is_female:diaryday_c
   | coupleID) +
-    
+
   # Accounting for daily non-independence
   us(0 + is_male + is_female | coupleID:diaryday)
 
@@ -1022,7 +1101,7 @@ model_dist_apim_long_glmmtmb <- glmmTMB(
   , data = df_long_apim
 )
 ```
-Note that we could also add `us` before the first random effect term, as this is equivalent. But because the lowest-level random effects block is the one that represents the residual covariance structure, we only use it there. 
+Note that we could also add `us` before the first random effect term, as this is equivalent. But because the lowest-level random effects block is the one that represents the residual covariance structure, we only use it there.
 
 ## Distinguishable Dyads - L-APIM - Model glmmTMB
 
@@ -1043,8 +1122,8 @@ Residual variance in `nlme` must first be constructed from the output by taking 
 **nlme:**
 <pre class="model-compare-output"><code>                     StdDev     Corr
 is_male              0.83645552 is_mal is_fml is_m:_
-is_female            0.90199634  0.189              
-is_male:diaryday_c   0.01634796  0.544  0.033       
+is_female            0.90199634  0.189
+is_male:diaryday_c   0.01634796  0.544  0.033
 is_female:diaryday_c 0.01612665  0.204  0.534 -0.012
 Residual             0.72170702
 
@@ -1074,8 +1153,8 @@ Residual SDs by partner:
 Conditional model:
  Groups            Name                 Variance  Std.Dev. Corr
  coupleID          is_male              0.6814498 0.82550
-                   is_female            0.7930407 0.89053   0.19             
-                   is_male:diaryday_c   0.0002637 0.01624   0.55  0.03       
+                   is_female            0.7930407 0.89053   0.19
+                   is_male:diaryday_c   0.0002637 0.01624   0.55  0.03
                    is_female:diaryday_c 0.0002571 0.01603   0.21  0.54 -0.01
  coupleID:diaryday is_male              1.2583552 1.12176
                    is_female            0.5206608 0.72157  0.04</code></pre>
@@ -1084,7 +1163,7 @@ Conditional model:
 
 ## Distinguishable Dyads - L-APIM - Model brms
 
-Equivalent `brms` model. 
+Equivalent `brms` model.
 
 In contrast to glmmTMB, brms provides native variance-covariance structures to model residuals directly. Therefore, we do NOT set the residuals to zero!
 
@@ -1097,37 +1176,38 @@ Because this distinguishable model estimates partner-specific residual SDs via `
 
 formula_dist_apim_long_simple <- bf(
   closeness ~ 0 + is_male + is_female +
-    
+
     # Time Slopes
     is_male:diaryday_c +
     is_female:diaryday_c +
-    
+
     # Between-Person APIM
-    is_male:provided_support_actor_cbp + 
-    is_male:provided_support_partner_cbp + 
-    
-    is_female:provided_support_actor_cbp + 
+    is_male:provided_support_actor_cbp +
+    is_male:provided_support_partner_cbp +
+
+    is_female:provided_support_actor_cbp +
     is_female:provided_support_partner_cbp +
-  
+
     # Within-Person APIM
-    is_male:provided_support_actor_cwp + 
+    is_male:provided_support_actor_cwp +
     is_male:provided_support_partner_cwp +
-    
-    is_female:provided_support_actor_cwp + 
+
+    is_female:provided_support_actor_cwp +
     is_female:provided_support_partner_cwp +
-  
-  # Accounting for non-independence between partners' means and trajectories 
+
+  # Accounting for non-independence between partners' means and trajectories
   # and effect sensitivities via random effects:
   (0 + is_male + is_female
     + is_male:diaryday_c + is_female:diaryday_c
   | coupleID) +
-    
-    
-  # Accounting for same-day residual correlation
-  cosy(gr = coupleID:diaryday)
+
+
+  # Accounting for same-day residual correlation. The member variable indexes
+  # the two partner residual positions within each couple-day.
+  unstr(time = member, gr = couple_day)
 
   # heteroscedastic residuals
-  , sigma ~ 0 + is_male + is_female 
+  , sigma ~ 0 + is_male + is_female
 )
 
 # brms' defaults for group-level SDs and correlations are sensible weak defaults
@@ -1140,30 +1220,30 @@ priors_dist_apim_long_simple <- c(
   prior(exponential(1), class = "sd"),
   prior(lkj(2), class = "cor"),
   prior(normal(0, 0.7), class = "b", dpar = "sigma"),
-  prior(beta(1, 3), class = "cosy")
+  prior(lkj(2), class = "cortime")
 )
 
 model_dist_apim_long_simple <- brm(
   formula = formula_dist_apim_long_simple,
   data = df_long_apim,
-  family = gaussian(link = identity), # student() is also often a nice robust option. 
+  family = gaussian(link = identity), # student() is also often a nice robust option.
   prior = priors_dist_apim_long_simple,
   chains = 4,
   cores = 4,
   iter = 2000,
-  warmup = 1000, 
+  warmup = 1000,
   seed = 123,
   file = file.path('brms_cache', 'example1_dist_apim_long_simpel') # Cache the model
 )
 
 ```
 
-## Distinguishable Dyads - L-APIM - Results (scrollable) 
+## Distinguishable Dyads - L-APIM - Results (scrollable)
 
 ```{r results-dist-apim-long-simple-brms, echo=FALSE}
 
 summary_dist_apim_long_simple <- summarize_brms(
-    model_dist_apim_long_simple, 
+    model_dist_apim_long_simple,
     exponentiate_sigma = TRUE,
     stats_to_report = c('CI', 'Rhat', 'ESS')
     )
@@ -1184,7 +1264,7 @@ Note: Sigma rows are shown on the response scale; they were exponentiated from b
 
 ## Distinguishable Dyads - L-APIM - AR(1)?
 
-In this model, same-day partner interdependence is handled by `cosy(gr = coupleID:diaryday)`. In current univariate brms models, we cannot combine this residual correlation structure with `ar()` in the same formula.
+In this model, same-day partner interdependence is handled by `unstr(time = member, gr = couple_day)`. In current univariate brms models, we cannot combine this residual correlation structure with `ar()` in the same formula.
 
 The cleanest currently possible solution would be a multivariate model or a custom Stan model.
 
@@ -1192,7 +1272,7 @@ The cleanest currently possible solution would be a multivariate model or a cust
 
 A dynamic MLM can account for temporal dependence by including lagged within-person centered outcomes as predictors. In dyadic data, this can include actor inertia and partner spillover: today's closeness is predicted by yesterday's own deviation from typical closeness and yesterday's partner deviation from typical closeness, in addition to the concurrent APIM predictors.
 
-This is not a drop-in replacement for residual AR(1). The APIM coefficients become effects conditional on prior closeness, not total within-person associations. Lagged-outcome models can also suffer from dynamic-panel bias, often called Nickell bias [@nickellBiasesDynamicModels1981], because the lagged outcome is related to person/couple effects and prior residuals. This is especially problematic with short time series. 
+This is not a drop-in replacement for residual AR(1). The APIM coefficients become effects conditional on prior closeness, not total within-person associations. Lagged-outcome models can also suffer from dynamic-panel bias, often called Nickell bias [@nickellBiasesDynamicModels1981], because the lagged outcome is related to person/couple effects and prior residuals. This is especially problematic with short time series.
 
 ```{r example-dist-long-dynamic-data, eval = FALSE}
 df_long_dyn <- df_long_apim %>%
@@ -1225,54 +1305,54 @@ You way want to use this as a sensitivity analysis for temporal dynamics, not as
 
 ## Maximal Model Specification (non-dynamic/no AR(1))
 
-We add all random slopes and their correlations. This is neither converging in `nlme` nor `glmmTMB`. 
+We add all random slopes and their correlations. This is neither converging in `nlme` nor `glmmTMB`.
 
 
 ```{r fit-dist-apim-long-complex-brms, results='hide', message=FALSE, warning=FALSE}
 #| classes: code-50vh
 
 formula_dist_apim_long_complex <- bf(
-  closeness ~ 
-    
+  closeness ~
+
     # Intercepts
     0 + is_male + is_female +
-    
+
     # Time Slopes
     is_male:diaryday_c +
     is_female:diaryday_c +
-    
+
     # Between-Person APIM
-    is_male:provided_support_actor_cbp + 
+    is_male:provided_support_actor_cbp +
     is_male:provided_support_partner_cbp +
-    
-    is_female:provided_support_actor_cbp + 
+
+    is_female:provided_support_actor_cbp +
     is_female:provided_support_partner_cbp +
-  
+
     # Within-Person APIM
-    is_male:provided_support_actor_cwp + 
+    is_male:provided_support_actor_cwp +
     is_male:provided_support_partner_cwp +
-    
-    is_female:provided_support_actor_cwp + 
+
+    is_female:provided_support_actor_cwp +
     is_female:provided_support_partner_cwp +
-    
-    # Accounting for non-independence between partners' means and trajectories 
+
+    # Accounting for non-independence between partners' means and trajectories
     # and effect sensitivities via random effects:
-    (0 + is_male + is_female +  
-       
+    (0 + is_male + is_female +
+
        is_male:diaryday_c + is_female:diaryday_c +
-       
-       is_male:provided_support_actor_cwp + 
+
+       is_male:provided_support_actor_cwp +
        is_male:provided_support_partner_cwp +
-       is_female:provided_support_actor_cwp + 
-       is_female:provided_support_partner_cwp 
-    | coupleID ) + 
-    
-    
+       is_female:provided_support_actor_cwp +
+       is_female:provided_support_partner_cwp
+    | coupleID ) +
+
+
     # Accounting for daily non-independence
-    cosy(gr = coupleID:diaryday), 
-  
-  # No more AR1. You could also test MA or ARMA. 
-    
+    unstr(time = member, gr = couple_day),
+
+  # No more AR1. You could also test MA or ARMA.
+
   sigma ~ 0 + is_male + is_female   # heteroscedastic residuals
 )
 
@@ -1283,7 +1363,7 @@ priors_dist_apim_long_complex <- c(
   prior(exponential(1), class = "sd"),
   prior(lkj(2), class = "cor"),
   prior(normal(0, 0.7), class = "b", dpar = "sigma"),
-  prior(beta(1, 3), class = "cosy")
+  prior(lkj(2), class = "cortime")
 )
 
 
@@ -1295,7 +1375,7 @@ model_dist_apim_long_complex <- brm(
   chains = 4,
   cores = 4,
   iter = 2000,
-  warmup = 1000, 
+  warmup = 1000,
   seed = 123,
   file = file.path('brms_cache', 'example1_dist_apim_long_complex') # Cache the model
 )
@@ -1307,7 +1387,7 @@ model_dist_apim_long_complex <- brm(
 ```{r results-dist-apim-long-complex-brms, echo=FALSE}
 
 summary_dist_apim_long_complex <- summarize_brms(
-    model_dist_apim_long_complex, 
+    model_dist_apim_long_complex,
     exponentiate_sigma = TRUE,
     stats_to_report = c('CI', 'Rhat', 'ESS')
     )
@@ -1327,11 +1407,11 @@ print_df(
 
 ## Maximal Model Specification: Diagnostics
 
-In complex models like this, we want to make sure we are not **overfitting**. 
+In complex models like this, we want to make sure we are not **overfitting**.
 
 - Conduct regular model convergence checks (inspecting chains, Rhats, ESS, Multicollinearity, Residual diagnostics etc.). If these are bad (but good for a simpler model), it could be a sign of overfitting.
 
-- Leave-one-out cross-validation is a powerful tool for investigating overfitting. It tests out of sample prediction and thus punishes overfitting. 
+- Leave-one-out cross-validation is a powerful tool for investigating overfitting. It tests out of sample prediction and thus punishes overfitting.
 
 ## Maximal Model Specification: Diagnostics
 
@@ -1345,7 +1425,7 @@ loo::pareto_k_table(loo2)
 ```
 
 
-In case of High Pareto-Ks there are influential datapoints present. This *can* be a sign of overfitting but it is not necessarily a problem. But it is recommended to use loo(model, moment_match = TRUE) in these cases (the function will tell you). 
+In case of High Pareto-Ks there are influential datapoints present. This *can* be a sign of overfitting but it is not necessarily a problem. But it is recommended to use loo(model, moment_match = TRUE) in these cases (the function will tell you).
 
 The loo values (elpd) themselves cannot be interpreted individually, but we can compare models again (next page)
 
@@ -1360,29 +1440,29 @@ print(a)
 
 ```
 
-No obvious overfitting detected. In fact, the more complex model seems to be more predictive. Some rule of thumbs say that if the difference is higher than 2x the SE or 4x the SE we can say there is a difference. 
+No obvious overfitting detected. In fact, the more complex model seems to be more predictive. Some rule of thumbs say that if the difference is higher than 2x the SE or 4x the SE we can say there is a difference.
 
-If there was no obvious difference, we could follow our theory and the philosophy of the maximal random effects structure [@barrRandomEffectsStructure2013]. Alternatively, we could follow the philosophy of parsimony, especially in the territory of such complex models. 
+If there was no obvious difference, we could follow our theory and the philosophy of the maximal random effects structure [@barrRandomEffectsStructure2013]. Alternatively, we could follow the philosophy of parsimony, especially in the territory of such complex models.
 
 (continued on next page)
 
 ## Maximal Model Specification: Diagnostics
 
-One approach is to use the `report` package's approach to obtain a p-value for the comparison (see their documentation for which assumptions they make): 
+One approach is to use the `report` package's approach to obtain a p-value for the comparison (see their documentation for which assumptions they make):
 
 ```{r report-dist-long-model-loo}
 report::report(a)
 ```
 
-In this instance, the maximal model (no AR) seems to be the preferred one. 
+In this instance, the maximal model (no AR) seems to be the preferred one.
 
-In the case of overfitting, we could try to improve the model by subsequently excluding the smallest random effects (or correlations between them) and compare various models. For more guidance on random effects check out @delrosarioPracticalGuideSpecifying2025. 
+In the case of overfitting, we could try to improve the model by subsequently excluding the smallest random effects (or correlations between them) and compare various models. For more guidance on random effects check out @delrosarioPracticalGuideSpecifying2025.
 
 ## Maximal Model Specification: Comparing Estimates to Simulated Values (Ground Truth)
 
 ```{r results-dist-long-ground-truth, echo = FALSE}
 
-# HOW WELL DO THE RECOVERED PARAMETERS FIT THE SIMULATED VALUES?  
+# HOW WELL DO THE RECOVERED PARAMETERS FIT THE SIMULATED VALUES?
 
 library(posterior)
 
@@ -1463,7 +1543,7 @@ true_resid_tbl <- panel |>
 true_sigma_m <- sd(true_resid_tbl$resid_total[true_resid_tbl$is_male == 1])
 true_sigma_f <- sd(true_resid_tbl$resid_total[true_resid_tbl$is_female == 1])
 
-true_cosy <- true_resid_tbl |>
+true_resid_cor <- true_resid_tbl |>
   dplyr::select(coupleID, diaryday, gender, resid_total) |>
   tidyr::pivot_wider(names_from = gender, values_from = resid_total, names_prefix = "gender_") |>
   dplyr::summarise(r = stats::cor(gender_1, gender_2)) |>
@@ -1507,7 +1587,7 @@ re_cor_truth_tbl <- t(combn(names(re_cor_labels), 2)) |>
 
 resid_truth_tbl <- tibble::tribble(
   ~group, ~parameter, ~true, ~scale,
-  "Residuals", "Same-day residual correlation", true_cosy, "identity",
+  "Residuals", "Same-day residual correlation", true_resid_cor, "identity",
   "Residuals", "Residual SD (male) (exp)", true_sigma_m, "exp",
   "Residuals", "Residual SD (female) (exp)", true_sigma_f, "exp"
 )
@@ -1614,9 +1694,9 @@ resid_summ <- resid_map |>
   ungroup() |>
   dplyr::select(parameter = label, Estimate, Lower, Upper, scale)
 
-cosy_all <- get_summaries(fit, pattern = "^cosy$")
-cosy_summ <- if (nrow(cosy_all) > 0) {
-  cosy_all |>
+cortime_all <- get_summaries(fit, pattern = "^cortime")
+cortime_summ <- if (nrow(cortime_all) > 0) {
+  cortime_all |>
     dplyr::slice(1) |>
     dplyr::mutate(
       parameter = "Same-day residual correlation",
@@ -1628,7 +1708,7 @@ cosy_summ <- if (nrow(cosy_all) > 0) {
 }
 
 # Combine estimates
-est_tbl <- bind_rows(fix_labeled, sd_labeled, cor_labeled, cosy_summ, resid_summ)
+est_tbl <- bind_rows(fix_labeled, sd_labeled, cor_labeled, cortime_summ, resid_summ)
 
 # ---------------------------
 # 3) Join truth + estimates and compute diagnostics
@@ -1702,9 +1782,9 @@ print_df(
 
 Partners are exchangeable, i.e., not *systematically* different.
 
-* Equal actor effects 
+* Equal actor effects
 * Equal partner effects
-* Equal means 
+* Equal means
 * Equal residual variances
 
 But they should still be allowed to vary within each couple, while being correlated.
@@ -1713,7 +1793,7 @@ But they should still be allowed to vary within each couple, while being correla
 
 ## Exchangeable Dyads - Cross-Sectional APIM: Data
 
-Same cross-sectional data in the same 4-field actor-partner format as before. 
+Same cross-sectional data in the same 4-field actor-partner format as before.
 ```{r data-exch-apim-preview}
 
 print_df(head(df_apim))
@@ -1723,36 +1803,36 @@ print_df(head(df_apim))
 ## Exchangeable Dyads - Cross-Sectional APIM: glmmTMB
 
 - For the fixed effects, we can pool the intercepts `is_male` and `is_female` by simply
-reintroducing a single shared intercept `1`. 
+reintroducing a single shared intercept `1`.
 
-- For the actor and partner effects, we can remove the interactions to get a pooled estimate. 
+- For the actor and partner effects, we can remove the interactions to get a pooled estimate.
 
-- For the residual, we want to constrain both partners' variances to be equal. 
-Often, this is attempted via: `(1 | coupleID)`. 
+- For the residual, we want to constrain both partners' variances to be equal.
+Often, this is attempted via: `(1 | coupleID)`.
   - This fixes both partners' residual variances to be equal (pooled)
-  - However, it does **not** allow for a correlation between partners anymore! The correlation between partners is implied to be perfect (1). 
+  - However, it does **not** allow for a correlation between partners anymore! The correlation between partners is implied to be perfect (1).
 
 One solution in glmmTMB is the following:
 
 ```{r fit-exch-apim-glmmtmb, results='hide', message=FALSE, warning=FALSE}
 #| code-line-numbers: "1-3|5-6|8-12"
 model_exch_apim_glmmtmb <- glmmTMB(
-  satisfaction ~ 
-    
+  satisfaction ~
+
     # Pooled single intercept
     1 +
-    
+
     # Pooled actor and partner effects
     communication_actor_gmc + communication_partner_gmc +
-  
+
     # Homogeneous compound symmetry constrains the variances to be equal.
-    # we do not need to take gender here, we could construct an arbitrary categorization. 
+    # we do not need to take gender here, we could construct an arbitrary categorization.
     homcs(0 + is_male + is_female | coupleID)
-  
-    # Since we model residuals via a cs random effects structure, glmmTMB requires us to remove an 
+
+    # Since we model residuals via a cs random effects structure, glmmTMB requires us to remove an
     # additional independent residual
     , dispformula = ~ 0
-  
+
     , data = df_apim
 )
 
@@ -1761,7 +1841,7 @@ model_exch_apim_glmmtmb <- glmmTMB(
 
 ## Exchangeable Dyads - Cross-Sectional APIM: glmmTMB
 
-This successfully returns a single pooled residual variance, and a correlation between partners: 
+This successfully returns a single pooled residual variance, and a correlation between partners:
 
 ```{r results-exch-apim-glmmtmb, echo=FALSE, class.output='model-summary-output'}
 summary(model_exch_apim_glmmtmb)
@@ -1770,26 +1850,26 @@ summary(model_exch_apim_glmmtmb)
 ## Exchangeable Dyads - Cross-Sectional APIM: glmmTMB
 
 Note that this approach does not generalize to the ILD case! Therefore, we will
-introduce an alternative that works across packages later on. 
+introduce an alternative that works across packages later on.
 
 ## Exchangeable Dyads - Cross-Sectional APIM: brms
 
-In brms, this issue can also be solved more elegantly immediately by simply providing a group argument
-to the `cosy` function and not specifying different residual variances:
+In brms, this issue can also be solved with a native residual correlation structure
+and one pooled residual variance:
 
 ```{r fit-exch-apim-brms, results='hide', message=FALSE, warning=FALSE}
 #| code-line-numbers: "1-13|15-20|22-33"
 formula_exch_apim <- bf(
-  satisfaction ~ 1 + 
-    communication_actor_gmc + communication_partner_gmc + 
-  
-    # To achieve a homogeneous compound symmetry covariance structure we use
-    # cosy exactly as before... 
-    cosy(gr = coupleID)
-  
+  satisfaction ~ 1 +
+    communication_actor_gmc + communication_partner_gmc +
+
+    # To achieve a homogeneous two-partner covariance structure we use an
+    # unstructured residual correlation over the two member positions.
+    unstr(time = member, gr = coupleID)
+
   # ... but now, we do not allow individual variances anymore.
-  # We want one pooled residual variance. So we do not specify a sigma formula. 
-  # This implies: 
+  # We want one pooled residual variance. So we do not specify a sigma formula.
+  # This implies:
   # , sigma = ~ 1
 )
 
@@ -1797,7 +1877,7 @@ priors_exch_apim <- c(
   prior(normal(2, 10), class = "Intercept"),
   prior(normal(0, 5), class = "b"),
   prior(student_t(3, 0, 1.5), class = "sigma"),
-  prior(beta(1, 3), class = "cosy")
+  prior(lkj(2), class = "cortime")
 )
 
 model_exch_apim <- brm(
@@ -1808,7 +1888,7 @@ model_exch_apim <- brm(
   chains = 4,
   cores = 4,
   iter = 2000,
-  warmup = 1000, 
+  warmup = 1000,
   seed = 123,
   file = file.path('brms_cache', 'example1_ind_apim') # Cache the model
 )
@@ -1849,9 +1929,9 @@ a <- loo_compare(
 print(a)
 ```
 
-| Model             | elpd_diff | se_diff | 
+| Model             | elpd_diff | se_diff |
 |-------------------|-----------|---------|
-| model_dist_apim   | 0.0       | 0.0     | 
+| model_dist_apim   | 0.0       | 0.0     |
 | model_exch_apim   | -172.9     | 16.5    |
 
 
@@ -1911,7 +1991,7 @@ Starting from scratch (no 4-field data needed)
 
 ```{r data-exch-dim-source-preview, echo = FALSE}
 
-df_apim2 <- df_apim[, c('userID', 'coupleID', 'communication', 'satisfaction')]
+df_apim2 <- df_apim[, c('userID', 'coupleID', 'member', 'communication', 'satisfaction')]
 
 print_df(head(df_apim2))
 
@@ -1939,8 +2019,8 @@ df_dim <- df_apim2 %>%
   ungroup() %>%
   mutate(
     communication_cbc= communication_cm - mean(communication_cm, na.rm = TRUE)
-  ) %>% 
-  dplyr::select(c('userID', 'coupleID', 'satisfaction', 'communication_cwc', 'communication_cbc'))
+  ) %>%
+  dplyr::select(c('userID', 'coupleID', 'member', 'satisfaction', 'communication_cwc', 'communication_cbc'))
 ```
 
 ## Exchangeable Dyads - Cross-Sectional DIM: Centering
@@ -1955,18 +2035,18 @@ print_df(head(df_dim))
 ```{r fit-exch-dim-brms, results='hide', message=FALSE, warning=FALSE}
 #| code-line-numbers: "1-7|9-14|16-27"
 formula_exch_dim <- bf(
-  satisfaction ~ 1 + 
-    communication_cbc+ communication_cwc + 
-    cosy(gr = coupleID) 
-  
-    # sigma ~ 1 is implied.  
+  satisfaction ~ 1 +
+    communication_cbc+ communication_cwc +
+    unstr(time = member, gr = coupleID)
+
+    # sigma ~ 1 is implied.
 )
 
 priors_exch_dim <- c(
   prior(normal(2, 10), class = "Intercept"),
   prior(normal(0, 5), class = "b"),
   prior(student_t(3, 0, 1.5), class = "sigma"),
-  prior(beta(1, 3), class = "cosy")
+  prior(lkj(2), class = "cortime")
 )
 
 model_exch_dim <- brm(
@@ -1977,7 +2057,7 @@ model_exch_dim <- brm(
   chains = 4,
   cores = 4,
   iter = 2000,
-  warmup = 1000, 
+  warmup = 1000,
   seed = 123,
   file = file.path('brms_cache', 'example1_ind_dim') # Cache the model
 )
@@ -2039,7 +2119,7 @@ print_df(
 :::
 
 $$b_{actor\_gmc} + b_{partner\_gmc} = b_{cbc}$$
-$$b_{actor\_gmc} - b_{partner\_gmc} = b_{cwc}$$ 
+$$b_{actor\_gmc} - b_{partner\_gmc} = b_{cwc}$$
 
 [@Bolger2025Unified]
 
@@ -2356,15 +2436,15 @@ print_df(
 
 ## Equivalence APIM and DIM
 
-* If the couple mean goes up by 1 and the within-couple deviation from the couple 
-mean stays fixed, this means that both partners' predictors must go up by 1 unit. 
-Thus, the effects are linear combinations: 
+* If the couple mean goes up by 1 and the within-couple deviation from the couple
+mean stays fixed, this means that both partners' predictors must go up by 1 unit.
+Thus, the effects are linear combinations:
 
 $$b_{cbc} = b_{actor\_gmc} + b_{partner\_gmc}$$
 
 * Similarly, if a person's deviation from their couple mean is one unit higher and
-the couple mean stays fixed, this means their partners' deviation must be one unit lower. 
-Thus, the effects are a linear combination: 
+the couple mean stays fixed, this means their partners' deviation must be one unit lower.
+Thus, the effects are a linear combination:
 
 $$b_{cwc} = b_{actor\_gmc} - b_{partner\_gmc}$$
 
@@ -2372,7 +2452,7 @@ $$b_{cwc} = b_{actor\_gmc} - b_{partner\_gmc}$$
 
 ## Equivalence APIM and DIM
 
-* Conversely, to obtain the actor and partner effects given the DIM estimates: 
+* Conversely, to obtain the actor and partner effects given the DIM estimates:
 
 $$b_{actor\_gmc} = \frac{b_{cbc} + b_{cwc}}{2}$$
 
@@ -2380,7 +2460,7 @@ $$b_{partner\_gmc} = \frac{b_{cbc} - b_{cwc}}{2}$$
 
 ## Equivalence APIM and DIM
 
-Example: using APIM coefficients to obtain DIM coefficients and computing *Credible Intervals* of DIM coefficients. 
+Example: using APIM coefficients to obtain DIM coefficients and computing *Credible Intervals* of DIM coefficients.
 
 ```{r compare-exch-apim-dim-hypothesis}
 a <- hypothesis(
@@ -2437,13 +2517,14 @@ In the **distinguishable** case, the **Dyadic Score Model (DSM)** [e.g., @stadle
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: Simulated Data
 
-We use the same data as in the exchangeable case. But we don't need the gender-related variables anymore, as we assume 
-that partners are indistinguishable. 
+We use the same data as in the exchangeable case. But we don't need the gender-related variables anymore, as we assume
+that partners are indistinguishable.
 
 ```{r data-exch-long-apim-source, echo=FALSE, results='hide'}
 
 required_long_apim_cols <- c(
-  'userID', 'coupleID', 'diaryday', 'diaryday_c', 'closeness',
+  'userID', 'coupleID', 'couple_day', 'diaryday', 'diaryday_c',
+  'member', 'closeness',
   'provided_support_actor', 'provided_support_partner',
   'provided_support_actor_cbp', 'provided_support_actor_cwp',
   'provided_support_partner_cbp', 'provided_support_partner_cwp'
@@ -2463,6 +2544,8 @@ if (!all(required_long_apim_cols %in% names(df_long_apim))) {
       provided_support_partner_cbp = provided_support_partner_cb
     ) %>%
     mutate(
+      member = ifelse(gender == 1, 1, 2),
+      couple_day = interaction(coupleID, diaryday, drop = TRUE),
       diaryday_c = scale(diaryday, center = TRUE, scale = FALSE)
     )
 }
@@ -2475,7 +2558,7 @@ df_long_apim2 <- df_long_apim %>%
 
 ```{r data-exch-long-apim-preview, echo=FALSE}
 
-print_df(print_couple_preview(df_long_apim2, couple_id = "31"))  
+print_df(print_couple_preview(df_long_apim2, couple_id = "31"))
 
 ```
 
@@ -2486,30 +2569,30 @@ print_df(print_couple_preview(df_long_apim2, couple_id = "31"))
 ## Exchangeable Dyads - Longitudinal DIM/APIM
 
 * We need an APIM or DIM on both the between person level and the within-person level.
-* Due to equivalence, we could have a DIM on one level and an APIM on the other. 
+* Due to equivalence, we could have a DIM on one level and an APIM on the other.
 
 If we want a within-person DIM:
 
 ```{r data-exch-long-dim-create}
 df_long_dim <- df_long_apim2 %>%
   mutate(
-    
+
     # Between Person Level DIM (centering between couples and within couple between person)
     provided_support_cbc = (provided_support_actor_cbp + provided_support_partner_cbp) / 2,
     provided_support_cwcbp = (provided_support_actor_cbp - provided_support_partner_cbp) / 2,
-    
+
     # Within Person Level DIM (couple mean and deviation on each day)
     provided_support_cwp_mean = (provided_support_actor_cwp + provided_support_partner_cwp) / 2,
     provided_support_cwp_halfdiff = (provided_support_actor_cwp - provided_support_partner_cwp) / 2
-  ) 
+  )
 
 
 ```
 
 ## Exchangeable Dyads - Longitudinal DIM/APIM: Preparing the sum and difference approach
 
-We need to randomly assign -1 and +1 for each Partner within each couple. 
-This will be needed for contrast coding the intercept. 
+We need to randomly assign -1 and +1 for each Partner within each couple.
+This will be needed for contrast coding the intercept.
 
 For example:
 
@@ -2521,7 +2604,7 @@ df_long_dim <- df_long_dim %>%
     base = ifelse(userID == min(userID), 1, -1),
     flip = 1 - 2 * rbinom(1, 1, 0.5),   # yields +1 or -1 once per couple
     Idiff = base * flip,
-    
+
     # Not needed for brms, but for glmmTMB we create two dummy variables representing
     # randomly selected partner 1 and partner 2.
     is_partner1 = as.numeric(Idiff == 1),
@@ -2533,7 +2616,7 @@ df_long_dim <- df_long_dim %>%
   dplyr::select(-base, -flip)
 
 
-print_df(print_couple_preview(df_long_dim, couple_id = "31"))  
+print_df(print_couple_preview(df_long_dim, couple_id = "31"))
 
 ```
 
@@ -2557,7 +2640,7 @@ df_long_dim <- df_long_dim %>%
   dplyr::select(-base, -flip)
 
 
-print_df(print_couple_preview(df_long_dim, couple_id = "31", days = 0:4))  
+print_df(print_couple_preview(df_long_dim, couple_id = "31", days = 0:4))
 
 ```
 
@@ -2567,40 +2650,40 @@ print_df(print_couple_preview(df_long_dim, couple_id = "31", days = 0:4))
 ```{r fit-exch-long-apim-glmmtmb, results='hide', message=FALSE, warning=FALSE}
 
 model_exch_long_apim_glmmtmb <- glmmTMB(
-  closeness ~ 1 + 
-    
+  closeness ~ 1 +
+
     diaryday_c +
-  
+
     # Within-person APIM
-    provided_support_actor_cwp + 
+    provided_support_actor_cwp +
     provided_support_partner_cwp +
     # Equivalent to within-person DIM:
-    # provided_support_cwp_mean + 
+    # provided_support_cwp_mean +
     # provided_support_cwp_halfdiff +
-  
+
     # Between-person APIM
     provided_support_actor_cbp +
     provided_support_partner_cbp +
     # Equivalent to between-person DIM
     # provided_support_cwcbp+
     # provided_support_cbc +
-    
+
     # Dyad-Level intercept and slopes for time-varying predictors
     (1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp | coupleID) +
-    
+
     # Both partners' deviations from these dyad-level means and slopes.
-    # Note: separate random effects block to make them uncorrelated form dyad-level REs. 
-    (0 + Idiff + 
-         I(Idiff * diaryday_c) + 
-         I(Idiff * provided_support_actor_cwp) + 
+    # Note: separate random effects block to make them uncorrelated form dyad-level REs.
+    (0 + Idiff +
+         I(Idiff * diaryday_c) +
+         I(Idiff * provided_support_actor_cwp) +
          I(Idiff * provided_support_partner_cwp) | coupleID) +
-    
+
     # After accounting for stable differences between partners, they may still be
     # non-independent each day due to external occurrences and daily exchange processes
-    # not captured in the fixed effects. Thus, residuals are not yet independent. 
+    # not captured in the fixed effects. Thus, residuals are not yet independent.
     # Homogeneous same-day residual covariance between partners:
     homcs(0 + is_partner1 + is_partner2 | coupleID:diaryday)
-  
+
   # In glmmTMB always remove the residual variance if modelling via random effects.
   , dispformula = ~ 0
   , data = df_long_dim
@@ -2626,31 +2709,31 @@ Unlike the distinguishable longitudinal model, this exchangeable specification k
 ```{r fit-exch-long-apim-brms, results='hide', message=FALSE, warning=FALSE}
 
 formula_exch_long_apim <- bf(
-  closeness ~ 1 + 
-    
+  closeness ~ 1 +
+
     diaryday_c +
-  
+
     # Within-person APIM
-    provided_support_actor_cwp + 
+    provided_support_actor_cwp +
     provided_support_partner_cwp +
-  
+
     # Between-person APIM
     provided_support_actor_cbp +
     provided_support_partner_cbp +
-    
+
     # Dyad-Level intercept and slopes for time-varying predictors
     (1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp | coupleID) +
-    
+
     # Both partners' deviations from these dyad-level means and slopes.
-    # Note: separate random effects block to make them uncorrelated form dyad-level REs. 
-    (0 + Idiff + 
-         I(Idiff * diaryday_c) + 
-         I(Idiff * provided_support_actor_cwp) + 
+    # Note: separate random effects block to make them uncorrelated form dyad-level REs.
+    (0 + Idiff +
+         I(Idiff * diaryday_c) +
+         I(Idiff * provided_support_actor_cwp) +
          I(Idiff * provided_support_partner_cwp) | coupleID) +
-    
-    # Modelling Level 1 residuals in brms: 
-    cosy(gr = coupleID:diaryday)
-  
+
+    # Modelling Level 1 residuals in brms:
+    unstr(time = member, gr = couple_day)
+
   # Again, no need to model heterogeneous residual variances (sigma)
   # Implied: sigma = ~ 1
 )
@@ -2661,7 +2744,7 @@ priors_exch_long_apim <- c(
   prior(exponential(1), class = "sd"),
   prior(lkj(2), class = "cor"),
   prior(student_t(3, 0, 1.5), class = "sigma"),
-  prior(beta(1, 3), class = "cosy")
+  prior(lkj(2), class = "cortime")
 )
 
 model_exch_long_apim <- brm(
@@ -2672,7 +2755,7 @@ model_exch_long_apim <- brm(
   chains = 4,
   cores = 4,
   iter = 2000,
-  warmup = 1000, 
+  warmup = 1000,
   seed = 123,
   file = file.path('brms_cache', 'model_apim_ind_long_apim')
 )
@@ -2688,23 +2771,23 @@ The equivalent DIM specification:
 
 # DIM Version
 formula_exch_long_dim <- bf(
-  closeness ~ 1 + 
-    
+  closeness ~ 1 +
+
     diaryday_c +
-    
-    provided_support_cwp_mean + 
+
+    provided_support_cwp_mean +
     provided_support_cwp_halfdiff +
-  
+
     provided_support_cbc +
     provided_support_cwcbp +
-    
+
     (1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp | coupleID) +
-    (0 + Idiff + 
-         I(Idiff * diaryday_c) + 
-         I(Idiff * provided_support_actor_cwp) + 
+    (0 + Idiff +
+         I(Idiff * diaryday_c) +
+         I(Idiff * provided_support_actor_cwp) +
          I(Idiff * provided_support_partner_cwp) | coupleID) +
-    
-    cosy(gr = coupleID:diaryday)
+
+    unstr(time = member, gr = couple_day)
 )
 
 priors_exch_long_dim <- c(
@@ -2713,7 +2796,7 @@ priors_exch_long_dim <- c(
   prior(exponential(1), class = "sd"),
   prior(lkj(2), class = "cor"),
   prior(student_t(3, 0, 1.5), class = "sigma"),
-  prior(beta(1, 3), class = "cosy")
+  prior(lkj(2), class = "cortime")
 )
 
 model_exch_long_dim <- brm(
@@ -2724,7 +2807,7 @@ model_exch_long_dim <- brm(
   chains = 4,
   cores = 4,
   iter = 2000,
-  warmup = 1000, 
+  warmup = 1000,
   seed = 123,
   file = file.path('brms_cache', 'model_apim_ind_long_dim')
 )
@@ -2735,7 +2818,7 @@ model_exch_long_dim <- brm(
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: Explanation Idiff
 
-For appropriate random effects, we can use the Sum and Difference approach [@delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]: 
+For appropriate random effects, we can use the Sum and Difference approach [@delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]:
 
 * Randomly give one partner a constant of -1 and the other a constant of 1
 * The couple level intercept represents the mean (or sum) of both partners’ intercepts. `(1 | coupleID)`
@@ -2798,7 +2881,7 @@ print_df(
 :::
 
 
-Equivalence holds on both levels. Numeric deviations arise due to priors, sampling noise, and rounding. 
+Equivalence holds on both levels. Numeric deviations arise due to priors, sampling noise, and rounding.
 
 ## Exchangeable Dyads - Longitudinal APIM/DIM: Results
 
@@ -2827,23 +2910,23 @@ print_df(
 ## Extract Full APIM Random Effects Variance-Covariance Matrix
 
 We can rotate the random effects structure back to obtain the full APIM Random effects variance-covariance matrix, based on
-[@kenny_ackerman_2023]. 
+[@kenny_ackerman_2023].
 Just as we would in a SEM model with equality constraints!
 
 For example, the within-person variance of the intercept is:
 
-$$var(Intercept) + var(Idiff)$$ 
+$$var(Intercept) + var(Idiff)$$
 
 and the cross-person covariance of both partners' intercepts is:
 
 $$var(Intercept) - var(Idiff)$$
 
-Note: This only holds true when the means and Idiffs are uncorrelated. This is why we put them in separate random effects blocks.  
+Note: This only holds true when the means and Idiffs are uncorrelated. This is why we put them in separate random effects blocks.
 
 ## Extract Full APIM Random Effects Variance-Covariance Matrix
 
 ```{r extract-exch-long-apim-covariance}
-# Custom function 
+# Custom function
 rotate_apim_covariance <- function(
     fit,
     gr = "coupleID",
@@ -2854,25 +2937,25 @@ rotate_apim_covariance <- function(
 
   SUM <- random_effects$coef[!grepl(Idiff, random_effects$coef)]
   DIFF <- random_effects$coef[grepl(Idiff, random_effects$coef)]
-  
+
   varcor <- VarCorr(fit)[[gr]]
-  
+
   within_person_covariance_matrix <- varcor$cov[SUM,'Estimate',SUM] + varcor$cov[DIFF,'Estimate',DIFF]
   cross_person_covariance_matrix <- varcor$cov[SUM,'Estimate',SUM] - varcor$cov[DIFF,'Estimate',DIFF]
-  
+
   p <- nrow(within_person_covariance_matrix)
-  
+
   Full <- rbind(
     cbind(within_person_covariance_matrix,  cross_person_covariance_matrix),
     cbind(cross_person_covariance_matrix, within_person_covariance_matrix)
   )
-  
+
   # nice labels
   base <- SUM
   rn <- c(paste0("PartnerA_", base), paste0("PartnerB_", base))
   colnames(Full) <- rn
   rownames(Full) <- rn
-  
+
   return(list(within_person_covariance_matrix=within_person_covariance_matrix, cross_person_covariance_matrix=cross_person_covariance_matrix, full_covariance_matrix=Full))
 }
 
@@ -2907,7 +2990,7 @@ print_df(a$full_covariance_matrix)
 # Custom function
 sd_cor <- function(Sigma) {
   sds  <- sqrt(diag(Sigma))
-  cors <- cov2cor(Sigma)  
+  cors <- cov2cor(Sigma)
   list(sd = sds, cor = cors)
 }
 

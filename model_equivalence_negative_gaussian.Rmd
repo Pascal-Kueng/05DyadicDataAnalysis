@@ -1,0 +1,444 @@
+---
+title: "Negative Partner Correlations: Gaussian brms/glmmTMB Checks"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+---
+
+```{r setup, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(
+  cache = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 8,
+  fig.height = 4
+)
+
+suppressPackageStartupMessages({
+  library(brms)
+  library(glmmTMB)
+  library(knitr)
+  library(posterior)
+})
+
+options(mc.cores = min(2, parallel::detectCores()))
+brms_backend <- if (requireNamespace("cmdstanr", quietly = TRUE)) "cmdstanr" else "rstan"
+
+fit_brms <- function(formula, data, prior, seed) {
+  brm(
+    formula = formula,
+    data = data,
+    family = gaussian(),
+    prior = prior,
+    chains = 2,
+    cores = 2,
+    iter = 600,
+    warmup = 300,
+    seed = seed,
+    backend = brms_backend,
+    refresh = 0
+  )
+}
+
+rmvn2 <- function(n, sd_1, sd_2, cor) {
+  cov <- matrix(
+    c(sd_1^2, cor * sd_1 * sd_2, cor * sd_1 * sd_2, sd_2^2),
+    nrow = 2
+  )
+  matrix(rnorm(n * 2), ncol = 2) %*% chol(cov)
+}
+
+make_table <- function(rows) {
+  rows[] <- lapply(rows, function(x) if (is.numeric(x)) round(x, 3) else x)
+  kable(rows)
+}
+
+extract_glmm_us <- function(model, group) {
+  vc <- VarCorr(model)$cond[[group]]
+  c(
+    sd_1 = unname(attr(vc, "stddev")[1]),
+    sd_2 = unname(attr(vc, "stddev")[2]),
+    cor_12 = unname(attr(vc, "correlation")[1, 2])
+  )
+}
+
+extract_glmm_homcs <- function(model, group) {
+  vc <- VarCorr(model)$cond[[group]]
+  c(
+    sd = unname(attr(vc, "stddev")[1]),
+    cor_12 = unname(attr(vc, "correlation")[1, 2])
+  )
+}
+
+extract_glmm_decomp <- function(model, group) {
+  vc <- VarCorr(model)$cond
+  group_names <- grep(paste0("^", group, "(\\.[0-9]+)?$"), names(vc), value = TRUE)
+  sd_sum <- unname(attr(vc[[group_names[1]]], "stddev")[1])
+  sd_diff <- unname(attr(vc[[group_names[2]]], "stddev")[1])
+  var_member <- sd_sum^2 + sd_diff^2
+  c(
+    sd = sqrt(var_member),
+    cor_12 = (sd_sum^2 - sd_diff^2) / var_member
+  )
+}
+
+extract_brms_dist_resid <- function(model) {
+  draws <- as_draws_df(model)
+  c(
+    sd_1 = mean(exp(draws$b_sigma_is_male)),
+    sd_2 = mean(exp(draws$b_sigma_is_female)),
+    cor_12 = mean(draws[[grep("^cortime", names(draws), value = TRUE)[1]]])
+  )
+}
+
+extract_brms_exch_resid <- function(model) {
+  draws <- as_draws_df(model)
+  c(
+    sd = mean(draws$sigma),
+    cor_12 = mean(draws[[grep("^cortime", names(draws), value = TRUE)[1]]])
+  )
+}
+
+extract_brms_re_us <- function(model, group) {
+  s <- summary(model)$random[[group]]
+  c(
+    sd_1 = s["sd(is_male)", "Estimate"],
+    sd_2 = s["sd(is_female)", "Estimate"],
+    cor_12 = s["cor(is_male,is_female)", "Estimate"]
+  )
+}
+
+extract_brms_decomp <- function(model, group) {
+  draws <- as_draws_df(model)
+  sd_sum <- mean(draws[[paste0("sd_", group, "__Intercept")]])
+  sd_diff <- mean(draws[[paste0("sd_", group, "__Idiff")]])
+  var_member <- sd_sum^2 + sd_diff^2
+  c(
+    sd = sqrt(var_member),
+    cor_12 = (sd_sum^2 - sd_diff^2) / var_member
+  )
+}
+```
+
+## Cross-Sectional Distinguishable Dyads
+
+```{r cross-dist-gaussian}
+set.seed(1101)
+n_couples <- 600
+
+beta <- c(
+  is_male = 4.6,
+  is_female = 5.6,
+  male_actor = 1.8,
+  female_actor = 1.6,
+  male_partner = 0.2,
+  female_partner = 0.3
+)
+
+true_resid <- c(sd_1 = 1.6, sd_2 = 1.3, cor_12 = -0.5)
+eps <- rmvn2(n_couples, true_resid["sd_1"], true_resid["sd_2"], true_resid["cor_12"])
+x_male <- rnorm(n_couples)
+x_female <- rnorm(n_couples)
+
+df <- data.frame(
+  coupleID = factor(rep(seq_len(n_couples), each = 2)),
+  member = rep(1:2, n_couples),
+  is_male = rep(c(1, 0), n_couples),
+  is_female = rep(c(0, 1), n_couples)
+)
+
+df$x_actor <- ifelse(df$is_male == 1, rep(x_male, each = 2), rep(x_female, each = 2))
+df$x_partner <- ifelse(df$is_male == 1, rep(x_female, each = 2), rep(x_male, each = 2))
+df$eps <- ifelse(df$is_male == 1, rep(eps[, 1], each = 2), rep(eps[, 2], each = 2))
+df$y <- with(
+  df,
+  beta["is_male"] * is_male +
+    beta["is_female"] * is_female +
+    beta["male_actor"] * is_male * x_actor +
+    beta["female_actor"] * is_female * x_actor +
+    beta["male_partner"] * is_male * x_partner +
+    beta["female_partner"] * is_female * x_partner +
+    eps
+)
+
+model_glmm <- glmmTMB(
+  y ~ 0 + is_male + is_female +
+    is_male:x_actor + is_female:x_actor +
+    is_male:x_partner + is_female:x_partner +
+    us(0 + is_male + is_female | coupleID),
+  data = df,
+  family = gaussian(),
+  dispformula = ~ 0
+)
+
+model_brms <- fit_brms(
+  bf(
+    y ~ 0 + is_male + is_female +
+      is_male:x_actor + is_female:x_actor +
+      is_male:x_partner + is_female:x_partner +
+      unstr(time = member, gr = coupleID),
+    sigma ~ 0 + is_male + is_female
+  ),
+  data = df,
+  prior = c(
+    prior(normal(0, 5), class = "b"),
+    prior(student_t(3, 0, 1.5), class = "b", dpar = "sigma"),
+    prior(lkj(2), class = "cortime")
+  ),
+  seed = 1101
+)
+
+make_table(data.frame(
+  parameter = names(true_resid),
+  true = unname(true_resid),
+  glmmTMB = unname(extract_glmm_us(model_glmm, "coupleID")),
+  brms = unname(extract_brms_dist_resid(model_brms))
+))
+```
+
+## Cross-Sectional Exchangeable Dyads
+
+```{r cross-exch-gaussian}
+set.seed(1102)
+n_couples <- 600
+
+beta <- c(intercept = 5.0, actor = 1.2, partner = 0.35)
+true_resid <- c(sd = 1.4, cor_12 = -0.45)
+eps <- rmvn2(n_couples, true_resid["sd"], true_resid["sd"], true_resid["cor_12"])
+x_1 <- rnorm(n_couples)
+x_2 <- rnorm(n_couples)
+
+df <- data.frame(
+  coupleID = factor(rep(seq_len(n_couples), each = 2)),
+  member = rep(1:2, n_couples),
+  is_partner1 = rep(c(1, 0), n_couples),
+  is_partner2 = rep(c(0, 1), n_couples),
+  Idiff = rep(c(1, -1), n_couples)
+)
+
+df$x_actor <- ifelse(df$is_partner1 == 1, rep(x_1, each = 2), rep(x_2, each = 2))
+df$x_partner <- ifelse(df$is_partner1 == 1, rep(x_2, each = 2), rep(x_1, each = 2))
+df$eps <- ifelse(df$is_partner1 == 1, rep(eps[, 1], each = 2), rep(eps[, 2], each = 2))
+df$y <- with(df, beta["intercept"] + beta["actor"] * x_actor + beta["partner"] * x_partner + eps)
+
+model_glmm <- glmmTMB(
+  y ~ 1 + x_actor + x_partner +
+    homcs(0 + is_partner1 + is_partner2 | coupleID),
+  data = df,
+  family = gaussian(),
+  dispformula = ~ 0
+)
+
+model_brms <- fit_brms(
+  bf(y ~ 1 + x_actor + x_partner + unstr(time = member, gr = coupleID)),
+  data = df,
+  prior = c(
+    prior(normal(0, 5), class = "b"),
+    prior(normal(5, 3), class = "Intercept"),
+    prior(student_t(3, 0, 1.5), class = "sigma"),
+    prior(lkj(2), class = "cortime")
+  ),
+  seed = 1102
+)
+
+make_table(data.frame(
+  parameter = names(true_resid),
+  true = unname(true_resid),
+  glmmTMB = unname(extract_glmm_homcs(model_glmm, "coupleID")),
+  brms = unname(extract_brms_exch_resid(model_brms))
+))
+```
+
+## ILD Distinguishable Dyads
+
+```{r ild-dist-gaussian}
+set.seed(1103)
+n_couples <- 70
+n_days <- 3
+
+beta <- c(
+  is_male = 4.7,
+  is_female = 5.4,
+  male_day = 0.04,
+  female_day = -0.03,
+  male_actor = 0.5,
+  female_actor = 0.4,
+  male_partner = 0.1,
+  female_partner = 0.2
+)
+
+true_couple <- c(sd_1 = 0.7, sd_2 = 0.5, cor_12 = -0.35)
+true_resid <- c(sd_1 = 1.0, sd_2 = 0.8, cor_12 = -0.45)
+couple_re <- rmvn2(n_couples, true_couple["sd_1"], true_couple["sd_2"], true_couple["cor_12"])
+
+base <- expand.grid(
+  coupleID = seq_len(n_couples),
+  day = seq_len(n_days),
+  member = 1:2
+)
+base <- base[order(base$coupleID, base$day, base$member), ]
+base$coupleID <- factor(base$coupleID)
+base$couple_day <- interaction(base$coupleID, base$day, drop = TRUE)
+base$day_c <- base$day - mean(seq_len(n_days))
+base$is_male <- as.numeric(base$member == 1)
+base$is_female <- as.numeric(base$member == 2)
+
+x_male <- matrix(rnorm(n_couples * n_days), nrow = n_couples)
+x_female <- matrix(rnorm(n_couples * n_days), nrow = n_couples)
+idx <- cbind(as.integer(base$coupleID), base$day)
+base$x_actor <- ifelse(base$is_male == 1, x_male[idx], x_female[idx])
+base$x_partner <- ifelse(base$is_male == 1, x_female[idx], x_male[idx])
+
+day_eps <- rmvn2(n_couples * n_days, true_resid["sd_1"], true_resid["sd_2"], true_resid["cor_12"])
+day_index <- (as.integer(base$coupleID) - 1) * n_days + base$day
+base$couple_re <- ifelse(base$is_male == 1, couple_re[as.integer(base$coupleID), 1], couple_re[as.integer(base$coupleID), 2])
+base$eps <- ifelse(base$is_male == 1, day_eps[day_index, 1], day_eps[day_index, 2])
+base$y <- with(
+  base,
+  beta["is_male"] * is_male +
+    beta["is_female"] * is_female +
+    beta["male_day"] * is_male * day_c +
+    beta["female_day"] * is_female * day_c +
+    beta["male_actor"] * is_male * x_actor +
+    beta["female_actor"] * is_female * x_actor +
+    beta["male_partner"] * is_male * x_partner +
+    beta["female_partner"] * is_female * x_partner +
+    couple_re + eps
+)
+
+model_glmm <- glmmTMB(
+  y ~ 0 + is_male + is_female +
+    is_male:day_c + is_female:day_c +
+    is_male:x_actor + is_female:x_actor +
+    is_male:x_partner + is_female:x_partner +
+    (0 + is_male + is_female | coupleID) +
+    us(0 + is_male + is_female | couple_day),
+  data = base,
+  family = gaussian(),
+  dispformula = ~ 0
+)
+
+model_brms <- fit_brms(
+  bf(
+    y ~ 0 + is_male + is_female +
+      is_male:day_c + is_female:day_c +
+      is_male:x_actor + is_female:x_actor +
+      is_male:x_partner + is_female:x_partner +
+      (0 + is_male + is_female | coupleID) +
+      unstr(time = member, gr = couple_day),
+    sigma ~ 0 + is_male + is_female
+  ),
+  data = base,
+  prior = c(
+    prior(normal(0, 5), class = "b"),
+    prior(student_t(3, 0, 1), class = "sd"),
+    prior(lkj(2), class = "cor"),
+    prior(student_t(3, 0, 1), class = "b", dpar = "sigma"),
+    prior(lkj(2), class = "cortime")
+  ),
+  seed = 1103
+)
+
+make_table(rbind(
+  data.frame(
+    block = "couple",
+    parameter = names(true_couple),
+    true = unname(true_couple),
+    glmmTMB = unname(extract_glmm_us(model_glmm, "coupleID")),
+    brms = unname(extract_brms_re_us(model_brms, "coupleID"))
+  ),
+  data.frame(
+    block = "same-day residual",
+    parameter = names(true_resid),
+    true = unname(true_resid),
+    glmmTMB = unname(extract_glmm_us(model_glmm, "couple_day")),
+    brms = unname(extract_brms_dist_resid(model_brms))
+  )
+))
+```
+
+## ILD Exchangeable Dyads
+
+```{r ild-exch-gaussian}
+set.seed(1104)
+n_couples <- 70
+n_days <- 3
+
+beta <- c(intercept = 5.0, day = 0.05, actor = 0.5, partner = 0.25)
+true_couple <- c(sd = 0.65, cor_12 = -0.4)
+true_resid <- c(sd = 0.9, cor_12 = -0.5)
+
+sd_sum_couple <- sqrt(true_couple["sd"]^2 * (1 + true_couple["cor_12"]) / 2)
+sd_diff_couple <- sqrt(true_couple["sd"]^2 * (1 - true_couple["cor_12"]) / 2)
+sum_re <- rnorm(n_couples, 0, sd_sum_couple)
+diff_re <- rnorm(n_couples, 0, sd_diff_couple)
+
+base <- expand.grid(
+  coupleID = seq_len(n_couples),
+  day = seq_len(n_days),
+  member = 1:2
+)
+base <- base[order(base$coupleID, base$day, base$member), ]
+base$coupleID <- factor(base$coupleID)
+base$couple_day <- interaction(base$coupleID, base$day, drop = TRUE)
+base$day_c <- base$day - mean(seq_len(n_days))
+base$Idiff <- ifelse(base$member == 1, 1, -1)
+base$is_partner1 <- as.numeric(base$member == 1)
+base$is_partner2 <- as.numeric(base$member == 2)
+
+x_1 <- matrix(rnorm(n_couples * n_days), nrow = n_couples)
+x_2 <- matrix(rnorm(n_couples * n_days), nrow = n_couples)
+idx <- cbind(as.integer(base$coupleID), base$day)
+base$x_actor <- ifelse(base$is_partner1 == 1, x_1[idx], x_2[idx])
+base$x_partner <- ifelse(base$is_partner1 == 1, x_2[idx], x_1[idx])
+
+day_eps <- rmvn2(n_couples * n_days, true_resid["sd"], true_resid["sd"], true_resid["cor_12"])
+day_index <- (as.integer(base$coupleID) - 1) * n_days + base$day
+base$couple_re <- sum_re[as.integer(base$coupleID)] + base$Idiff * diff_re[as.integer(base$coupleID)]
+base$eps <- ifelse(base$is_partner1 == 1, day_eps[day_index, 1], day_eps[day_index, 2])
+base$y <- with(base, beta["intercept"] + beta["day"] * day_c + beta["actor"] * x_actor + beta["partner"] * x_partner + couple_re + eps)
+
+model_glmm <- glmmTMB(
+  y ~ 1 + day_c + x_actor + x_partner +
+    (1 | coupleID) + (0 + Idiff | coupleID) +
+    homcs(0 + is_partner1 + is_partner2 | couple_day),
+  data = base,
+  family = gaussian(),
+  dispformula = ~ 0
+)
+
+model_brms <- fit_brms(
+  bf(
+    y ~ 1 + day_c + x_actor + x_partner +
+      (1 | coupleID) + (0 + Idiff | coupleID) +
+      unstr(time = member, gr = couple_day)
+  ),
+  data = base,
+  prior = c(
+    prior(normal(5, 3), class = "Intercept"),
+    prior(normal(0, 3), class = "b"),
+    prior(student_t(3, 0, 1), class = "sd"),
+    prior(student_t(3, 0, 1), class = "sigma"),
+    prior(lkj(2), class = "cortime")
+  ),
+  seed = 1104
+)
+
+make_table(rbind(
+  data.frame(
+    block = "couple",
+    parameter = names(true_couple),
+    true = unname(true_couple),
+    glmmTMB = unname(extract_glmm_decomp(model_glmm, "coupleID")),
+    brms = unname(extract_brms_decomp(model_brms, "coupleID"))
+  ),
+  data.frame(
+    block = "same-day residual",
+    parameter = names(true_resid),
+    true = unname(true_resid),
+    glmmTMB = unname(extract_glmm_homcs(model_glmm, "couple_day")),
+    brms = unname(extract_brms_exch_resid(model_brms))
+  )
+))
+```

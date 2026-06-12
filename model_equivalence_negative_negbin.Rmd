@@ -1,0 +1,402 @@
+---
+title: "Negative Partner Correlations: Negative-Binomial brms/glmmTMB Checks"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+---
+
+```{r setup, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(
+  cache = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 8,
+  fig.height = 4
+)
+
+suppressPackageStartupMessages({
+  library(brms)
+  library(glmmTMB)
+  library(knitr)
+  library(posterior)
+})
+
+options(mc.cores = min(2, parallel::detectCores()))
+brms_backend <- if (requireNamespace("cmdstanr", quietly = TRUE)) "cmdstanr" else "rstan"
+
+fit_brms <- function(formula, data, prior, seed) {
+  brm(
+    formula = formula,
+    data = data,
+    family = negbinomial(link = "log"),
+    prior = prior,
+    chains = 2,
+    cores = 2,
+    iter = 400,
+    warmup = 200,
+    seed = seed,
+    backend = brms_backend,
+    refresh = 0
+  )
+}
+
+rmvn2 <- function(n, sd_1, sd_2, cor) {
+  cov <- matrix(
+    c(sd_1^2, cor * sd_1 * sd_2, cor * sd_1 * sd_2, sd_2^2),
+    nrow = 2
+  )
+  matrix(rnorm(n * 2), ncol = 2) %*% chol(cov)
+}
+
+make_table <- function(rows) {
+  rows[] <- lapply(rows, function(x) if (is.numeric(x)) round(x, 3) else x)
+  kable(rows)
+}
+
+extract_glmm_us <- function(model, group) {
+  vc <- VarCorr(model)$cond[[group]]
+  c(
+    sd_1 = unname(attr(vc, "stddev")[1]),
+    sd_2 = unname(attr(vc, "stddev")[2]),
+    cor_12 = unname(attr(vc, "correlation")[1, 2])
+  )
+}
+
+extract_glmm_decomp <- function(model, group) {
+  vc <- VarCorr(model)$cond
+  group_names <- grep(paste0("^", group, "(\\.[0-9]+)?$"), names(vc), value = TRUE)
+  sd_sum <- unname(attr(vc[[group_names[1]]], "stddev")[1])
+  sd_diff <- unname(attr(vc[[group_names[2]]], "stddev")[1])
+  var_member <- sd_sum^2 + sd_diff^2
+  c(
+    sd = sqrt(var_member),
+    cor_12 = (sd_sum^2 - sd_diff^2) / var_member
+  )
+}
+
+extract_brms_re_us <- function(model, group) {
+  s <- summary(model)$random[[group]]
+  c(
+    sd_1 = s["sd(is_male)", "Estimate"],
+    sd_2 = s["sd(is_female)", "Estimate"],
+    cor_12 = s["cor(is_male,is_female)", "Estimate"]
+  )
+}
+
+extract_brms_decomp <- function(model, group) {
+  draws <- as_draws_df(model)
+  sd_sum <- mean(draws[[paste0("sd_", group, "__Intercept")]])
+  sd_diff <- mean(draws[[paste0("sd_", group, "__Idiff")]])
+  var_member <- sd_sum^2 + sd_diff^2
+  c(
+    sd = sqrt(var_member),
+    cor_12 = (sd_sum^2 - sd_diff^2) / var_member
+  )
+}
+
+brms_nb_priors_no_intercept <- c(
+  prior(normal(0, 2), class = "b"),
+  prior(student_t(3, 0, 1), class = "sd"),
+  prior(lkj(2), class = "cor"),
+  prior(gamma(2, 0.1), class = "shape")
+)
+
+brms_nb_priors_intercept <- c(
+  brms_nb_priors_no_intercept,
+  prior(normal(0, 2), class = "Intercept")
+)
+
+brms_nb_priors_decomp_intercept <- c(
+  prior(normal(0, 2), class = "b"),
+  prior(normal(0, 2), class = "Intercept"),
+  prior(student_t(3, 0, 1), class = "sd"),
+  prior(gamma(2, 0.1), class = "shape")
+)
+
+brms_nb_priors_decomp_intercept_only <- c(
+  prior(normal(0, 2), class = "Intercept"),
+  prior(student_t(3, 0, 1), class = "sd"),
+  prior(gamma(2, 0.1), class = "shape")
+)
+```
+
+For negative-binomial models, the dependence parameters below are latent Gaussian
+covariances on the log-link scale, not observed-scale residual covariances.
+
+## Cross-Sectional Distinguishable Dyads
+
+```{r cross-dist-negbin}
+set.seed(2101)
+n_couples <- 1000
+shape <- 20
+
+beta <- c(
+  is_male = 0.8,
+  is_female = 0.65,
+  male_actor = 0.3,
+  female_actor = 0.2,
+  male_partner = 0.08,
+  female_partner = 0.12
+)
+
+true_latent <- c(sd_1 = 0.45, sd_2 = 0.35, cor_12 = -0.5)
+latent <- rmvn2(n_couples, true_latent["sd_1"], true_latent["sd_2"], true_latent["cor_12"])
+x_male <- rnorm(n_couples)
+x_female <- rnorm(n_couples)
+
+df <- data.frame(
+  coupleID = factor(rep(seq_len(n_couples), each = 2)),
+  member = rep(1:2, n_couples),
+  is_male = rep(c(1, 0), n_couples),
+  is_female = rep(c(0, 1), n_couples)
+)
+
+df$x_actor <- ifelse(df$is_male == 1, rep(x_male, each = 2), rep(x_female, each = 2))
+df$x_partner <- ifelse(df$is_male == 1, rep(x_female, each = 2), rep(x_male, each = 2))
+df$latent <- ifelse(df$is_male == 1, rep(latent[, 1], each = 2), rep(latent[, 2], each = 2))
+eta <- with(
+  df,
+  beta["is_male"] * is_male +
+    beta["is_female"] * is_female +
+    beta["male_actor"] * is_male * x_actor +
+    beta["female_actor"] * is_female * x_actor +
+    beta["male_partner"] * is_male * x_partner +
+    beta["female_partner"] * is_female * x_partner +
+    latent
+)
+df$y <- rnbinom(nrow(df), mu = exp(eta), size = shape)
+
+model_glmm <- glmmTMB(
+  y ~ 0 + is_male + is_female +
+    is_male:x_actor + is_female:x_actor +
+    is_male:x_partner + is_female:x_partner +
+    (0 + is_male + is_female | coupleID),
+  data = df,
+  family = nbinom2(link = "log")
+)
+
+model_brms <- fit_brms(
+  bf(
+    y ~ 0 + is_male + is_female +
+      is_male:x_actor + is_female:x_actor +
+      is_male:x_partner + is_female:x_partner +
+      (0 + is_male + is_female | coupleID)
+  ),
+  data = df,
+  prior = brms_nb_priors_no_intercept,
+  seed = 2101
+)
+
+make_table(data.frame(
+  parameter = names(true_latent),
+  true = unname(true_latent),
+  glmmTMB = unname(extract_glmm_us(model_glmm, "coupleID")),
+  brms = unname(extract_brms_re_us(model_brms, "coupleID"))
+))
+```
+
+## Cross-Sectional Exchangeable Dyads
+
+```{r cross-exch-negbin}
+set.seed(2102)
+n_couples <- 1000
+shape <- 20
+
+beta <- c(intercept = 0.75, actor = 0.3, partner = 0.12)
+true_latent <- c(sd = 0.45, cor_12 = -0.5)
+sd_sum <- sqrt(true_latent["sd"]^2 * (1 + true_latent["cor_12"]) / 2)
+sd_diff <- sqrt(true_latent["sd"]^2 * (1 - true_latent["cor_12"]) / 2)
+sum_re <- rnorm(n_couples, 0, sd_sum)
+diff_re <- rnorm(n_couples, 0, sd_diff)
+x_1 <- rnorm(n_couples)
+x_2 <- rnorm(n_couples)
+
+df <- data.frame(
+  coupleID = factor(rep(seq_len(n_couples), each = 2)),
+  member = rep(1:2, n_couples),
+  Idiff = rep(c(1, -1), n_couples),
+  is_partner1 = rep(c(1, 0), n_couples),
+  is_partner2 = rep(c(0, 1), n_couples)
+)
+
+df$x_actor <- ifelse(df$is_partner1 == 1, rep(x_1, each = 2), rep(x_2, each = 2))
+df$x_partner <- ifelse(df$is_partner1 == 1, rep(x_2, each = 2), rep(x_1, each = 2))
+df$latent <- sum_re[as.integer(df$coupleID)] + df$Idiff * diff_re[as.integer(df$coupleID)]
+eta <- with(df, beta["intercept"] + beta["actor"] * x_actor + beta["partner"] * x_partner + latent)
+df$y <- rnbinom(nrow(df), mu = exp(eta), size = shape)
+
+model_glmm <- glmmTMB(
+  y ~ 1 + x_actor + x_partner +
+    (1 | coupleID) + (0 + Idiff | coupleID),
+  data = df,
+  family = nbinom2(link = "log")
+)
+
+model_brms <- fit_brms(
+  bf(y ~ 1 + x_actor + x_partner + (1 | coupleID) + (0 + Idiff | coupleID)),
+  data = df,
+  prior = brms_nb_priors_decomp_intercept,
+  seed = 2102
+)
+
+make_table(data.frame(
+  parameter = names(true_latent),
+  true = unname(true_latent),
+  glmmTMB = unname(extract_glmm_decomp(model_glmm, "coupleID")),
+  brms = unname(extract_brms_decomp(model_brms, "coupleID"))
+))
+```
+
+## ILD Distinguishable Dyads
+
+```{r ild-dist-negbin}
+set.seed(2103)
+n_couples <- 80
+n_days <- 3
+shape <- 100
+
+beta <- c(is_male = 0.8, is_female = 0.65)
+
+true_couple <- c(sd_1 = 0.7, sd_2 = 0.6, cor_12 = -0.6)
+true_day <- c(sd_1 = 0.8, sd_2 = 0.7, cor_12 = -0.65)
+couple_re <- rmvn2(n_couples, true_couple["sd_1"], true_couple["sd_2"], true_couple["cor_12"])
+
+df <- expand.grid(
+  coupleID = seq_len(n_couples),
+  day = seq_len(n_days),
+  member = 1:2
+)
+df <- df[order(df$coupleID, df$day, df$member), ]
+df$coupleID <- factor(df$coupleID)
+df$couple_day <- interaction(df$coupleID, df$day, drop = TRUE)
+df$day_c <- df$day - mean(seq_len(n_days))
+df$is_male <- as.numeric(df$member == 1)
+df$is_female <- as.numeric(df$member == 2)
+
+day_re <- rmvn2(n_couples * n_days, true_day["sd_1"], true_day["sd_2"], true_day["cor_12"])
+day_index <- (as.integer(df$coupleID) - 1) * n_days + df$day
+df$couple_re <- ifelse(df$is_male == 1, couple_re[as.integer(df$coupleID), 1], couple_re[as.integer(df$coupleID), 2])
+df$day_re <- ifelse(df$is_male == 1, day_re[day_index, 1], day_re[day_index, 2])
+eta <- with(
+  df,
+  beta["is_male"] * is_male +
+    beta["is_female"] * is_female +
+    couple_re + day_re
+)
+df$y <- rnbinom(nrow(df), mu = exp(eta), size = shape)
+
+model_glmm <- glmmTMB(
+  y ~ 0 + is_male + is_female +
+    (0 + is_male + is_female | coupleID) +
+    (0 + is_male + is_female | couple_day),
+  data = df,
+  family = nbinom2(link = "log")
+)
+
+model_brms <- fit_brms(
+  bf(
+    y ~ 0 + is_male + is_female +
+      (0 + is_male + is_female | coupleID) +
+      (0 + is_male + is_female | couple_day)
+  ),
+  data = df,
+  prior = brms_nb_priors_no_intercept,
+  seed = 2103
+)
+
+make_table(rbind(
+  data.frame(
+    block = "couple",
+    parameter = names(true_couple),
+    true = unname(true_couple),
+    glmmTMB = unname(extract_glmm_us(model_glmm, "coupleID")),
+    brms = unname(extract_brms_re_us(model_brms, "coupleID"))
+  ),
+  data.frame(
+    block = "same-day latent",
+    parameter = names(true_day),
+    true = unname(true_day),
+    glmmTMB = unname(extract_glmm_us(model_glmm, "couple_day")),
+    brms = unname(extract_brms_re_us(model_brms, "couple_day"))
+  )
+))
+```
+
+## ILD Exchangeable Dyads
+
+```{r ild-exch-negbin}
+set.seed(2104)
+n_couples <- 80
+n_days <- 3
+shape <- 100
+
+beta <- c(intercept = 0.75)
+true_couple <- c(sd = 0.7, cor_12 = -0.6)
+true_day <- c(sd = 0.8, cor_12 = -0.65)
+
+sd_sum_couple <- sqrt(true_couple["sd"]^2 * (1 + true_couple["cor_12"]) / 2)
+sd_diff_couple <- sqrt(true_couple["sd"]^2 * (1 - true_couple["cor_12"]) / 2)
+sd_sum_day <- sqrt(true_day["sd"]^2 * (1 + true_day["cor_12"]) / 2)
+sd_diff_day <- sqrt(true_day["sd"]^2 * (1 - true_day["cor_12"]) / 2)
+
+sum_couple <- rnorm(n_couples, 0, sd_sum_couple)
+diff_couple <- rnorm(n_couples, 0, sd_diff_couple)
+sum_day <- rnorm(n_couples * n_days, 0, sd_sum_day)
+diff_day <- rnorm(n_couples * n_days, 0, sd_diff_day)
+
+df <- expand.grid(
+  coupleID = seq_len(n_couples),
+  day = seq_len(n_days),
+  member = 1:2
+)
+df <- df[order(df$coupleID, df$day, df$member), ]
+df$coupleID <- factor(df$coupleID)
+df$couple_day <- interaction(df$coupleID, df$day, drop = TRUE)
+df$day_c <- df$day - mean(seq_len(n_days))
+df$Idiff <- ifelse(df$member == 1, 1, -1)
+df$is_partner1 <- as.numeric(df$member == 1)
+df$is_partner2 <- as.numeric(df$member == 2)
+
+day_index <- (as.integer(df$coupleID) - 1) * n_days + df$day
+df$couple_re <- sum_couple[as.integer(df$coupleID)] + df$Idiff * diff_couple[as.integer(df$coupleID)]
+df$day_re <- sum_day[day_index] + df$Idiff * diff_day[day_index]
+eta <- with(df, beta["intercept"] + couple_re + day_re)
+df$y <- rnbinom(nrow(df), mu = exp(eta), size = shape)
+
+model_glmm <- glmmTMB(
+  y ~ 1 +
+    (1 | coupleID) + (0 + Idiff | coupleID) +
+    (1 | couple_day) + (0 + Idiff | couple_day),
+  data = df,
+  family = nbinom2(link = "log")
+)
+
+model_brms <- fit_brms(
+  bf(
+    y ~ 1 +
+      (1 | coupleID) + (0 + Idiff | coupleID) +
+      (1 | couple_day) + (0 + Idiff | couple_day)
+  ),
+  data = df,
+  prior = brms_nb_priors_decomp_intercept_only,
+  seed = 2104
+)
+
+make_table(rbind(
+  data.frame(
+    block = "couple",
+    parameter = names(true_couple),
+    true = unname(true_couple),
+    glmmTMB = unname(extract_glmm_decomp(model_glmm, "coupleID")),
+    brms = unname(extract_brms_decomp(model_brms, "coupleID"))
+  ),
+  data.frame(
+    block = "same-day latent",
+    parameter = names(true_day),
+    true = unname(true_day),
+    glmmTMB = unname(extract_glmm_decomp(model_glmm, "couple_day")),
+    brms = unname(extract_brms_decomp(model_brms, "couple_day"))
+  )
+))
+```
