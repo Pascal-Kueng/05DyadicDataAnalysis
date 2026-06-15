@@ -1,0 +1,93 @@
+<script>
+(function () {
+  const LONG_LINE_COUNT = 22;
+  const MIN_BLOCK_HEIGHT = 160;
+  const BOTTOM_RESERVE = 56;
+  let revealEventsRegistered = false;
+
+  function revealScale() {
+    if (window.Reveal && typeof window.Reveal.getScale === "function") {
+      return window.Reveal.getScale() || 1;
+    }
+    return 1;
+  }
+
+  function isLongPre(pre) {
+    const lines = pre.querySelectorAll("code > span").length;
+    return lines >= LONG_LINE_COUNT || pre.scrollHeight > pre.clientHeight + 4;
+  }
+
+  function setHeight(element, height) {
+    if (!element) return;
+    element.style.height = height + "px";
+    element.style.maxHeight = height + "px";
+    element.style.minHeight = "0";
+  }
+
+  function fitTarget(target) {
+    const scale = revealScale();
+    const top = target.getBoundingClientRect().top;
+    if (top <= 0 || top >= window.innerHeight) return;
+
+    const available = Math.max(MIN_BLOCK_HEIGHT, (window.innerHeight - BOTTOM_RESERVE - top) / scale);
+
+    const wrappers = [
+      target.closest(".cell"),
+      target.closest(".cell-output"),
+      target.closest(".code-copy-outer-scaffold"),
+      target.closest(".sourceCode"),
+      target.closest(".cell-output-display")
+    ];
+
+    wrappers.forEach((wrapper) => setHeight(wrapper, available));
+    setHeight(target, available);
+    target.style.overflowY = "auto";
+    target.style.overflowX = "auto";
+  }
+
+  function fitCurrentSlide() {
+    const slide = document.querySelector(".reveal .slides section.present");
+    if (!slide) return;
+
+    slide
+      .querySelectorAll("pre.sourceCode, pre.model-summary-output")
+      .forEach((pre) => {
+        if (isLongPre(pre)) fitTarget(pre);
+      });
+  }
+
+  function scheduleFit() {
+    registerRevealEvents();
+
+    function fitSoon() {
+      window.requestAnimationFrame(() => {
+        fitCurrentSlide();
+        window.requestAnimationFrame(fitCurrentSlide);
+      });
+    }
+
+    fitSoon();
+    window.setTimeout(fitSoon, 120);
+    window.setTimeout(fitSoon, 350);
+    window.setTimeout(fitSoon, 700);
+  }
+
+  function registerRevealEvents() {
+    if (revealEventsRegistered || !window.Reveal || typeof window.Reveal.on !== "function") return;
+
+    window.Reveal.on("ready", scheduleFit);
+    window.Reveal.on("slidechanged", scheduleFit);
+    window.Reveal.on("resize", scheduleFit);
+    window.Reveal.on("fragmentshown", scheduleFit);
+    window.Reveal.on("fragmenthidden", scheduleFit);
+    revealEventsRegistered = true;
+  }
+
+  registerRevealEvents();
+  window.setTimeout(scheduleFit, 250);
+  window.setTimeout(scheduleFit, 1000);
+  document.addEventListener("DOMContentLoaded", scheduleFit);
+  window.addEventListener("load", scheduleFit);
+  window.addEventListener("resize", scheduleFit);
+})();
+</script>

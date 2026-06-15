@@ -65,9 +65,10 @@
   font-size: 0.95em;
 }
 
-/* Code blocks and verbose model summaries use remaining slide height. */
+/* Code blocks use remaining slide height; model summaries shrink to content. */
 .reveal .slides section.present.slide:has(pre.sourceCode),
-.reveal .slides section.present.slide:has(.model-summary-output) {
+.reveal .slides section.present.slide:has(.model-summary-output),
+.reveal .slides section.present.slide:has(.cell-output-display > div[style*="overflow-y: scroll"]) {
   display: flex !important;
   flex-direction: column;
   align-items: stretch;
@@ -77,18 +78,25 @@
 }
 
 .reveal .slides section.present.slide:has(pre.sourceCode) > *,
-.reveal .slides section.present.slide:has(.model-summary-output) > * {
+.reveal .slides section.present.slide:has(.model-summary-output) > *,
+.reveal .slides section.present.slide:has(.cell-output-display > div[style*="overflow-y: scroll"]) > * {
   flex: 0 0 auto;
 }
 
 .reveal .slides section.present.slide:has(pre.sourceCode) > .cell:has(pre.sourceCode),
 .reveal .slides section.present.slide:has(pre.sourceCode) > .columns:has(pre.sourceCode),
-.reveal .slides section.present.slide:has(pre.sourceCode) .column:has(pre.sourceCode) > .cell:has(pre.sourceCode),
+.reveal .slides section.present.slide:has(pre.sourceCode) .column:has(pre.sourceCode) > .cell:has(pre.sourceCode) {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 100%;
+}
+
 .reveal .slides section.present.slide:has(.model-summary-output) > .cell:has(.model-summary-output),
 .reveal .slides section.present.slide:has(.model-summary-output) > .columns:has(.model-summary-output),
 .reveal .slides section.present.slide:has(.model-summary-output) .column:has(.model-summary-output) > .cell:has(.model-summary-output) {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
+  max-height: 100%;
 }
 
 .reveal .slides section.present.slide:has(pre.sourceCode) .columns:has(pre.sourceCode),
@@ -110,54 +118,133 @@
 .reveal .cell-output:has(.model-summary-output) {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   overflow: hidden;
 }
 
 .reveal .cell-output:has(.model-summary-output) {
-  flex: 1 1 auto;
-}
-
-.reveal .cell-output:has(.model-summary-output),
-.reveal .code-copy-outer-scaffold:has(.model-summary-output),
-.reveal .sourceCode:has(.model-summary-output),
-.reveal pre.model-summary-output {
-  height: 100%;
+  flex: 0 1 auto;
+  max-height: 100%;
 }
 
 .reveal .code-copy-outer-scaffold:has(pre.sourceCode) {
   display: flex;
   flex: 0 1 auto;
+  width: 100%;
   max-height: 100%;
   overflow: hidden;
 }
 
 .reveal .code-copy-outer-scaffold:has(.model-summary-output) {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
+  width: 100%;
+  max-height: 100%;
 }
 
 .reveal .sourceCode:has(.model-summary-output) {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
+  width: 100%;
   max-height: 100%;
   overflow: hidden;
 }
 
 .reveal div.sourceCode.cell-code {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
+  width: 100%;
   max-height: 100%;
   overflow: hidden;
 }
 
 .reveal pre.sourceCode,
 .reveal pre.model-summary-output {
-  flex: 1 1 auto;
-  max-height: 100%;
+  flex: 0 1 auto;
+  height: auto;
+  width: 100%;
+  max-height: 100vh;
   overflow-y: auto;
   overflow-x: auto;
 }
 
 .reveal pre.model-summary-output {
-  height: calc(100% - 0.25em);
+  flex: 0 1 auto;
+  height: auto;
+  min-height: min(50vh, 100%);
+  max-height: 100vh;
+}
+
+/* Long code/output blocks should use the available slide height; short ones shrink. */
+.reveal .slides section.present.slide:has(pre.sourceCode:has(code > span:nth-of-type(22))) > .cell:has(pre.sourceCode),
+.reveal .slides section.present.slide:has(pre.sourceCode:has(code > span:nth-of-type(22))) > .columns:has(pre.sourceCode),
+.reveal .slides section.present.slide:has(pre.sourceCode:has(code > span:nth-of-type(22))) .column:has(pre.sourceCode) > .cell:has(pre.sourceCode),
+.reveal .slides section.present.slide:has(pre.model-summary-output:has(code > span:nth-of-type(22))) > .cell:has(.model-summary-output),
+.reveal .slides section.present.slide:has(pre.model-summary-output:has(code > span:nth-of-type(22))) > .columns:has(.model-summary-output),
+.reveal .slides section.present.slide:has(pre.model-summary-output:has(code > span:nth-of-type(22))) .column:has(.model-summary-output) > .cell:has(.model-summary-output),
+.reveal .cell:has(pre.sourceCode:has(code > span:nth-of-type(22))),
+.reveal .cell:has(pre.model-summary-output:has(code > span:nth-of-type(22))),
+.reveal .cell-output:has(pre.model-summary-output:has(code > span:nth-of-type(22))),
+.reveal .code-copy-outer-scaffold:has(pre.sourceCode:has(code > span:nth-of-type(22))),
+.reveal .code-copy-outer-scaffold:has(pre.model-summary-output:has(code > span:nth-of-type(22))),
+.reveal div.sourceCode.cell-code:has(pre.sourceCode:has(code > span:nth-of-type(22))),
+.reveal .sourceCode:has(pre.model-summary-output:has(code > span:nth-of-type(22))) {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.reveal .code-copy-outer-scaffold:has(pre.sourceCode:has(code > span:nth-of-type(22))),
+.reveal .code-copy-outer-scaffold:has(pre.model-summary-output:has(code > span:nth-of-type(22))),
+.reveal div.sourceCode.cell-code:has(pre.sourceCode:has(code > span:nth-of-type(22))),
+.reveal .sourceCode:has(pre.model-summary-output:has(code > span:nth-of-type(22))) {
+  height: 100%;
+}
+
+.reveal pre.sourceCode:has(code > span:nth-of-type(22)),
+.reveal pre.model-summary-output:has(code > span:nth-of-type(22)) {
+  flex: 1 1 0;
+  height: 100% !important;
+  max-height: 100%;
+}
+
+/* Scrollable kable tables should behave like long code/output blocks. */
+.reveal .slides section.present.slide:has(.cell-output-display > div[style*="overflow-y: scroll"]) > .cell:has(.cell-output-display > div[style*="overflow-y: scroll"] table) {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.reveal .slides section.present.slide:has(.cell-output-display > div[style*="overflow-y: scroll"]) > .cell:has(.cell-output-display > div[style*="overflow-y: scroll"]),
+.reveal .cell:has(.cell-output-display > div[style*="overflow-y: scroll"]),
+.reveal .cell-output-display:has(> div[style*="overflow-y: scroll"]) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  width: 100%;
+}
+
+.reveal .cell-output-display > div[style*="overflow-y: scroll"] {
+  flex: 1 1 auto;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100%;
+  overflow: auto !important;
+}
+
+.reveal .slides section.present.slide:has(.cell-output-display > div[style*="overflow-y: scroll"] table tbody tr:nth-of-type(12)) > .cell:has(.cell-output-display > div[style*="overflow-y: scroll"]),
+.reveal .cell:has(.cell-output-display > div[style*="overflow-y: scroll"] table tbody tr:nth-of-type(12)),
+.reveal .cell-output-display:has(> div[style*="overflow-y: scroll"] table tbody tr:nth-of-type(12)),
+.reveal .cell-output-display > div[style*="overflow-y: scroll"]:has(table tbody tr:nth-of-type(12)) {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.reveal .cell-output-display > div[style*="overflow-y: scroll"]:has(table tbody tr:nth-of-type(12)) {
+  height: 100% !important;
 }
 
 /* Dense side-by-side comparison of printed model internals. */
