@@ -1291,6 +1291,7 @@ glmmTMB currently also does not allow partner-interdependence across time, but I
 A dynamic MLM can account for temporal dependence by including lagged within-person centered outcomes as predictors (include both actor inertia and partner spillover).
 
 But: 
+
 - The APIM coefficients become effects conditional on prior closeness, not total within-person associations. 
 - Lagged-outcome models can also suffer from dynamic-panel bias, often called Nickell bias [@nickellBiasesDynamicModels1981], because the lagged outcome is related to person/couple effects and prior residuals. This is especially problematic with short time series. 
   - One solution for the Nickell bias is to use multilevel DSEM through MPLUS. 
@@ -1822,13 +1823,15 @@ reintroducing a single shared intercept `1`.
 - For the residual, we want to constrain both partners' variances to be equal.
 Often, this is attempted via: `(1 | coupleID)`.
   - This gives both partners the same dyad-level random intercept variance.
-  - With the usual Gaussian residual variance still present, the implied partner correlation is positive but not freely estimated: `tau^2 / (tau^2 + sigma^2)`.
+  - With the usual Gaussian residual variance still present, the implied partner correlation is positive but not freely estimated: $\frac{\tau^2}{\tau^2 + \sigma^2}$.
   - If residual variance is removed with `dispformula = ~ 0`, the shared random intercept would imply a correlation near 1, which is too restrictive.
+  
+## Exchangeable Dyads - Cross-Sectional APIM: glmmTMB
 
 One solution in glmmTMB is the following:
 
 ```{r fit-exch-apim-glmmtmb, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-dist-apim-relocate-indicators'}
-#| code-line-numbers: "1-3|5-6|8-12"
+#| code-line-numbers: "1-5|7-8|10-16"
 model_exch_apim_glmmtmb <- glmmTMB(
   satisfaction ~
 
@@ -1862,11 +1865,13 @@ summary(model_exch_apim_glmmtmb)
 
 ## Exchangeable Dyads - Cross-Sectional APIM: glmmTMB
 
-The gender-coded cross-sectional version does not transfer directly to ILD. For repeated measures, we instead index the homogeneous two-partner residual structure at the couple-day level, as shown later.
+- The gender-coded cross-sectional version does not transfer directly to ILD. 
+
+- For repeated measures, we instead index the homogeneous two-partner residual structure at the couple-day level, as shown later.
 
 ## Exchangeable Dyads - Cross-Sectional APIM: brms
 
-In brms, this issue can also be solved with a native residual correlation structure
+In brms, this issue can be solved more easily with a native residual correlation structure
 and one pooled residual variance:
 
 ```{r fit-exch-apim-brms, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-dist-apim-relocate-indicators'}
@@ -2659,6 +2664,7 @@ print_df(print_couple_preview(df_long_dim, couple_id = "31", days = 0:4))
 ## Exchangeable Dyads - L-DIM/L-APIM: glmmTMB
 
 ```{r fit-exch-long-apim-glmmtmb, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-exch-long-idiff'}
+#| code-line-numbers: "1-4|6-11|13-18|20-21|23-28|30-34|36-39"
 
 model_exch_long_apim_glmmtmb <- glmmTMB(
   closeness ~ 1 +
@@ -2695,7 +2701,8 @@ model_exch_long_apim_glmmtmb <- glmmTMB(
     # Homogeneous same-day residual covariance between partners:
     homcs(0 + is_partner1 + is_partner2 | coupleID:diaryday)
 
-  # In glmmTMB always remove the residual variance if modelling via random effects.
+  # We remove the additional independent residual variance
+  # (only if the family has a native residual!)
   , dispformula = ~ 0
   , data = df_long_dim
 )
@@ -2718,6 +2725,7 @@ Unlike the distinguishable longitudinal model, this exchangeable specification k
 :::
 
 ```{r fit-exch-long-apim-brms, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-exch-long-idiff'}
+#| code-line-numbers: "1-4|6-12|14-15|17-22|24-25|27-29"
 
 formula_exch_long_apim <- bf(
   closeness ~ 1 +
@@ -2779,6 +2787,7 @@ model_exch_long_apim <- brm(
 The equivalent DIM specification:
 
 ```{r fit-exch-long-dim-brms, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-exch-long-idiff'}
+#| code-line-numbers: "7-11|13-17| 19-20"
 
 # DIM Version
 formula_exch_long_dim <- bf(
@@ -2847,6 +2856,8 @@ This equivalence assumes exactly two rows per couple-day, independent sum and di
 
 The model code keeps `homcs(...)` because it states the residual structure more directly.
 
+It does also not need back-transformation. 
+
 ## Exchangeable Dyads - L-DIM/L-APIM: Results
 
 Comparing APIM (left) and DIM (right) output of fixed effects.
@@ -2891,8 +2902,8 @@ print_df(
 :::
 :::
 
-
-Equivalence holds on both levels. Numeric deviations arise due to priors, sampling noise, and rounding.
+- Equivalence holds on both levels. Numeric deviations arise due to priors, sampling noise, and rounding.
+  
 
 ## Exchangeable Dyads - L-DIM/L-APIM: Results
 

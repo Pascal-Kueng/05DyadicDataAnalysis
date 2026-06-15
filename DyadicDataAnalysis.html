@@ -849,10 +849,10 @@ margin: 0 0 0.25em;
 font-size: 0.82em;
 }
 .reveal pre.model-compare-output {
-flex: 1 1 auto;
+flex: 0 1 auto;
 min-height: 0;
-max-height: 100%;
-height: 100%;
+max-height: 100vh;
+height: auto;
 margin: 0;
 padding: 0.75em;
 overflow: auto;
@@ -864,6 +864,11 @@ font-size: 0.33em;
 line-height: 1.06;
 text-align: left;
 white-space: pre;
+}
+.reveal .model-comparison pre.model-compare-output {
+flex: 1 1 auto;
+max-height: 100%;
+height: 100%;
 }
 .reveal pre.model-compare-output code {
 font-size: inherit;
@@ -4375,7 +4380,14 @@ Conditional model:
 <section id="excursion-dynamic-workaround" class="slide level2">
 <h2>Excursion: Dynamic Workaround</h2>
 <p>A dynamic MLM can account for temporal dependence by including lagged within-person centered outcomes as predictors (include both actor inertia and partner spillover).</p>
-<p>But: - The APIM coefficients become effects conditional on prior closeness, not total within-person associations. - Lagged-outcome models can also suffer from dynamic-panel bias, often called Nickell bias <span class="citation" data-cites="nickellBiasesDynamicModels1981">(<a href="#/references" role="doc-biblioref" onclick>Nickell, 1981</a>)</span>, because the lagged outcome is related to person/couple effects and prior residuals. This is especially problematic with short time series. - One solution for the Nickell bias is to use multilevel DSEM through MPLUS.</p>
+<p>But:</p>
+<ul>
+<li>The APIM coefficients become effects conditional on prior closeness, not total within-person associations.</li>
+<li>Lagged-outcome models can also suffer from dynamic-panel bias, often called Nickell bias <span class="citation" data-cites="nickellBiasesDynamicModels1981">(<a href="#/references" role="doc-biblioref" onclick>Nickell, 1981</a>)</span>, because the lagged outcome is related to person/couple effects and prior residuals. This is especially problematic with short time series.
+<ul>
+<li>One solution for the Nickell bias is to use multilevel DSEM through MPLUS.</li>
+</ul></li>
+</ul>
 </section>
 <section id="maximal-model-specification-non-dynamicno-ar1" class="slide level2">
 <h2>Maximal Model Specification (non-dynamic/no AR(1))</h2>
@@ -5626,13 +5638,16 @@ The difference in predictive accuracy, as indexed by Expected Log Predictive Den
 <li><p>For the residual, we want to constrain both partners’ variances to be equal. Often, this is attempted via: <code>(1 | coupleID)</code>.</p>
 <ul>
 <li>This gives both partners the same dyad-level random intercept variance.</li>
-<li>With the usual Gaussian residual variance still present, the implied partner correlation is positive but not freely estimated: <code>tau^2 / (tau^2 + sigma^2)</code>.</li>
+<li>With the usual Gaussian residual variance still present, the implied partner correlation is positive but not freely estimated: <span class="math inline">\(\frac{\tau^2}{\tau^2 + \sigma^2}\)</span>.</li>
 <li>If residual variance is removed with <code>dispformula = ~ 0</code>, the shared random intercept would imply a correlation near 1, which is too restrictive.</li>
 </ul></li>
 </ul>
+</section>
+<section id="exchangeable-dyads---cross-sectional-apim-glmmtmb-1" class="slide level2">
+<h2>Exchangeable Dyads - Cross-Sectional APIM: glmmTMB</h2>
 <p>One solution in glmmTMB is the following:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34" data-code-line-numbers="1-3|5-6|8-12"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href></a>model_exch_apim_glmmtmb <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34" data-code-line-numbers="1-5|7-8|10-16"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href></a>model_exch_apim_glmmtmb <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
 <span id="cb34-2"><a href></a>  satisfaction <span class="sc">~</span></span>
 <span id="cb34-3"><a href></a></span>
 <span id="cb34-4"><a href></a>    <span class="co"># Pooled single intercept</span></span>
@@ -5653,7 +5668,7 @@ The difference in predictive accuracy, as indexed by Expected Log Predictive Den
 <span id="cb34-19"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
-<section id="exchangeable-dyads---cross-sectional-apim-glmmtmb-1" class="slide level2">
+<section id="exchangeable-dyads---cross-sectional-apim-glmmtmb-2" class="slide level2">
 <h2>Exchangeable Dyads - Cross-Sectional APIM: glmmTMB</h2>
 <p>This successfully returns a single pooled residual variance, and a correlation between partners:</p>
 <div class="cell">
@@ -5685,13 +5700,16 @@ The difference in predictive accuracy, as indexed by Expected Log Predictive Den
 </div>
 </div>
 </section>
-<section id="exchangeable-dyads---cross-sectional-apim-glmmtmb-2" class="slide level2">
+<section id="exchangeable-dyads---cross-sectional-apim-glmmtmb-3" class="slide level2">
 <h2>Exchangeable Dyads - Cross-Sectional APIM: glmmTMB</h2>
-<p>The gender-coded cross-sectional version does not transfer directly to ILD. For repeated measures, we instead index the homogeneous two-partner residual structure at the couple-day level, as shown later.</p>
+<ul>
+<li><p>The gender-coded cross-sectional version does not transfer directly to ILD.</p></li>
+<li><p>For repeated measures, we instead index the homogeneous two-partner residual structure at the couple-day level, as shown later.</p></li>
+</ul>
 </section>
 <section id="exchangeable-dyads---cross-sectional-apim-brms" class="slide level2">
 <h2>Exchangeable Dyads - Cross-Sectional APIM: brms</h2>
-<p>In brms, this issue can also be solved with a native residual correlation structure and one pooled residual variance:</p>
+<p>In brms, this issue can be solved more easily with a native residual correlation structure and one pooled residual variance:</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36" data-code-line-numbers="1-13|15-20|22-33"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href></a>formula_exch_apim <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
 <span id="cb36-2"><a href></a>  satisfaction <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span></span>
@@ -7171,7 +7189,7 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <section id="exchangeable-dyads---l-diml-apim-glmmtmb" class="slide level2">
 <h2>Exchangeable Dyads - L-DIM/L-APIM: glmmTMB</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href></a>model_exch_long_apim_glmmtmb <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45" data-code-line-numbers="1-4|6-11|13-18|20-21|23-28|30-34|36-39"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href></a>model_exch_long_apim_glmmtmb <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
 <span id="cb45-2"><a href></a>  closeness <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span></span>
 <span id="cb45-3"><a href></a></span>
 <span id="cb45-4"><a href></a>    diaryday_c <span class="sc">+</span></span>
@@ -7206,10 +7224,11 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <span id="cb45-33"><a href></a>    <span class="co"># Homogeneous same-day residual covariance between partners:</span></span>
 <span id="cb45-34"><a href></a>    <span class="fu">homcs</span>(<span class="dv">0</span> <span class="sc">+</span> is_partner1 <span class="sc">+</span> is_partner2 <span class="sc">|</span> coupleID<span class="sc">:</span>diaryday)</span>
 <span id="cb45-35"><a href></a></span>
-<span id="cb45-36"><a href></a>  <span class="co"># In glmmTMB always remove the residual variance if modelling via random effects.</span></span>
-<span id="cb45-37"><a href></a>  , <span class="at">dispformula =</span> <span class="sc">~</span> <span class="dv">0</span></span>
-<span id="cb45-38"><a href></a>  , <span class="at">data =</span> df_long_dim</span>
-<span id="cb45-39"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb45-36"><a href></a>  <span class="co"># We remove the additional independent residual variance</span></span>
+<span id="cb45-37"><a href></a>  <span class="co"># (only if the family has a native residual!)</span></span>
+<span id="cb45-38"><a href></a>  , <span class="at">dispformula =</span> <span class="sc">~</span> <span class="dv">0</span></span>
+<span id="cb45-39"><a href></a>  , <span class="at">data =</span> df_long_dim</span>
+<span id="cb45-40"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="exchangeable-dyads---l-diml-apim-glmmtmb-1" class="slide level2">
@@ -7276,7 +7295,7 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <p>Unlike the distinguishable longitudinal model, this exchangeable specification keeps one pooled residual <code>sigma</code> (<code>sigma ~ 1</code> is implied). Its residual SD prior therefore targets <code>class = &quot;sigma&quot;</code> directly.</p>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href></a>formula_exch_long_apim <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47" data-code-line-numbers="1-4|6-12|14-15|17-22|24-25|27-29"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href></a>formula_exch_long_apim <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
 <span id="cb47-2"><a href></a>  closeness <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span></span>
 <span id="cb47-3"><a href></a></span>
 <span id="cb47-4"><a href></a>    diaryday_c <span class="sc">+</span></span>
@@ -7333,7 +7352,7 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <h2>Exchangeable Dyads - L-DIM/L-APIM: brms</h2>
 <p>The equivalent DIM specification:</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href></a><span class="co"># DIM Version</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48" data-code-line-numbers="7-11|13-17| 19-20"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href></a><span class="co"># DIM Version</span></span>
 <span id="cb48-2"><a href></a>formula_exch_long_dim <span class="ot">&lt;-</span> <span class="fu">bf</span>(</span>
 <span id="cb48-3"><a href></a>  closeness <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span></span>
 <span id="cb48-4"><a href></a></span>
@@ -7393,6 +7412,7 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <p>For two partners coded with <code>Idiff = +1</code> and <code>Idiff = -1</code>, the glmmTMB residual structures <code>homcs(0 + is_partner1 + is_partner2 | coupleID:diaryday)</code> and <code>(1 | coupleID:diaryday) + (0 + Idiff | coupleID:diaryday)</code> imply the same homogeneous two-partner residual covariance.</p>
 <p>This equivalence assumes exactly two rows per couple-day, independent sum and difference random-effect blocks, and <code>dispformula = ~ 0</code>.</p>
 <p>The model code keeps <code>homcs(...)</code> because it states the residual structure more directly.</p>
+<p>It does also not need back-transformation.</p>
 </section>
 <section id="exchangeable-dyads---l-diml-apim-results" class="slide level2">
 <h2>Exchangeable Dyads - L-DIM/L-APIM: Results</h2>
@@ -7501,7 +7521,22 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 </div>
 </div>
 </div></div>
-<p>Equivalence holds on both levels. Numeric deviations arise due to priors, sampling noise, and rounding.</p>
+<ul>
+<li>Equivalence holds on both levels. Numeric deviations arise due to priors, sampling noise, and rounding.
+<ul>
+<li>Within-person:
+<ul>
+<li><span class="math inline">\(0.30 + 0.15 = 0.45\)</span></li>
+<li><span class="math inline">\(0.30 - 0.15 = 0.15\)</span></li>
+</ul></li>
+<li>Bewteen-Person:
+<ul>
+<li><span class="math inline">\(1.30 + 0.40 = 1.70\)</span></li>
+<li><span class="math inline">\(1.30 - 0.40 = 0.90\)</span></li>
+</ul></li>
+</ul></li>
+</ul>
+<p>!TODO: holds for residual variances too!!! should we include?</p>
 </section>
 <section id="exchangeable-dyads---l-diml-apim-results-1" class="slide level2">
 <h2>Exchangeable Dyads - L-DIM/L-APIM: Results</h2>
