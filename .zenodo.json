@@ -20,10 +20,10 @@
   ],
   "license": "cc-by-4.0",
   "language": "eng",
-  "version": "v2.0.4",
+  "version": "v2.0.5",
   "related_identifiers": [
     {
-      "identifier": "10.5281/zenodo.20709724",
+      "identifier": "10.5281/zenodo.20709781",
       "relation": "isNewVersionOf",
       "scheme": "doi",
       "resource_type": "publication-report"
