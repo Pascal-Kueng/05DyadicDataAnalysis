@@ -2181,7 +2181,6 @@ print_df(
 
 ```{=html}
 
-<section data-background-color="#ffffff">
   <p style="margin-top:0;font-size:1.2rem;max-width:1100px;">
     Top sliders: grand-mean-centered <em>Communication</em> for <strong>Actor</strong> and <strong>Partner</strong> (APIM).<br>
     Bottom sliders: reparameterized communication — <strong>Centered Between-Couple</strong> (<code>x<sub>cbc</sub></code>) and <strong>Centered Within-Couple</strong> (<code>x<sub>cwc</sub></code>) (DIM).<br>
@@ -2446,15 +2445,9 @@ print_df(
     updateOutputs(); render();
   });
 
-  updateOutputs(); render();
+updateOutputs(); render();
 })();
 </script>
-
-
-</section>
-
-
-
 ```
 
 ## Equivalence APIM and DIM {data-background-color="#101820" .sumdiff-slide}
@@ -2584,7 +2577,9 @@ print_df(
       gap:7px;
       font-family:'STIX Two Text','Times New Roman',serif;
       font-size:.98rem;
+      font-variant-numeric:tabular-nums;
     }
+    .sd2-equations > div{white-space:nowrap}
     .sd2-eq-label{
       font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
       font-size:.64rem;
@@ -2594,6 +2589,30 @@ print_df(
       font-weight:800;
       margin-right:8px;
     }
+    .sd2-var{font-style:italic}
+    .sd2-var sub,
+    .sd2-beta sub{
+      font-style:normal;
+      font-size:.68em;
+    }
+    .sd2-num{
+      display:inline-block;
+      min-width:5.4ch;
+      text-align:right;
+      font-variant-numeric:tabular-nums;
+    }
+    .sd2-result{
+      display:inline-block;
+      min-width:5.7ch;
+      text-align:right;
+      font-weight:800;
+      font-variant-numeric:tabular-nums;
+    }
+    .sd2-sign-pad{
+      display:inline-block;
+      width:1ch;
+    }
+    .sd2-times{padding:0 .08em}
     .sd2-grid-wrap{
       display:grid;
       grid-template-columns:minmax(320px,380px) minmax(210px,260px);
@@ -2660,12 +2679,12 @@ print_df(
           APIM: individual coordinates
         </div>
         <div class="sd2-control sd2-control-actor">
-          <label for="sd2-actor">Actor predictor, x<sub>actor</sub></label>
+          <label for="sd2-actor">Actor predictor, <span class="sd2-var">x<sub>actor</sub></span></label>
           <output id="sd2-out-actor" style="color:var(--actor)">0.0</output>
           <input id="sd2-actor" type="range" min="-5" max="5" step="0.1" value="0">
         </div>
         <div class="sd2-control sd2-control-partner">
-          <label for="sd2-partner">Partner predictor, x<sub>partner</sub></label>
+          <label for="sd2-partner">Partner predictor, <span class="sd2-var">x<sub>partner</sub></span></label>
           <output id="sd2-out-partner" style="color:var(--partner)">0.0</output>
           <input id="sd2-partner" type="range" min="-5" max="5" step="0.1" value="0">
         </div>
@@ -2675,23 +2694,23 @@ print_df(
         <div class="sd2-group-title">
           <span class="sd2-dot" style="background:var(--cbc)"></span>
           <span class="sd2-dot" style="background:var(--cwc)"></span>
-          DIM: sum and difference coordinates
+          DIM: mean and deviation coordinates
         </div>
         <div class="sd2-control sd2-control-cbc">
-          <label for="sd2-cbc">Couple mean, x<sub>cbc</sub></label>
+          <label for="sd2-cbc">Couple mean, <span class="sd2-var">x<sub>cbc</sub></span></label>
           <output id="sd2-out-cbc" style="color:var(--cbc)">0.0</output>
-          <input id="sd2-cbc" type="range" min="-5" max="5" step="0.05" value="0">
+          <input id="sd2-cbc" type="range" min="-5" max="5" step="0.1" value="0">
         </div>
         <div class="sd2-control sd2-control-cwc">
-          <label for="sd2-cwc">Couple deviation, x<sub>cwc</sub></label>
+          <label for="sd2-cwc">Couple deviation, <span class="sd2-var">x<sub>cwc</sub></span></label>
           <output id="sd2-out-cwc" style="color:var(--cwc)">0.0</output>
-          <input id="sd2-cwc" type="range" min="-5" max="5" step="0.05" value="0">
+          <input id="sd2-cwc" type="range" min="-5" max="5" step="0.1" value="0">
         </div>
       </div>
 
       <div class="sd2-relations">
-        <div>x<sub>cbc</sub> = (x<sub>actor</sub> + x<sub>partner</sub>) / 2</div>
-        <div>x<sub>cwc</sub> = (x<sub>actor</sub> - x<sub>partner</sub>) / 2</div>
+        <div><span class="sd2-var">x<sub>cbc</sub></span> = (<span class="sd2-var">x<sub>actor</sub></span> + <span class="sd2-var">x<sub>partner</sub></span>) / 2</div>
+        <div><span class="sd2-var">x<sub>cwc</sub></span> = (<span class="sd2-var">x<sub>actor</sub></span> − <span class="sd2-var">x<sub>partner</sub></span>) / 2</div>
       </div>
     </div>
 
@@ -2716,16 +2735,16 @@ print_df(
 
         <div class="sd2-explain">
           <div>
-            <strong>Between-couple effect: the sum.</strong>
+            <strong>Between-couple effect: the mean.</strong>
             If both partners increase by 1, the couple mean increases by 1 and the deviation stays 0.
-            <button class="sd2-demo" id="sd2-demo-sum" type="button">Demonstrate</button>
-            <div class="sd2-mini-eq">b<sub>cbc</sub> = b<sub>actor</sub> + b<sub>partner</sub></div>
+            <button class="sd2-demo" id="sd2-demo-mean" type="button">Demonstrate</button>
+            <div class="sd2-mini-eq"><span class="sd2-beta">b<sub>cbc</sub></span> = <span class="sd2-beta">b<sub>actor</sub></span> + <span class="sd2-beta">b<sub>partner</sub></span></div>
           </div>
           <div>
-            <strong>Within-couple effect: the difference.</strong>
+            <strong>Within-couple effect: the deviation.</strong>
             If the actor increases by 1 and the partner decreases by 1, the couple mean stays 0 and the deviation increases by 1.
-            <button class="sd2-demo" id="sd2-demo-diff" type="button">Demonstrate</button>
-            <div class="sd2-mini-eq">b<sub>cwc</sub> = b<sub>actor</sub> − b<sub>partner</sub></div>
+            <button class="sd2-demo" id="sd2-demo-deviation" type="button">Demonstrate</button>
+            <div class="sd2-mini-eq"><span class="sd2-beta">b<sub>cwc</sub></span> = <span class="sd2-beta">b<sub>actor</sub></span> − <span class="sd2-beta">b<sub>partner</sub></span></div>
           </div>
           <div>
             The dot lives in APIM space: horizontal = actor predictor, vertical = partner predictor. The diagonal axes show the same point in DIM space.
@@ -2743,13 +2762,12 @@ print_df(
   <script>
   (function(){
     const root = document.currentScript.closest('section');
-    const BASE_MIN = -5, BASE_MAX = 5, PLOT_DOMAIN = 10;
+    const MIN = -5, MAX = 5, PLOT_DOMAIN = 5;
     const c = {actor:'#4E94F8', partner:'#A78BFA', cbc:'#E26A5C', cwc:'#FBBF24'};
     const coefData = root.querySelector('#sd2-coefs').dataset;
     const b0 = Number(coefData.b0), bA = Number(coefData.ba), bP = Number(coefData.bp);
     const bCbc = +(bA + bP).toFixed(2);
     const bCwc = +(bA - bP).toFixed(2);
-    const state = {a:0, p:0, m:0, w:0};
 
     const el = id => root.querySelector('#' + id);
     const actor = el('sd2-actor'), partner = el('sd2-partner'), cbc = el('sd2-cbc'), cwc = el('sd2-cwc');
@@ -2758,69 +2776,94 @@ print_df(
     const point = el('sd2-point'), halo = el('sd2-halo'), svg = el('sd2-svg');
 
     const r1 = x => Math.round(Number(x) * 10) / 10;
-    const r2 = x => Math.round(Number(x) * 100) / 100;
     const fmt = x => (Math.abs(x) < 1e-10 ? 0 : x).toFixed(2);
+    const mathNum = (x, color = null, result = false) => {
+      const value = Math.abs(x) < 1e-10 ? 0 : x;
+      const sign = value < 0 ? '−' : '<span class="sd2-sign-pad" aria-hidden="true"></span>';
+      const style = color ? ` style="color:${color}"` : '';
+      const cls = result ? 'sd2-result' : 'sd2-num';
+      return `<span class="${cls}"${style}>${sign}${Math.abs(value).toFixed(2)}</span>`;
+    };
+    const beta = name => `<span class="sd2-beta">b<sub>${name}</sub></span>`;
     const xPix = x => 160 + x * (130 / PLOT_DOMAIN);
     const yPix = y => 160 - y * (130 / PLOT_DOMAIN);
+    const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, Number(x)));
 
-    function syncSlider(slider, value){
-      const lo = Math.min(BASE_MIN, Math.floor(value));
-      const hi = Math.max(BASE_MAX, Math.ceil(value));
-      slider.min = lo;
-      slider.max = hi;
-      slider.value = value;
+    function feasibleA(p){
+      return [Math.max(MIN, 2 * MIN - p, 2 * MIN + p),
+              Math.min(MAX, 2 * MAX - p, 2 * MAX + p)];
     }
-    function syncInputs(){
-      syncSlider(actor, state.a);
-      syncSlider(partner, state.p);
-      syncSlider(cbc, state.m);
-      syncSlider(cwc, state.w);
+    function feasibleP(a){
+      return [Math.max(MIN, 2 * MIN - a, a - 2 * MAX),
+              Math.min(MAX, 2 * MAX - a, a - 2 * MIN)];
+    }
+    function feasibleM(w){
+      return [Math.max(MIN, MIN - w, MIN + w),
+              Math.min(MAX, MAX - w, MAX + w)];
+    }
+    function feasibleW(m){
+      return [Math.max(MIN, MIN - m, m - MAX),
+              Math.min(MAX, MAX - m, m - MIN)];
     }
 
     function setFromAP(a, p){
-      state.a = r1(a);
-      state.p = r1(p);
-      state.m = r2((state.a + state.p) / 2);
-      state.w = r2((state.a - state.p) / 2);
-      syncInputs();
+      const aClamped = r1(clamp(a, MIN, MAX));
+      const pClamped = r1(clamp(p, MIN, MAX));
+      actor.value = aClamped;
+      partner.value = pClamped;
+      cbc.value = r1((aClamped + pClamped) / 2);
+      cwc.value = r1((aClamped - pClamped) / 2);
       render();
     }
     function setFromDIM(m, w){
-      state.m = r2(m);
-      state.w = r2(w);
-      state.a = r2(state.m + state.w);
-      state.p = r2(state.m - state.w);
-      syncInputs();
+      const mClamped = r1(clamp(m, ...feasibleM(w)));
+      const wClamped = r1(clamp(w, ...feasibleW(mClamped)));
+      cbc.value = mClamped;
+      cwc.value = wClamped;
+      actor.value = r1(mClamped + wClamped);
+      partner.value = r1(mClamped - wClamped);
       render();
     }
     function moveActor(){
-      setFromAP(actor.value, state.p);
+      const p = r1(partner.value);
+      const bounds = feasibleA(p);
+      const a = r1(clamp(actor.value, bounds[0], bounds[1]));
+      setFromAP(a, p);
     }
     function movePartner(){
-      setFromAP(state.a, partner.value);
+      const a = r1(actor.value);
+      const bounds = feasibleP(a);
+      const p = r1(clamp(partner.value, bounds[0], bounds[1]));
+      setFromAP(a, p);
     }
     function moveCbc(){
-      setFromDIM(cbc.value, state.w);
+      const w = r1(cwc.value);
+      const bounds = feasibleM(w);
+      const m = r1(clamp(cbc.value, bounds[0], bounds[1]));
+      setFromDIM(m, w);
     }
     function moveCwc(){
-      setFromDIM(state.m, cwc.value);
+      const m = r1(cbc.value);
+      const bounds = feasibleW(m);
+      const w = r1(clamp(cwc.value, bounds[0], bounds[1]));
+      setFromDIM(m, w);
     }
 
     function render(){
-      const {a, p, m, w} = state;
+      const a = Number(actor.value), p = Number(partner.value), m = Number(cbc.value), w = Number(cwc.value);
       outA.value = a.toFixed(1); outP.value = p.toFixed(1); outCbc.value = m.toFixed(2); outCwc.value = w.toFixed(2);
       const yA = b0 + bA * a + bP * p;
       const yD = b0 + bCbc * m + bCwc * w;
-      eqA.innerHTML = `Ŷ = ${fmt(b0)} + ${fmt(bA)} × <span style="color:${c.actor}">${fmt(a)}</span> + ${fmt(bP)} × <span style="color:${c.partner}">${fmt(p)}</span> = <strong>${fmt(yA)}</strong>`;
-      eqD.innerHTML = `Ŷ = ${fmt(b0)} + ${fmt(bCbc)} × <span style="color:${c.cbc}">${fmt(m)}</span> + ${fmt(bCwc)} × <span style="color:${c.cwc}">${fmt(w)}</span> = <strong>${fmt(yD)}</strong>`;
-      eqC.innerHTML = `b<sub>cbc</sub> = ${fmt(bA)} + ${fmt(bP)} = ${fmt(bCbc)}; &nbsp; b<sub>cwc</sub> = ${fmt(bA)} − ${fmt(bP)} = ${fmt(bCwc)}`;
+      eqA.innerHTML = `<span class="sd2-var">Ŷ</span> = ${mathNum(b0)} + ${mathNum(bA)} <span class="sd2-times">×</span> ${mathNum(a, c.actor)} + ${mathNum(bP)} <span class="sd2-times">×</span> ${mathNum(p, c.partner)} = ${mathNum(yA, null, true)}`;
+      eqD.innerHTML = `<span class="sd2-var">Ŷ</span> = ${mathNum(b0)} + ${mathNum(bCbc)} <span class="sd2-times">×</span> ${mathNum(m, c.cbc)} + ${mathNum(bCwc)} <span class="sd2-times">×</span> ${mathNum(w, c.cwc)} = ${mathNum(yD, null, true)}`;
+      eqC.innerHTML = `${beta('cbc')} = ${mathNum(bA)} + ${mathNum(bP)} = ${mathNum(bCbc)}; &nbsp; ${beta('cwc')} = ${mathNum(bA)} − ${mathNum(bP)} = ${mathNum(bCwc)}`;
       point.setAttribute('cx', xPix(a)); point.setAttribute('cy', yPix(p));
       halo.setAttribute('cx', xPix(a)); halo.setAttribute('cy', yPix(p));
     }
 
     function drawGrid(){
       const g = el('sd2-grid-lines');
-      const ticks = [-8, -4, 0, 4, 8];
+      const ticks = [-4, -2, 0, 2, 4];
       let html = '';
       ticks.forEach(t => {
         const main = t === 0 ? 1.5 : 1;
@@ -2831,10 +2874,10 @@ print_df(
       });
       g.innerHTML = html;
       el('sd2-axis-labels').innerHTML = `
-        <text x="286" y="154" fill="${c.actor}" font-size="9" font-weight="800" text-anchor="end">x<tspan baseline-shift="sub" font-size="7">actor</tspan></text>
-        <text x="160" y="22" fill="${c.partner}" font-size="9" font-weight="800" text-anchor="middle">x<tspan baseline-shift="sub" font-size="7">partner</tspan></text>
-        <g transform="translate(${xPix(6.3)},${yPix(6.3)}) rotate(-45)"><text fill="${c.cbc}" font-size="8" font-weight="800" text-anchor="middle">x<tspan baseline-shift="sub" font-size="6">cbc</tspan></text></g>
-        <g transform="translate(${xPix(6.3)},${yPix(-6.3)}) rotate(45)"><text fill="${c.cwc}" font-size="8" font-weight="800" text-anchor="middle">x<tspan baseline-shift="sub" font-size="6">cwc</tspan></text></g>`;
+        <text x="286" y="148" fill="${c.actor}" font-size="12" font-style="italic" font-weight="800" text-anchor="end">x<tspan baseline-shift="sub" font-size="8.5" font-style="normal">actor</tspan></text>
+        <text x="150" y="22" fill="${c.partner}" font-size="12" font-style="italic" font-weight="800" text-anchor="middle">x<tspan baseline-shift="sub" font-size="8.5" font-style="normal">partner</tspan></text>
+        <g transform="translate(${xPix(3.4)},${yPix(3.4)}) rotate(-45)"><text y="-7" fill="${c.cbc}" font-size="11" font-style="italic" font-weight="800" text-anchor="middle">x<tspan baseline-shift="sub" font-size="8" font-style="normal">cbc</tspan></text></g>
+        <g transform="translate(${xPix(3.4)},${yPix(-3.4)}) rotate(45)"><text y="-7" fill="${c.cwc}" font-size="11" font-style="italic" font-weight="800" text-anchor="middle">x<tspan baseline-shift="sub" font-size="8" font-style="normal">cwc</tspan></text></g>`;
     }
 
     function gridToAP(evt){
@@ -2867,8 +2910,8 @@ print_df(
       });
     }
     bindButton('sd2-reset', () => setFromAP(0, 0));
-    bindButton('sd2-demo-sum', () => setFromAP(1, 1));
-    bindButton('sd2-demo-diff', () => setFromAP(1, -1));
+    bindButton('sd2-demo-mean', () => setFromAP(1, 1));
+    bindButton('sd2-demo-deviation', () => setFromAP(1, -1));
 
     drawGrid();
     setFromAP(0, 0);
@@ -3031,7 +3074,7 @@ df_long_dim <- df_long_apim2 %>%
 
 ```
 
-## Exchangeable Dyads - L-DIM/L-APIM: Preparing the sum and difference approach
+## Exchangeable Dyads - L-DIM/L-APIM: Preparing the Mean-Deviation Idiff Approach
 
 We need to randomly assign -1 and +1 for each Partner within each couple.
 This will be needed for contrast coding the intercept.
@@ -3063,7 +3106,7 @@ print_df(print_couple_preview(df_long_dim, couple_id = "31"))
 ```
 
 
-## Exchangeable Dyads - L-DIM/L-APIM: Preparing the Sum and Difference Approach
+## Exchangeable Dyads - L-DIM/L-APIM: Preparing the Mean-Deviation Idiff Approach
 
 ```{r data-exch-long-idiff, echo=FALSE, cache=TRUE, dependson='data-exch-long-dim-create'}
 set.seed(123)
@@ -3264,11 +3307,11 @@ model_exch_long_dim <- brm(
 
 ## Exchangeable Dyads - L-DIM/L-APIM: Explanation Idiff
 
-For appropriate random effects, we can use the Sum and Difference approach [@delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]:
+For appropriate exchangeable random effects, we can use mean-deviation `Idiff` coding [@delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]:
 
 * Randomly give one partner a constant of -1 and the other a constant of 1
-* The couple-level intercept represents the average of the two partners' intercepts; the corresponding sum would be twice this value. `(1 | coupleID)`
-* A column of 1s and -1s represent deviations (difference) of each partner from the couple intercept with each partner contributing equally in one direction (+1 and -1)
+* The couple-level intercept represents the average/common intercept of the two partners. `(1 | coupleID)`
+* A column of 1s and -1s represents each partner's deviation from the couple-level effect, with partners contributing equally in opposite directions (+1 and -1)
 
 Exchangeability is retained: if partners are flipped, the result is the same.
 
@@ -3278,7 +3321,7 @@ Exchangeability is retained: if partners are flipped, the result is the same.
 
 For two partners coded with `Idiff = +1` and `Idiff = -1`, the glmmTMB residual structures `homcs(0 + is_partner1 + is_partner2 | coupleID:diaryday)` and `(1 | coupleID:diaryday) + (0 + Idiff | coupleID:diaryday)` imply the same homogeneous two-partner residual covariance.
 
-This equivalence assumes exactly two rows per couple-day, independent sum and difference random-effect blocks, and `dispformula = ~ 0`.
+This equivalence assumes exactly two rows per couple-day, independent common/couple-mean and `Idiff` deviation random-effect blocks, and `dispformula = ~ 0`.
 
 The model code keeps `homcs(...)` because it states the residual structure more directly.
 
@@ -3361,15 +3404,22 @@ We can rotate the random effects structure back to obtain the full APIM Random e
 [@kenny_ackerman_2023].
 Just as we would in a SEM model with equality constraints!
 
-For example, the within-person variance of the intercept is:
+For example, the within-partner variance of the random intercept is:
 
-$$var(Intercept) + var(Idiff)$$
+$$
+\operatorname{Var}(u_{\text{common intercept}}) +
+\operatorname{Var}(u_{\text{Idiff intercept}})
+$$
 
-and the cross-person covariance of both partners' intercepts is:
+and the cross-partner covariance of both partners' random intercepts is:
 
-$$var(Intercept) - var(Idiff)$$
+$$
+\operatorname{Var}(u_{\text{common intercept}}) -
+\operatorname{Var}(u_{\text{Idiff intercept}})
+$$
 
-Note: This only holds true when the means and Idiffs are uncorrelated. This is why we put them in separate random effects blocks.
+In the model output, the common-intercept variance is labelled `Intercept`, and the deviation-intercept variance is labelled `Idiff`.
+This rotation only holds when the common/couple-mean and `Idiff` deviation random effects are uncorrelated. This is why we put them in separate random-effects blocks.
 
 ## Extract Full APIM Random Effects Variance-Covariance Matrix
 

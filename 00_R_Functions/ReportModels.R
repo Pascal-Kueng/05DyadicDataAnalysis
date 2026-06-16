@@ -72,7 +72,7 @@
 # 4. summarize_exchangeable_apim_brms
 ###################################
 # Description:
-# This function rotates the sum and Idiff random-effect blocks from an
+# This function rotates the common/couple-mean and Idiff deviation random-effect blocks from an
 # exchangeable-dyad brms model back to the full APIM partner-level
 # variance-covariance matrix. It performs the rotation for every posterior draw,
 # so SDs, correlations, covariances, fixed effects, and residual quantities can
@@ -2366,29 +2366,29 @@ summarize_exchangeable_apim_brms <- function(
   random_effects <- fit$ranef
   random_effects <- random_effects[random_effects$group == gr, ]
 
-  sum_terms <- random_effects$coef[!grepl(idiff, random_effects$coef)]
-  diff_terms <- random_effects$coef[grepl(idiff, random_effects$coef)]
+  common_terms <- random_effects$coef[!grepl(idiff, random_effects$coef)]
+  deviation_terms <- random_effects$coef[grepl(idiff, random_effects$coef)]
 
-  if (length(sum_terms) != length(diff_terms)) {
-    stop("The sum and Idiff random-effect blocks must contain the same number of terms.")
+  if (length(common_terms) != length(deviation_terms)) {
+    stop("The common/couple-mean and Idiff deviation random-effect blocks must contain the same number of terms.")
   }
 
   if (is.null(term_labels)) {
-    term_labels <- sum_terms
+    term_labels <- common_terms
   }
 
-  if (length(term_labels) != length(sum_terms)) {
-    stop("term_labels must have the same length as the sum random-effect terms.")
+  if (length(term_labels) != length(common_terms)) {
+    stop("term_labels must have the same length as the common/couple-mean random-effect terms.")
   }
 
   draws <- as.data.frame(posterior::as_draws_df(fit))
 
   covariance_draws <- purrr::map(seq_len(nrow(draws)), function(i) {
-    sigma_sum <- make_brms_covariance_draw(draws[i, ], sum_terms, gr = gr)
-    sigma_diff <- make_brms_covariance_draw(draws[i, ], diff_terms, gr = gr)
+    sigma_common <- make_brms_covariance_draw(draws[i, ], common_terms, gr = gr)
+    sigma_deviation <- make_brms_covariance_draw(draws[i, ], deviation_terms, gr = gr)
 
-    within_person <- sigma_sum + sigma_diff
-    cross_person <- sigma_sum - sigma_diff
+    within_person <- sigma_common + sigma_deviation
+    cross_person <- sigma_common - sigma_deviation
 
     full <- rbind(
       cbind(within_person, cross_person),

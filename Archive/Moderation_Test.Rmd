@@ -406,7 +406,7 @@ df_long_dim <- df_long_apim2 %>%
 
 ```
 
-## Exchangeable Dyads - Longitudinal DIM/APIM: Preparing the sum and difference approach
+## Exchangeable Dyads - Longitudinal DIM/APIM: Preparing the Mean-Deviation Idiff Approach
 
 We need to randomly assign -1 and +1 for each Partner within each couple. 
 This will be needed for contrast coding the intercept. 
@@ -432,7 +432,7 @@ print_df(print_couple_preview(df_long_dim, couple_id = "31"))
 ```
 
 
-## Exchangeable Dyads - Longitudinal DIM/APIM: Preparing the Sum and Difference Approach
+## Exchangeable Dyads - Longitudinal DIM/APIM: Preparing the Mean-Deviation Idiff Approach
 
 ```{r echo=FALSE}
 set.seed(123)
@@ -614,15 +614,22 @@ print_df(
 We can rotate the random effects structure back to obtain the full APIM Random effects variance-covariance matrix. 
 Just as we would in a SEM model with equality constraints!
 
-For example, the within-person variance of the intercept is:
+For example, the within-partner variance of the random intercept is:
 
-$$var(Intercept) + var(Idiff)$$ 
+$$
+\operatorname{Var}(u_{\text{common intercept}}) +
+\operatorname{Var}(u_{\text{Idiff intercept}})
+$$
 
-and the cross-person covariance of both partners' intercepts is:
+and the cross-partner covariance of both partners' random intercepts is:
 
-$$var(Intercept) - var(Idiff)$$
+$$
+\operatorname{Var}(u_{\text{common intercept}}) -
+\operatorname{Var}(u_{\text{Idiff intercept}})
+$$
 
-Note: This only holds true when the means and Idiffs are uncorrelated. This is why we put them in separate random effects blocks.  
+In the model output, the common-intercept variance is labelled `Intercept`, and the deviation-intercept variance is labelled `Idiff`.
+This rotation only holds when the common/couple-mean and `Idiff` deviation random effects are uncorrelated. This is why we put them in separate random-effects blocks.
 
 ## Extract Full APIM Random Effects Variance-Covariance Matrix
 
@@ -721,7 +728,5 @@ pkgs <- c("brms","bmlm","easystats","DHARMa","tidyverse","cmdstanr","loo","rstan
 knitr::write_bib(pkgs, "Embed/Rpackages.bib")
 
 ```
-
-
 
 

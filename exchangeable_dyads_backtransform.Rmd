@@ -120,7 +120,7 @@ model_exch_long_apim_glmmtmb <- glmmTMB(
 
     # Partner deviations from the dyad-level effects.
     # This block is kept separate from the dyad-level block so that the
-    # sum and difference components are independent.
+    # common/couple-mean and deviation components are independent.
     (0 + Idiff +
        I(Idiff * diaryday_c) +
        I(Idiff * provided_support_actor_cwp) +
@@ -141,7 +141,7 @@ model_exch_long_apim_glmmtmb <- glmmTMB(
 )
 ```
 
-The residual block could also be written as independent sum/difference terms:
+The residual block could also be written as independent common/deviation terms:
 
 ```{r glmmTMB-idiff-residual, eval=FALSE}
 (1 | coupleID:diaryday) +
@@ -149,7 +149,7 @@ The residual block could also be written as independent sum/difference terms:
 ```
 
 With `Idiff = +1/-1`, this has the same parameter count as `homcs(...)`: one
-sum variance and one difference variance, which rotate back to one homogeneous
+common variance and one deviation variance, which rotate back to one homogeneous
 residual variance and one residual covariance.
 
 # brms model
@@ -227,24 +227,24 @@ model_exch_long_apim <- readRDS(cached_fit)
 
 # Back-transformation
 
-The model estimates a sum block and an `Idiff` block. For exchangeable dyads,
+The model estimates a common/couple-mean block and an `Idiff` deviation block. For exchangeable dyads,
 the full APIM random-effects matrix is recovered by rotating these two blocks:
 
 $$
 \operatorname{Var}(A) = \operatorname{Var}(B) =
-\Sigma_{\text{sum}} + \Sigma_{\text{diff}}
+\Sigma_{\text{common}} + \Sigma_{\text{Idiff}}
 $$
 
 $$
 \operatorname{Cov}(A, B) =
-\Sigma_{\text{sum}} - \Sigma_{\text{diff}}
+\Sigma_{\text{common}} - \Sigma_{\text{Idiff}}
 $$
 
-This exact rotation assumes that the sum and difference random-effect blocks are
+This exact rotation assumes that the common/couple-mean and `Idiff` deviation random-effect blocks are
 independent.
 
 The helper function `summarize_exchangeable_apim_brms()` used below is defined in
-`00_R_Functions/ReportModels.R` on GitHub. It reconstructs the sum and `Idiff` covariance
+`00_R_Functions/ReportModels.R` on GitHub. It reconstructs the common/couple-mean and `Idiff` covariance
 matrices for every posterior draw, rotates each draw into the full APIM
 partner-level matrix, and then summarizes the transformed covariance, SD,
 correlation, fixed-effect, and residual quantities.

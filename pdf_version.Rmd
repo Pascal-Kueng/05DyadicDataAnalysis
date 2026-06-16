@@ -2447,7 +2447,7 @@ print_df(
 
 In the HTML slides, this section contains an interactive slider demonstration. In the PDF, the same APIM-DIM reparameterization is shown statically:
 
-- Actor and partner predictors can be rewritten as a dyad-level mean and a within-dyad difference.
+- Actor and partner predictors can be rewritten as a dyad-level mean and a within-dyad deviation (half-difference).
 - The DIM coefficients are a linear reparameterization of the APIM coefficients, so fitted values are unchanged when the same information is represented in either form.
 
 ```
@@ -2620,7 +2620,7 @@ df_long_dim <- df_long_apim2 %>%
 
 ```
 
-## Exchangeable Dyads - L-DIM/L-APIM: Preparing the sum and difference approach
+## Exchangeable Dyads - L-DIM/L-APIM: Preparing the Mean-Deviation Idiff Approach
 
 We need to randomly assign -1 and +1 for each Partner within each couple.
 This will be needed for contrast coding the intercept.
@@ -2662,7 +2662,7 @@ print_df(print_couple_preview_pdf(
 ```
 
 
-## Exchangeable Dyads - L-DIM/L-APIM: Preparing the Sum and Difference Approach
+## Exchangeable Dyads - L-DIM/L-APIM: Preparing the Mean-Deviation Idiff Approach
 
 ```{r data-exch-long-idiff, echo=FALSE, cache=TRUE, dependson='data-exch-long-dim-create'}
 set.seed(123)
@@ -2873,11 +2873,11 @@ model_exch_long_dim <- brm(
 
 ## Exchangeable Dyads - L-DIM/L-APIM: Explanation Idiff
 
-For appropriate random effects, we can use the Sum and Difference approach [@delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]:
+For appropriate exchangeable random effects, we can use mean-deviation `Idiff` coding [@delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]:
 
 * Randomly give one partner a constant of -1 and the other a constant of 1
-* The couple-level intercept represents the average of the two partners' intercepts; the corresponding sum would be twice this value. `(1 | coupleID)`
-* A column of 1s and -1s represent deviations (difference) of each partner from the couple intercept with each partner contributing equally in one direction (+1 and -1)
+* The couple-level intercept represents the average/common intercept of the two partners. `(1 | coupleID)`
+* A column of 1s and -1s represents each partner's deviation from the couple-level effect, with partners contributing equally in opposite directions (+1 and -1)
 
 Exchangeability is retained: if partners are flipped, the result is the same.
 
@@ -2887,7 +2887,7 @@ Exchangeability is retained: if partners are flipped, the result is the same.
 
 For two partners coded with `Idiff = +1` and `Idiff = -1`, the glmmTMB residual structures `homcs(0 + is_partner1 + is_partner2 | coupleID:diaryday)` and `(1 | coupleID:diaryday) + (0 + Idiff | coupleID:diaryday)` imply the same homogeneous two-partner residual covariance.
 
-This equivalence assumes exactly two rows per couple-day, independent sum and difference random-effect blocks, and `dispformula = ~ 0`.
+This equivalence assumes exactly two rows per couple-day, independent common/couple-mean and `Idiff` deviation random-effect blocks, and `dispformula = ~ 0`.
 
 The model code keeps `homcs(...)` because it states the residual structure more directly.
 
@@ -2970,15 +2970,22 @@ We can rotate the random effects structure back to obtain the full APIM Random e
 [@kenny_ackerman_2023].
 Just as we would in a SEM model with equality constraints!
 
-For example, the within-person variance of the intercept is:
+For example, the within-partner variance of the random intercept is:
 
-$$var(Intercept) + var(Idiff)$$
+$$
+\operatorname{Var}(u_{\text{common intercept}}) +
+\operatorname{Var}(u_{\text{Idiff intercept}})
+$$
 
-and the cross-person covariance of both partners' intercepts is:
+and the cross-partner covariance of both partners' random intercepts is:
 
-$$var(Intercept) - var(Idiff)$$
+$$
+\operatorname{Var}(u_{\text{common intercept}}) -
+\operatorname{Var}(u_{\text{Idiff intercept}})
+$$
 
-Note: This only holds true when the means and Idiffs are uncorrelated. This is why we put them in separate random effects blocks.
+In the model output, the common-intercept variance is labelled `Intercept`, and the deviation-intercept variance is labelled `Idiff`.
+This rotation only holds when the common/couple-mean and `Idiff` deviation random effects are uncorrelated. This is why we put them in separate random-effects blocks.
 
 ## Extract Full APIM Random Effects Variance-Covariance Matrix
 
