@@ -275,9 +275,11 @@ print_wide_matrix <- function(x, digits = 3, font_size = 6) {
   suppressWarnings(
     knitr::kable(
       df,
+      format = "latex",
       escape = FALSE,
       row.names = FALSE,
       booktabs = TRUE,
+      linesep = rep("", max(nrow(df) - 1, 0)),
       align = ifelse(vapply(df, is.numeric, logical(1)), "r", "l")
     ) |>
       kableExtra::kable_styling(
@@ -3020,10 +3022,6 @@ print_df(a$within_person_covariance_matrix)
 print_df(a$cross_person_covariance_matrix)
 ```
 
-```{=latex}
-\begin{landscape}
-```
-
 ## Extract Full APIM Random Effects Variance-Covariance Matrix: Full Matrix
 
 ```{r results-exch-long-apim-cov-full}
@@ -3055,10 +3053,6 @@ print_df(as.data.frame(round(full$sd, 3)))
 
 ```{r results-exch-long-apim-re-cor}
 print_wide_matrix(full$cor, font_size = 6)
-```
-
-```{=latex}
-\end{landscape}
 ```
 
 ## References
