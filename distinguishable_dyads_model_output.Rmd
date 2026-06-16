@@ -1,0 +1,267 @@
+---
+title: "Distinguishable Dyads: Model and Output"
+author: "Pascal Küng"
+format:
+  pdf:
+    pdf-engine: xelatex
+    toc: false
+    number-sections: true
+    papersize: a4
+    geometry: ["margin=1in"]
+    colorlinks: true
+    include-in-header:
+      text: |
+        \usepackage{fvextra}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{fontsize=\scriptsize,breaklines,breakanywhere,commandchars=\\\{\}}
+execute:
+  warning: false
+  message: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  cache = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+
+library(brms)
+library(glmmTMB)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(knitr)
+library(kableExtra)
+source(file.path("00_R_Functions", "ReportModels.R"))
+
+options(
+  brms.backend = "cmdstanr",
+  brms.file_refit = "on_change"
+)
+```
+
+> **Full GitHub repository:**
+> The full repository contains the tutorial source files, reusable helper
+> functions, model code, rendered PDFs, and additional information:
+> <https://github.com/Pascal-Kueng/05DyadicDataAnalysis>
+
+# Background
+
+Distinguishable dyads have partner roles that are meaningful for the model. In
+this tutorial example, the partners are distinguished by gender and represented
+with `is_male` and `is_female`.
+
+For intensive longitudinal data, a distinguishable APIM needs to model:
+
+- role-specific fixed effects, because the two partners have meaningful labels;
+- role-specific average time trends and actor/partner effects;
+- stable between-dyad differences in each role's average level and slopes;
+- correlations among the role-specific random effects;
+- role-specific residual variances, when the two roles may differ in
+  unexplained variability;
+- same-day residual interdependence between partners after fixed and random
+  effects have been accounted for.
+
+```{r distinguishable-apim-graphic, echo=FALSE, out.width="72%", fig.align="center"}
+knitr::include_graphics(file.path("Embed", "APIM_dist.png"))
+```
+
+# Data structure
+
+```{r distinguishable-data-structure-table, echo=FALSE}
+dist_example <- tibble(
+  coupleID = rep(31, 6),
+  userID = c(rep("31_1", 3), rep("31_2", 3)),
+  diaryday = rep(0:2, 2),
+  couple_day = rep(c("31.0", "31.1", "31.2"), 2),
+  gender = c(rep("female", 3), rep("male", 3)),
+  member = c(rep(1, 3), rep(2, 3)),
+  is_female = as.numeric(gender == "female"),
+  is_male = as.numeric(gender == "male")
+)
+
+kable(
+  dist_example,
+  caption = "Example person-day structure for a distinguishable dyad"
+)
+```
+
+The dummy variables define partner role. They are used in the fixed effects,
+random effects, residual variance model, and residual covariance model.
+
+# glmmTMB model
+
+```{r glmmTMB-model, eval=FALSE}
+model_dist_apim_long_glmmtmb <- glmmTMB(
+  closeness ~ 0 + is_male + is_female +
+
+    # Role-specific time slopes.
+    is_male:diaryday_c +
+    is_female:diaryday_c +
+
+    # Between-person APIM effects.
+    is_male:provided_support_actor_cbp +
+    is_male:provided_support_partner_cbp +
+    is_female:provided_support_actor_cbp +
+    is_female:provided_support_partner_cbp +
+
+    # Within-person APIM effects.
+    is_male:provided_support_actor_cwp +
+    is_male:provided_support_partner_cwp +
+    is_female:provided_support_actor_cwp +
+    is_female:provided_support_partner_cwp +
+
+    # Dyad-level random intercepts and time slopes.
+    (0 + is_male + is_female +
+       is_male:diaryday_c +
+       is_female:diaryday_c | coupleID) +
+
+    # Same-day residual covariance between partners.
+    # us() estimates partner-specific residual variances and their covariance.
+    us(0 + is_male + is_female | coupleID:diaryday),
+
+  # The Gaussian residual variance is represented by the us() block above.
+  # Without dispformula = ~ 0, glmmTMB would add a second independent
+  # residual variance on top of the dyadic residual covariance structure.
+  # For families without a residual, dispformula should NOT be set to zero.
+  dispformula = ~ 0,
+  family = gaussian(),
+  data = df_long_apim
+)
+```
+
+# brms model
+
+```{r brms-model, eval=FALSE}
+formula_dist_apim_long_simple <- bf(
+  closeness ~ 0 + is_male + is_female +
+
+    # Role-specific time slopes.
+    is_male:diaryday_c +
+    is_female:diaryday_c +
+
+    # Between-person APIM effects.
+    is_male:provided_support_actor_cbp +
+    is_male:provided_support_partner_cbp +
+    is_female:provided_support_actor_cbp +
+    is_female:provided_support_partner_cbp +
+
+    # Within-person APIM effects.
+    is_male:provided_support_actor_cwp +
+    is_male:provided_support_partner_cwp +
+    is_female:provided_support_actor_cwp +
+    is_female:provided_support_partner_cwp +
+
+    # Dyad-level random intercepts and time slopes.
+    (0 + is_male + is_female +
+       is_male:diaryday_c +
+       is_female:diaryday_c | coupleID) +
+
+    # Native same-day residual correlation between partners.
+    unstr(time = member, gr = couple_day),
+
+  # Role-specific residual SDs.
+  # brms estimates sigma coefficients on the log scale, so b_sigma_* draws
+  # must be exponentiated before reporting residual SDs.
+  sigma ~ 0 + is_male + is_female
+)
+
+priors_dist_apim_long_simple <- c(
+  prior(normal(4, 2), class = "b", coef = "is_male"),
+  prior(normal(4, 2), class = "b", coef = "is_female"),
+  prior(normal(0, 2), class = "b"),
+  prior(exponential(1), class = "sd"),
+  prior(lkj(2), class = "cor"),
+  prior(normal(0, 0.7), class = "b", dpar = "sigma"),
+  prior(lkj(2), class = "cortime")
+)
+
+model_dist_apim_long_simple <- brm(
+  formula = formula_dist_apim_long_simple,
+  data = df_long_apim,
+  family = gaussian(link = identity),
+  prior = priors_dist_apim_long_simple,
+  chains = 4,
+  cores = 4,
+  iter = 2000,
+  warmup = 1000,
+  seed = 123,
+  file = file.path("brms_cache", "example1_dist_apim_long_simpel")
+)
+```
+
+```{r load-cached-fit, include=FALSE}
+cached_fit <- file.path("brms_cache", "example1_dist_apim_long_simpel.rds")
+if (!file.exists(cached_fit)) {
+  stop(
+    "Cached brms fit not found: ", cached_fit,
+    ". Run the brms model chunk first, then render this file again."
+  )
+}
+model_dist_apim_long_simple <- readRDS(cached_fit)
+```
+
+# Output helper
+
+The helper function `summarize_distinguishable_apim_brms()` used below is defined in
+`00_R_Functions/ReportModels.R` on GitHub. It summarizes fixed effects, random-effect
+SDs/correlations, and residual quantities. For `brms`, sigma coefficients are
+stored on the log scale, so the helper exponentiates `b_sigma_*` draws before
+computing residual SDs, variances, and same-day residual covariance.
+
+For `glmmTMB`, the same residual quantities are available from the fitted
+variance-covariance output, but interval estimation is less direct because there
+are no posterior draws. One would usually transform parametric bootstrap draws
+or asymptotic draws from the fitted parameter covariance matrix.
+
+```{r summarize-model}
+dist_results <- summarize_distinguishable_apim_brms(
+  model_dist_apim_long_simple,
+  gr = "coupleID"
+)
+```
+
+# Random-effect SDs
+
+```{r random-sd-table}
+kable(
+  dist_results$random_sd_summary,
+  digits = 3,
+  caption = "Random-effect standard deviations with 95% credible intervals"
+)
+```
+
+# Random-effect correlations
+
+```{r random-correlation-table}
+kable(
+  dist_results$random_cor_summary,
+  digits = 3,
+  caption = "Random-effect correlations with credible intervals",
+  booktabs = TRUE
+) |>
+  kable_styling(latex_options = "scale_down", font_size = 7)
+```
+
+# Residual structure
+
+```{r residual-table}
+kable(
+  dist_results$residual_summary,
+  digits = 3,
+  caption = "Residual SDs, variances, and same-day residual association"
+)
+```
+
+# Compact reporting summary
+
+```{r reporting-summary-table, echo=FALSE}
+dist_results$reporting_summary |>
+  mutate(across(where(is.numeric), ~ round(.x, 3))) |>
+  kable(
+    caption = "Compact distinguishable-dyad reporting summary",
+    booktabs = TRUE
+  ) |>
+  kable_styling(latex_options = c("scale_down", "repeat_header"), font_size = 7)
+```

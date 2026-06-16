@@ -2872,6 +2872,14 @@ Pascal Küng
 </ul></li>
 </ul>
 </section>
+<section id="quick-access" class="slide level2">
+<h2>Quick Access</h2>
+<p>For readers who want the model code and reporting tables without the full tutorial:</p>
+<ul>
+<li><a href="distinguishable_dyads_model_output.pdf">Distinguishable dyads quick guide</a></li>
+<li><a href="exchangeable_dyads_backtransform.pdf">Exchangeable dyads quick guide</a></li>
+</ul>
+</section>
 <section id="loading-libraries-and-setting-cmdstan-backend" class="slide level2">
 <h2>Loading Libraries and setting CmdStan Backend</h2>
 <p>Some functions used in this presentation are sourced from the files available in the folder 00_R_Functions.</p>
@@ -6567,7 +6575,420 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 
 
 </section>
-<section id="equivalence-apim-and-dim-2" class="slide level2">
+<section id="equivalence-apim-and-dim-2" class="slide level2 sumdiff-slide" data-background-color="#101820">
+<h2>Equivalence APIM and DIM</h2>
+
+  <style>
+.reveal .slides section.sumdiff-slide{
+background:#101820;
+padding:22px 28px;
+border-radius:0;
+}
+.reveal .sumdiff-slide h2{
+color:#F8FAFC;
+margin-bottom:12px;
+}
+.sumdiff-v2{
+--actor:#4E94F8;
+--partner:#A78BFA;
+--cbc:#E26A5C;
+--cwc:#FBBF24;
+--ink:#101820;
+--panel:#17212f;
+--line:#314154;
+--text:#F8FAFC;
+--muted:#AAB6C6;
+color:var(--text);
+display:grid;
+grid-template-columns:minmax(260px,320px) minmax(0,1fr);
+gap:18px;
+align-items:stretch;
+width:min(100%,1000px);
+height:560px;
+margin:0 auto;
+font-size:15px;
+}
+.sumdiff-v2 *{box-sizing:border-box}
+.sumdiff-v2 h3{
+margin:0;
+color:#D6E4F0;
+font-size:.78rem;
+letter-spacing:.12em;
+text-transform:uppercase;
+}
+.sd2-panel{
+background:rgba(23,33,47,.92);
+border:1px solid rgba(170,182,198,.22);
+border-radius:12px;
+padding:14px;
+display:flex;
+flex-direction:column;
+gap:14px;
+min-width:0;
+}
+.sd2-head{
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:12px;
+border-bottom:1px solid rgba(170,182,198,.16);
+padding-bottom:10px;
+}
+#sd2-reset{
+border:1px solid rgba(170,182,198,.25);
+background:#263447;
+color:#F8FAFC;
+padding:7px 11px;
+border-radius:6px;
+font-size:.72rem;
+text-transform:uppercase;
+letter-spacing:.08em;
+cursor:pointer;
+}
+.sd2-group{
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+.sd2-group-title{
+display:flex;
+align-items:center;
+gap:8px;
+color:var(--muted);
+font-weight:700;
+text-transform:uppercase;
+letter-spacing:.08em;
+font-size:.72rem;
+border-bottom:1px solid rgba(170,182,198,.14);
+padding-bottom:7px;
+}
+.sd2-dot{width:9px;height:9px;border-radius:999px;display:inline-block}
+.sd2-control{display:grid;grid-template-columns:1fr 58px;gap:8px 12px;align-items:center}
+.sd2-control label{font-size:.78rem;font-weight:700;color:#D6E4F0}
+.sd2-control output{
+justify-self:end;
+font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+font-size:.88rem;
+font-weight:800;
+min-width:52px;
+text-align:right;
+}
+.sd2-control input{grid-column:1 / 3;width:100%;cursor:pointer}
+.sd2-control-actor input{accent-color:var(--actor)}
+.sd2-control-partner input{accent-color:var(--partner)}
+.sd2-control-cbc input{accent-color:var(--cbc)}
+.sd2-control-cwc input{accent-color:var(--cwc)}
+.sd2-relations{
+border-top:1px solid rgba(170,182,198,.14);
+padding-top:12px;
+color:var(--muted);
+font-size:.74rem;
+line-height:1.45;
+}
+.sd2-main{
+display:flex;
+flex-direction:column;
+gap:14px;
+min-width:0;
+}
+.sd2-equations{
+background:rgba(23,33,47,.74);
+border:1px solid rgba(170,182,198,.18);
+border-radius:12px;
+padding:11px 14px;
+display:grid;
+gap:7px;
+font-family:'STIX Two Text','Times New Roman',serif;
+font-size:.98rem;
+}
+.sd2-eq-label{
+font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+font-size:.64rem;
+letter-spacing:.12em;
+text-transform:uppercase;
+color:var(--muted);
+font-weight:800;
+margin-right:8px;
+}
+.sd2-grid-wrap{
+display:grid;
+grid-template-columns:minmax(320px,380px) minmax(210px,260px);
+gap:16px;
+align-items:start;
+}
+#sd2-svg{
+width:100%;
+aspect-ratio:1 / 1;
+background:rgba(15,23,42,.46);
+border:1px solid rgba(170,182,198,.18);
+border-radius:14px;
+cursor:crosshair;
+touch-action:none;
+}
+.sd2-explain{
+background:rgba(23,33,47,.74);
+border:1px solid rgba(170,182,198,.18);
+border-radius:12px;
+padding:13px;
+color:#D6E4F0;
+font-size:.76rem;
+line-height:1.36;
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+.sd2-explain strong{color:#fff}
+.sd2-demo{
+border:1px solid rgba(214,228,240,.22);
+background:rgba(214,228,240,.08);
+color:#F8FAFC;
+border-radius:6px;
+padding:4px 8px;
+font-size:.65rem;
+text-transform:uppercase;
+letter-spacing:.08em;
+font-weight:800;
+cursor:pointer;
+margin-left:6px;
+}
+.sd2-mini-eq{
+color:#F8FAFC;
+background:rgba(15,23,42,.45);
+border:1px solid rgba(170,182,198,.12);
+border-radius:8px;
+padding:8px 10px;
+font-family:'STIX Two Text','Times New Roman',serif;
+text-align:center;
+}
+</style>
+
+  <div class="sumdiff-v2">
+    <div class="sd2-panel">
+      <div class="sd2-head">
+        <h3>Coordinate Inputs</h3>
+          <button id="sd2-reset" type="button">Reset</button>
+      </div>
+
+      <div class="sd2-group">
+        <div class="sd2-group-title">
+          <span class="sd2-dot" style="background:var(--actor)"></span>
+          <span class="sd2-dot" style="background:var(--partner)"></span>
+          APIM: individual coordinates
+        </div>
+        <div class="sd2-control sd2-control-actor">
+          <label for="sd2-actor">Actor predictor, x<sub>actor</sub></label>
+          <output id="sd2-out-actor" style="color:var(--actor)">0.0</output>
+          <input id="sd2-actor" type="range" min="-5" max="5" step="0.1" value="0">
+        </div>
+        <div class="sd2-control sd2-control-partner">
+          <label for="sd2-partner">Partner predictor, x<sub>partner</sub></label>
+          <output id="sd2-out-partner" style="color:var(--partner)">0.0</output>
+          <input id="sd2-partner" type="range" min="-5" max="5" step="0.1" value="0">
+        </div>
+      </div>
+
+      <div class="sd2-group">
+        <div class="sd2-group-title">
+          <span class="sd2-dot" style="background:var(--cbc)"></span>
+          <span class="sd2-dot" style="background:var(--cwc)"></span>
+          DIM: sum and difference coordinates
+        </div>
+        <div class="sd2-control sd2-control-cbc">
+          <label for="sd2-cbc">Couple mean, x<sub>cbc</sub></label>
+          <output id="sd2-out-cbc" style="color:var(--cbc)">0.0</output>
+          <input id="sd2-cbc" type="range" min="-5" max="5" step="0.05" value="0">
+        </div>
+        <div class="sd2-control sd2-control-cwc">
+          <label for="sd2-cwc">Couple deviation, x<sub>cwc</sub></label>
+          <output id="sd2-out-cwc" style="color:var(--cwc)">0.0</output>
+          <input id="sd2-cwc" type="range" min="-5" max="5" step="0.05" value="0">
+        </div>
+      </div>
+
+      <div class="sd2-relations">
+        <div>x<sub>cbc</sub> = (x<sub>actor</sub> + x<sub>partner</sub>) / 2</div>
+        <div>x<sub>cwc</sub> = (x<sub>actor</sub> - x<sub>partner</sub>) / 2</div>
+      </div>
+    </div>
+
+    <main class="sd2-main">
+      <div class="sd2-equations">
+        <div><span class="sd2-eq-label">APIM</span><span id="sd2-eq-apim"></span></div>
+        <div><span class="sd2-eq-label">DIM</span><span id="sd2-eq-dim"></span></div>
+        <div><span class="sd2-eq-label">Coefficients</span><span id="sd2-eq-coef"></span></div>
+      </div>
+
+      <div class="sd2-grid-wrap">
+        <svg id="sd2-svg" viewbox="0 0 320 320" role="img" aria-label="APIM and DIM coordinate grid">
+          <defs>
+            <clippath id="sd2-clip"><rect x="30" y="30" width="260" height="260" rx="10" /></clippath>
+          </defs>
+          <rect x="30" y="30" width="260" height="260" rx="10" fill="#0F172A" fill-opacity=".52" stroke="#64748B" stroke-width="1.5" />
+          <g id="sd2-grid-lines" clip-path="url(#sd2-clip)"></g>
+          <g id="sd2-axis-labels"></g>
+          <circle id="sd2-halo" cx="160" cy="160" r="13" fill="white" fill-opacity=".12"></circle>
+          <circle id="sd2-point" cx="160" cy="160" r="6" fill="#4E94F8" stroke="#fff" stroke-width="2"></circle>
+        </svg>
+
+        <div class="sd2-explain">
+          <div>
+            <strong>Between-couple effect: the sum.</strong>
+            If both partners increase by 1, the couple mean increases by 1 and the deviation stays 0.
+            <button class="sd2-demo" id="sd2-demo-sum" type="button">Demonstrate</button>
+            <div class="sd2-mini-eq">b<sub>cbc</sub> = b<sub>actor</sub> + b<sub>partner</sub></div>
+          </div>
+          <div>
+            <strong>Within-couple effect: the difference.</strong>
+            If the actor increases by 1 and the partner decreases by 1, the couple mean stays 0 and the deviation increases by 1.
+            <button class="sd2-demo" id="sd2-demo-diff" type="button">Demonstrate</button>
+            <div class="sd2-mini-eq">b<sub>cwc</sub> = b<sub>actor</sub> − b<sub>partner</sub></div>
+          </div>
+          <div>
+            The dot lives in APIM space: horizontal = actor predictor, vertical = partner predictor. The diagonal axes show the same point in DIM space.
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="sd2-coefs" data-b0="5.11" data-ba="1.72" data-bp="0.24"></div>
+
+  <script>
+  (function(){
+    const root = document.currentScript.closest('section');
+    const BASE_MIN = -5, BASE_MAX = 5, PLOT_DOMAIN = 10;
+    const c = {actor:'#4E94F8', partner:'#A78BFA', cbc:'#E26A5C', cwc:'#FBBF24'};
+    const coefData = root.querySelector('#sd2-coefs').dataset;
+    const b0 = Number(coefData.b0), bA = Number(coefData.ba), bP = Number(coefData.bp);
+    const bCbc = +(bA + bP).toFixed(2);
+    const bCwc = +(bA - bP).toFixed(2);
+    const state = {a:0, p:0, m:0, w:0};
+
+    const el = id => root.querySelector('#' + id);
+    const actor = el('sd2-actor'), partner = el('sd2-partner'), cbc = el('sd2-cbc'), cwc = el('sd2-cwc');
+    const outA = el('sd2-out-actor'), outP = el('sd2-out-partner'), outCbc = el('sd2-out-cbc'), outCwc = el('sd2-out-cwc');
+    const eqA = el('sd2-eq-apim'), eqD = el('sd2-eq-dim'), eqC = el('sd2-eq-coef');
+    const point = el('sd2-point'), halo = el('sd2-halo'), svg = el('sd2-svg');
+
+    const r1 = x => Math.round(Number(x) * 10) / 10;
+    const r2 = x => Math.round(Number(x) * 100) / 100;
+    const fmt = x => (Math.abs(x) < 1e-10 ? 0 : x).toFixed(2);
+    const xPix = x => 160 + x * (130 / PLOT_DOMAIN);
+    const yPix = y => 160 - y * (130 / PLOT_DOMAIN);
+
+    function syncSlider(slider, value){
+      const lo = Math.min(BASE_MIN, Math.floor(value));
+      const hi = Math.max(BASE_MAX, Math.ceil(value));
+      slider.min = lo;
+      slider.max = hi;
+      slider.value = value;
+    }
+    function syncInputs(){
+      syncSlider(actor, state.a);
+      syncSlider(partner, state.p);
+      syncSlider(cbc, state.m);
+      syncSlider(cwc, state.w);
+    }
+
+    function setFromAP(a, p){
+      state.a = r1(a);
+      state.p = r1(p);
+      state.m = r2((state.a + state.p) / 2);
+      state.w = r2((state.a - state.p) / 2);
+      syncInputs();
+      render();
+    }
+    function setFromDIM(m, w){
+      state.m = r2(m);
+      state.w = r2(w);
+      state.a = r2(state.m + state.w);
+      state.p = r2(state.m - state.w);
+      syncInputs();
+      render();
+    }
+    function moveActor(){
+      setFromAP(actor.value, state.p);
+    }
+    function movePartner(){
+      setFromAP(state.a, partner.value);
+    }
+    function moveCbc(){
+      setFromDIM(cbc.value, state.w);
+    }
+    function moveCwc(){
+      setFromDIM(state.m, cwc.value);
+    }
+
+    function render(){
+      const {a, p, m, w} = state;
+      outA.value = a.toFixed(1); outP.value = p.toFixed(1); outCbc.value = m.toFixed(2); outCwc.value = w.toFixed(2);
+      const yA = b0 + bA * a + bP * p;
+      const yD = b0 + bCbc * m + bCwc * w;
+      eqA.innerHTML = `Ŷ = ${fmt(b0)} + ${fmt(bA)} × <span style="color:${c.actor}">${fmt(a)}</span> + ${fmt(bP)} × <span style="color:${c.partner}">${fmt(p)}</span> = <strong>${fmt(yA)}</strong>`;
+      eqD.innerHTML = `Ŷ = ${fmt(b0)} + ${fmt(bCbc)} × <span style="color:${c.cbc}">${fmt(m)}</span> + ${fmt(bCwc)} × <span style="color:${c.cwc}">${fmt(w)}</span> = <strong>${fmt(yD)}</strong>`;
+      eqC.innerHTML = `b<sub>cbc</sub> = ${fmt(bA)} + ${fmt(bP)} = ${fmt(bCbc)}; &nbsp; b<sub>cwc</sub> = ${fmt(bA)} − ${fmt(bP)} = ${fmt(bCwc)}`;
+      point.setAttribute('cx', xPix(a)); point.setAttribute('cy', yPix(p));
+      halo.setAttribute('cx', xPix(a)); halo.setAttribute('cy', yPix(p));
+    }
+
+    function drawGrid(){
+      const g = el('sd2-grid-lines');
+      const ticks = [-8, -4, 0, 4, 8];
+      let html = '';
+      ticks.forEach(t => {
+        const main = t === 0 ? 1.5 : 1;
+        html += `<line x1="${xPix(t)}" y1="30" x2="${xPix(t)}" y2="290" stroke="${c.actor}" stroke-opacity="${t===0?.48:.20}" stroke-width="${main}" stroke-dasharray="${t===0?'':'2 2'}"></line>`;
+        html += `<line x1="30" y1="${yPix(t)}" x2="290" y2="${yPix(t)}" stroke="${c.partner}" stroke-opacity="${t===0?.48:.20}" stroke-width="${main}" stroke-dasharray="${t===0?'':'2 2'}"></line>`;
+        html += `<line x1="${xPix(-PLOT_DOMAIN)}" y1="${yPix(2*t + PLOT_DOMAIN)}" x2="${xPix(PLOT_DOMAIN)}" y2="${yPix(2*t - PLOT_DOMAIN)}" stroke="${c.cbc}" stroke-opacity="${t===0?.50:.22}" stroke-width="${main}" stroke-dasharray="${t===0?'':'3 3'}"></line>`;
+        html += `<line x1="${xPix(-PLOT_DOMAIN)}" y1="${yPix(-PLOT_DOMAIN - 2*t)}" x2="${xPix(PLOT_DOMAIN)}" y2="${yPix(PLOT_DOMAIN - 2*t)}" stroke="${c.cwc}" stroke-opacity="${t===0?.50:.22}" stroke-width="${main}" stroke-dasharray="${t===0?'':'3 3'}"></line>`;
+      });
+      g.innerHTML = html;
+      el('sd2-axis-labels').innerHTML = `
+        <text x="286" y="154" fill="${c.actor}" font-size="9" font-weight="800" text-anchor="end">x<tspan baseline-shift="sub" font-size="7">actor</tspan></text>
+        <text x="160" y="22" fill="${c.partner}" font-size="9" font-weight="800" text-anchor="middle">x<tspan baseline-shift="sub" font-size="7">partner</tspan></text>
+        <g transform="translate(${xPix(6.3)},${yPix(6.3)}) rotate(-45)"><text fill="${c.cbc}" font-size="8" font-weight="800" text-anchor="middle">x<tspan baseline-shift="sub" font-size="6">cbc</tspan></text></g>
+        <g transform="translate(${xPix(6.3)},${yPix(-6.3)}) rotate(45)"><text fill="${c.cwc}" font-size="8" font-weight="800" text-anchor="middle">x<tspan baseline-shift="sub" font-size="6">cwc</tspan></text></g>`;
+    }
+
+    function gridToAP(evt){
+      const rect = svg.getBoundingClientRect();
+      const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+      const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+      const sx = ((clientX - rect.left) / rect.width) * 320;
+      const sy = ((clientY - rect.top) / rect.height) * 320;
+      setFromAP(r1((sx - 160) / (130 / PLOT_DOMAIN)), r1((160 - sy) / (130 / PLOT_DOMAIN)));
+    }
+    let dragging = false;
+    svg.addEventListener('mousedown', evt => { dragging = true; gridToAP(evt); });
+    svg.addEventListener('mousemove', evt => { if (dragging) gridToAP(evt); });
+    window.addEventListener('mouseup', () => { dragging = false; });
+    svg.addEventListener('touchstart', evt => { dragging = true; gridToAP(evt); }, {passive:true});
+    svg.addEventListener('touchmove', evt => { if (dragging) gridToAP(evt); }, {passive:true});
+    window.addEventListener('touchend', () => { dragging = false; });
+
+    actor.addEventListener('input', moveActor);
+    partner.addEventListener('input', movePartner);
+    cbc.addEventListener('input', moveCbc);
+    cwc.addEventListener('input', moveCwc);
+    function bindButton(id, fn){
+      const button = el(id);
+      button.addEventListener('pointerdown', evt => evt.stopPropagation());
+      button.addEventListener('click', evt => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        fn();
+      });
+    }
+    bindButton('sd2-reset', () => setFromAP(0, 0));
+    bindButton('sd2-demo-sum', () => setFromAP(1, 1));
+    bindButton('sd2-demo-diff', () => setFromAP(1, -1));
+
+    drawGrid();
+    setFromAP(0, 0);
+  })();
+  </script>
+</section>
+<section id="equivalence-apim-and-dim-3" class="slide level2">
 <h2>Equivalence APIM and DIM</h2>
 <ul>
 <li>If the couple mean goes up by 1 and the within-couple deviation from the couple mean stays fixed, this means that both partners’ predictors must go up by 1 unit. Thus, the effects are linear combinations:</li>
@@ -6579,7 +7000,7 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <p><span class="math display">\[b_{cwc} = b_{actor\_gmc} - b_{partner\_gmc}\]</span></p>
 <p><span class="citation" data-cites="Bolger2025Unified">(<a href="#/references" role="doc-biblioref" onclick>Bolger et al., 2025</a>)</span></p>
 </section>
-<section id="equivalence-apim-and-dim-3" class="slide level2">
+<section id="equivalence-apim-and-dim-4" class="slide level2">
 <h2>Equivalence APIM and DIM</h2>
 <ul>
 <li>Conversely, to obtain the actor and partner effects given the DIM estimates:</li>
@@ -6587,7 +7008,7 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <p><span class="math display">\[b_{actor\_gmc} = \frac{b_{cbc} + b_{cwc}}{2}\]</span></p>
 <p><span class="math display">\[b_{partner\_gmc} = \frac{b_{cbc} - b_{cwc}}{2}\]</span></p>
 </section>
-<section id="equivalence-apim-and-dim-4" class="slide level2">
+<section id="equivalence-apim-and-dim-5" class="slide level2">
 <h2>Equivalence APIM and DIM</h2>
 <p>Example: using APIM coefficients to obtain DIM coefficients and computing <em>Credible Intervals</em> of DIM coefficients.</p>
 <div class="cell">

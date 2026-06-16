@@ -99,9 +99,13 @@ options(knitr.kable.NA = "", width = 120)
 >
 > The PDF version below is a static archival version for indexing, citation, and long-term reference.
 
-**Version DOI:** 10.5281/zenodo.20709781  
-**All-versions DOI:** 10.5281/zenodo.17400655  
-**Suggested citation:** Küng, P. M. (2026). *Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling* (Version v2.0.5). University of Zurich. DOI: 10.5281/zenodo.20709781
+**DOI:** 10.5281/zenodo.17400655
+**Suggested citation:** Küng, P. M. (2026). *Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling*. University of Zurich. DOI: 10.5281/zenodo.17400655
+
+> **Full GitHub repository:**
+> The full repository contains the tutorial source files, reusable helper
+> functions, model code, rendered quick guides, and additional information:
+> <https://github.com/Pascal-Kueng/05DyadicDataAnalysis>
 
 
 ## Overview
@@ -116,6 +120,13 @@ options(knitr.kable.NA = "", width = 120)
   * Equivalence between APIM and DIM
   * Longitudinal DIM
   * Longitudinal APIM
+
+## Quick Access
+
+For readers who want the model code and reporting tables without the full tutorial:
+
+* [Distinguishable dyads quick guide](distinguishable_dyads_model_output.pdf)
+* [Exchangeable dyads quick guide](exchangeable_dyads_backtransform.pdf)
 
 ## Loading Libraries and setting CmdStan Backend
 

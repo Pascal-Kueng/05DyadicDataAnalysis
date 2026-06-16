@@ -1,4 +1,4 @@
-# Main Functions in this file (4):
+# Main Functions in this file (5):
 
 ###################################
 # 1. my_brm
@@ -77,6 +77,15 @@
 # variance-covariance matrix. It performs the rotation for every posterior draw,
 # so SDs, correlations, covariances, fixed effects, and residual quantities can
 # be reported with posterior intervals on the transformed scale.
+
+###################################
+# 5. summarize_distinguishable_apim_brms
+###################################
+# Description:
+# This function summarizes fixed effects, group-level SDs/correlations, and
+# residual quantities from a distinguishable-dyad brms APIM. Sigma parameters are
+# converted from the brms log scale to residual SDs before residual variances and
+# same-day residual covariances are computed.
 
 
 # Function for modelling where we can specify whether to use MI or not. 
@@ -2520,3 +2529,144 @@ summarize_exchangeable_apim_brms <- function(
   )
 }
 
+
+summarize_distinguishable_apim_brms <- function(
+    fit,
+    gr = "coupleID",
+    probs = c(0.025, 0.975),
+    include_fixed = TRUE,
+    include_random = TRUE,
+    include_residual = TRUE
+) {
+  draws <- as.data.frame(posterior::as_draws_df(fit))
+
+  fixed_summary <- NULL
+  if (include_fixed) {
+    fixed_summary <- brms::fixef(fit) |>
+      as.data.frame() |>
+      tibble::rownames_to_column("parameter") |>
+      dplyr::filter(!grepl("^sigma_", parameter)) |>
+      dplyr::transmute(
+        section = "Fixed effects",
+        parameter,
+        estimate = Estimate,
+        est_error = Est.Error,
+        q_low = Q2.5,
+        q_high = Q97.5
+      )
+  }
+
+  random_sd_summary <- NULL
+  random_cor_summary <- NULL
+  if (include_random) {
+    sd_prefix <- paste0("sd_", gr, "__")
+    sd_names <- grep(paste0("^", sd_prefix), names(draws), value = TRUE)
+
+    if (length(sd_names) > 0) {
+      random_sd_summary <- draws |>
+        dplyr::select(dplyr::all_of(sd_names)) |>
+        tidyr::pivot_longer(
+          dplyr::everything(),
+          names_to = "parameter",
+          values_to = "value"
+        ) |>
+        dplyr::mutate(parameter = sub(paste0("^", sd_prefix), "", parameter)) |>
+        dplyr::group_by(parameter) |>
+        dplyr::summarise(summarise_posterior_vector(value, probs = probs), .groups = "drop")
+    }
+
+    cor_prefix <- paste0("cor_", gr, "__")
+    cor_names <- grep(paste0("^", cor_prefix), names(draws), value = TRUE)
+
+    if (length(cor_names) > 0) {
+      random_cor_summary <- draws |>
+        dplyr::select(dplyr::all_of(cor_names)) |>
+        tidyr::pivot_longer(
+          dplyr::everything(),
+          names_to = "parameter",
+          values_to = "value"
+        ) |>
+        dplyr::mutate(
+          parameter = sub(paste0("^", cor_prefix), "", parameter),
+          parameter = gsub("__", " with ", parameter)
+        ) |>
+        dplyr::group_by(parameter) |>
+        dplyr::summarise(summarise_posterior_vector(value, probs = probs), .groups = "drop")
+    }
+  }
+
+  residual_summary <- NULL
+  if (include_residual) {
+    sigma_names <- grep("^b_sigma_", names(draws), value = TRUE)
+    residual_draws <- tibble::tibble()
+
+    if (length(sigma_names) > 0) {
+      sigma_draws <- exp(draws[, sigma_names, drop = FALSE])
+      names(sigma_draws) <- sub("^b_sigma_", "sigma_", sigma_names)
+
+      residual_draws <- dplyr::bind_cols(
+        as_tibble(sigma_draws),
+        as_tibble(sigma_draws^2) |>
+          dplyr::rename_with(~ sub("^sigma_", "residual_variance_", .x))
+      )
+    } else if ("sigma" %in% names(draws)) {
+      residual_draws <- tibble::tibble(
+        sigma = draws$sigma,
+        residual_variance = draws$sigma^2
+      )
+    }
+
+    if ("cortime__1__2" %in% names(draws)) {
+      residual_draws$same_day_residual_correlation <- draws$cortime__1__2
+
+      if (all(c("sigma_is_male", "sigma_is_female") %in% names(residual_draws))) {
+        residual_draws$same_day_residual_covariance <-
+          draws$cortime__1__2 *
+          residual_draws$sigma_is_male *
+          residual_draws$sigma_is_female
+      } else if ("sigma" %in% names(residual_draws)) {
+        residual_draws$same_day_residual_covariance <-
+          draws$cortime__1__2 * residual_draws$sigma^2
+      }
+    }
+
+    if (ncol(residual_draws) > 0) {
+      residual_summary <- residual_draws |>
+        tidyr::pivot_longer(
+          dplyr::everything(),
+          names_to = "parameter",
+          values_to = "value"
+        ) |>
+        dplyr::group_by(parameter) |>
+        dplyr::summarise(summarise_posterior_vector(value, probs = probs), .groups = "drop") |>
+        dplyr::mutate(section = "Residual structure", .before = parameter)
+    }
+  }
+
+  random_sd_report <- NULL
+  if (!is.null(random_sd_summary)) {
+    random_sd_report <- random_sd_summary |>
+      dplyr::mutate(section = "Random-effect SDs", .before = parameter)
+  }
+
+  random_cor_report <- NULL
+  if (!is.null(random_cor_summary)) {
+    random_cor_report <- random_cor_summary |>
+      dplyr::mutate(section = "Random-effect correlations", .before = parameter)
+  }
+
+  reporting_summary <- dplyr::bind_rows(
+    fixed_summary,
+    random_sd_report,
+    random_cor_report,
+    residual_summary
+  )
+
+  list(
+    fixed_summary = fixed_summary,
+    random_sd_summary = random_sd_summary,
+    random_cor_summary = random_cor_summary,
+    residual_summary = residual_summary,
+    reporting_summary = reporting_summary
+  )
+}

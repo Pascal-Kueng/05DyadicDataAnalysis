@@ -1,6 +1,6 @@
 ---
 title: "Exchangeable Dyads: Model and Back-Transformation"
-author: "Pascal Kueng"
+author: "Pascal Küng"
 format:
   pdf:
     pdf-engine: xelatex
@@ -42,6 +42,36 @@ options(
 )
 ```
 
+> **Full GitHub repository:**
+> The full repository contains the tutorial source files, reusable helper
+> functions, model code, rendered PDFs, and additional information:
+> <https://github.com/Pascal-Kueng/05DyadicDataAnalysis>
+
+# Background
+
+Exchangeable dyads do not have substantively meaningful partner roles. Partner
+labels are arbitrary, and flipping the labels should not change the model
+interpretation.
+
+For intensive longitudinal data, an exchangeable APIM needs to model:
+
+- pooled fixed effects, because the two partner labels are not substantively
+  different;
+- pooled average time trends and pooled actor/partner effects;
+- stable between-dyad differences in average levels and slopes;
+- partner deviations from those dyad-level effects, because the two people in a
+  dyad are still distinct repeated-observation units;
+- correlations among the dyad-level random effects and among the partner
+  deviation random effects;
+- same-day residual interdependence between partners after fixed and random
+  effects have been accounted for;
+- a residual structure that remains invariant when the arbitrary partner labels
+  are switched.
+
+```{r exchangeable-apim-graphic, echo=FALSE, out.width="68%", fig.align="center"}
+knitr::include_graphics(file.path("Embed", "APIM_ind_1.png"))
+```
+
 Assume `df_long_dim` contains one row per person-day and two rows per
 `coupleID:diaryday`. The exchangeability code uses `Idiff = +1/-1` to represent
 partner deviations from the dyad-level mean.
@@ -66,9 +96,9 @@ kable(
 )
 ```
 
-`Idiff` is constant within person and opposite within dyad. The dummy variables
+`Idiff` is constant within person and opposite within dyad (randomly assigned). The dummy variables
 used in `glmmTMB`, `is_partner1` and `is_partner2`, must be constructed from the
-same `Idiff` coding.
+same `Idiff` coding (e.g. `is_partner1 = 1` when `Idiff == 1` and `is_partner2 = 1` when `Idiff == -1`.)
 
 # glmmTMB model
 
@@ -99,15 +129,12 @@ model_exch_long_apim_glmmtmb <- glmmTMB(
     # Same-day residual interdependence:
     # homogeneous compound symmetry = one residual variance plus one
     # partner residual correlation.
-    # Important: is_partner1 and is_partner2 must be constructed from the
-    # same Idiff coding used above, e.g. is_partner1 = 1 when Idiff == 1
-    # and is_partner2 = 1 when Idiff == -1.
     homcs(0 + is_partner1 + is_partner2 | coupleID:diaryday),
 
   # The residual variance is represented by the homcs block above.
   # Without dispformula = ~ 0, glmmTMB would add a second independent
   # residual variance on top of the dyadic residual covariance structure.
-  # For families without a residual, dispformula should NOT be set to zero. 
+  # For families without a residual, dispformula should NOT be set to zero.
   dispformula = ~ 0,
   family = gaussian(),
   data = df_long_dim
@@ -216,16 +243,15 @@ $$
 This exact rotation assumes that the sum and difference random-effect blocks are
 independent.
 
-The helper function `summarize_exchangeable_apim_brms()` is defined in
-`00_R_Functions/ReportModels.R`. It reconstructs the sum and `Idiff` covariance
+The helper function `summarize_exchangeable_apim_brms()` used below is defined in
+`00_R_Functions/ReportModels.R` on GitHub. It reconstructs the sum and `Idiff` covariance
 matrices for every posterior draw, rotates each draw into the full APIM
 partner-level matrix, and then summarizes the transformed covariance, SD,
 correlation, fixed-effect, and residual quantities.
 
-For `glmmTMB`, the same back-transformation is algebraically possible, but
-interval estimation is less direct because there are no posterior draws. A
-`glmmTMB` workflow would usually transform parametric bootstrap draws or
-asymptotic draws from the fitted parameter covariance matrix.
+For `glmmTMB`, the same back-transformation is algebraically just as straightforward, but
+interval estimation (CI) is less direct because there are no posterior draws. A helper function
+implementing the delta-method is also available on GitHub.
 
 ```{r backtransform-code}
 apim_results <- summarize_exchangeable_apim_brms(
@@ -258,7 +284,7 @@ kable(
 )
 ```
 
-# Correlation table
+# Correlation matrix
 
 ```{r correlation-table}
 kable(
