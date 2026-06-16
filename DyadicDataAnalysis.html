@@ -442,7 +442,7 @@
   <meta name="generator" content="quarto-1.9.38">
 
   <meta name="author" content="Pascal Küng">
-  <meta name="dcterms.date" content="2026-06-15">
+  <meta name="dcterms.date" content="2026-06-16">
   <title>Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2852,7 +2852,7 @@ Pascal Küng
 </div>
 </div>
 
-  <p class="date">2026-06-15</p>
+  <p class="date">2026-06-16</p>
 </section>
 <section id="overview" class="slide level2">
 <h2>Overview</h2>
@@ -7522,21 +7522,8 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 </div>
 </div></div>
 <ul>
-<li>Equivalence holds on both levels. Numeric deviations arise due to priors, sampling noise, and rounding.
-<ul>
-<li>Within-person:
-<ul>
-<li><span class="math inline">\(0.30 + 0.15 = 0.45\)</span></li>
-<li><span class="math inline">\(0.30 - 0.15 = 0.15\)</span></li>
-</ul></li>
-<li>Bewteen-Person:
-<ul>
-<li><span class="math inline">\(1.30 + 0.40 = 1.70\)</span></li>
-<li><span class="math inline">\(1.30 - 0.40 = 0.90\)</span></li>
-</ul></li>
-</ul></li>
+<li>Equivalence holds on both levels. Numeric deviations arise due to priors, sampling noise, and rounding.</li>
 </ul>
-<p>!TODO: holds for residual variances too!!! should we include?</p>
 </section>
 <section id="exchangeable-dyads---l-diml-apim-results-1" class="slide level2">
 <h2>Exchangeable Dyads - L-DIM/L-APIM: Results</h2>
@@ -7807,40 +7794,12 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <section id="extract-full-apim-random-effects-variance-covariance-matrix-1" class="slide level2">
 <h2>Extract Full APIM Random Effects Variance-Covariance Matrix</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href></a><span class="co"># Custom function</span></span>
-<span id="cb49-2"><a href></a>rotate_apim_covariance <span class="ot">&lt;-</span> <span class="cf">function</span>(</span>
-<span id="cb49-3"><a href></a>    fit,</span>
-<span id="cb49-4"><a href></a>    <span class="at">gr =</span> <span class="st">&quot;coupleID&quot;</span>,</span>
-<span id="cb49-5"><a href></a>    <span class="at">Idiff =</span> <span class="st">&quot;Idiff&quot;</span></span>
-<span id="cb49-6"><a href></a>) {</span>
-<span id="cb49-7"><a href></a>  random_effects <span class="ot">&lt;-</span> fit<span class="sc">$</span>ranef</span>
-<span id="cb49-8"><a href></a>  random_effects <span class="ot">&lt;-</span> random_effects[random_effects<span class="sc">$</span>group <span class="sc">==</span> gr,]</span>
-<span id="cb49-9"><a href></a></span>
-<span id="cb49-10"><a href></a>  SUM <span class="ot">&lt;-</span> random_effects<span class="sc">$</span>coef[<span class="sc">!</span><span class="fu">grepl</span>(Idiff, random_effects<span class="sc">$</span>coef)]</span>
-<span id="cb49-11"><a href></a>  DIFF <span class="ot">&lt;-</span> random_effects<span class="sc">$</span>coef[<span class="fu">grepl</span>(Idiff, random_effects<span class="sc">$</span>coef)]</span>
-<span id="cb49-12"><a href></a></span>
-<span id="cb49-13"><a href></a>  varcor <span class="ot">&lt;-</span> <span class="fu">VarCorr</span>(fit)[[gr]]</span>
-<span id="cb49-14"><a href></a></span>
-<span id="cb49-15"><a href></a>  within_person_covariance_matrix <span class="ot">&lt;-</span> varcor<span class="sc">$</span>cov[SUM,<span class="st">&#39;Estimate&#39;</span>,SUM] <span class="sc">+</span> varcor<span class="sc">$</span>cov[DIFF,<span class="st">&#39;Estimate&#39;</span>,DIFF]</span>
-<span id="cb49-16"><a href></a>  cross_person_covariance_matrix <span class="ot">&lt;-</span> varcor<span class="sc">$</span>cov[SUM,<span class="st">&#39;Estimate&#39;</span>,SUM] <span class="sc">-</span> varcor<span class="sc">$</span>cov[DIFF,<span class="st">&#39;Estimate&#39;</span>,DIFF]</span>
-<span id="cb49-17"><a href></a></span>
-<span id="cb49-18"><a href></a>  p <span class="ot">&lt;-</span> <span class="fu">nrow</span>(within_person_covariance_matrix)</span>
-<span id="cb49-19"><a href></a></span>
-<span id="cb49-20"><a href></a>  Full <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
-<span id="cb49-21"><a href></a>    <span class="fu">cbind</span>(within_person_covariance_matrix,  cross_person_covariance_matrix),</span>
-<span id="cb49-22"><a href></a>    <span class="fu">cbind</span>(cross_person_covariance_matrix, within_person_covariance_matrix)</span>
-<span id="cb49-23"><a href></a>  )</span>
-<span id="cb49-24"><a href></a></span>
-<span id="cb49-25"><a href></a>  <span class="co"># nice labels</span></span>
-<span id="cb49-26"><a href></a>  base <span class="ot">&lt;-</span> SUM</span>
-<span id="cb49-27"><a href></a>  rn <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;PartnerA_&quot;</span>, base), <span class="fu">paste0</span>(<span class="st">&quot;PartnerB_&quot;</span>, base))</span>
-<span id="cb49-28"><a href></a>  <span class="fu">colnames</span>(Full) <span class="ot">&lt;-</span> rn</span>
-<span id="cb49-29"><a href></a>  <span class="fu">rownames</span>(Full) <span class="ot">&lt;-</span> rn</span>
-<span id="cb49-30"><a href></a></span>
-<span id="cb49-31"><a href></a>  <span class="fu">return</span>(<span class="fu">list</span>(<span class="at">within_person_covariance_matrix=</span>within_person_covariance_matrix, <span class="at">cross_person_covariance_matrix=</span>cross_person_covariance_matrix, <span class="at">full_covariance_matrix=</span>Full))</span>
-<span id="cb49-32"><a href></a>}</span>
-<span id="cb49-33"><a href></a></span>
-<span id="cb49-34"><a href></a>a <span class="ot">&lt;-</span> <span class="fu">rotate_apim_covariance</span>(model_exch_long_apim)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href></a>a <span class="ot">&lt;-</span> <span class="fu">summarize_exchangeable_apim_brms</span>(</span>
+<span id="cb49-2"><a href></a>  model_exch_long_apim,</span>
+<span id="cb49-3"><a href></a>  <span class="at">gr =</span> <span class="st">&quot;coupleID&quot;</span>,</span>
+<span id="cb49-4"><a href></a>  <span class="at">idiff =</span> <span class="st">&quot;Idiff&quot;</span>,</span>
+<span id="cb49-5"><a href></a>  <span class="at">partner_labels =</span> <span class="fu">c</span>(<span class="st">&quot;PartnerA&quot;</span>, <span class="st">&quot;PartnerB&quot;</span>)</span>
+<span id="cb49-6"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="extract-full-apim-random-effects-variance-covariance-matrix-within-person-matrix" class="slide level2">
@@ -8059,65 +8018,84 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 </div>
 </div>
 </div>
-</section>
-<section id="convert-to-correlation-matrix-of-random-effects" class="slide level2">
-<h2>Convert to correlation matrix of random effects</h2>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href></a><span class="co"># Custom function</span></span>
-<span id="cb53-2"><a href></a>sd_cor <span class="ot">&lt;-</span> <span class="cf">function</span>(Sigma) {</span>
-<span id="cb53-3"><a href></a>  sds  <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">diag</span>(Sigma))</span>
-<span id="cb53-4"><a href></a>  cors <span class="ot">&lt;-</span> <span class="fu">cov2cor</span>(Sigma)</span>
-<span id="cb53-5"><a href></a>  <span class="fu">list</span>(<span class="at">sd =</span> sds, <span class="at">cor =</span> cors)</span>
-<span id="cb53-6"><a href></a>}</span>
-<span id="cb53-7"><a href></a></span>
-<span id="cb53-8"><a href></a>full <span class="ot">&lt;-</span> <span class="fu">sd_cor</span>(a<span class="sc">$</span>full_covariance_matrix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
+<p>The helper function <code>summarize_exchangeable_apim_brms()</code> is defined in <code>00_R_Functions/ReportModels.R</code>. It rotates every posterior draw, so the interval estimates for the transformed SDs, correlations, covariances, and residual quantities are computed on the transformed scale.</p>
+<p>For <code>glmmTMB</code>, the same back-transformation is algebraically possible, but interval estimation is less direct because there are no posterior draws. One would usually transform parametric bootstrap draws or asymptotic draws from the fitted parameter covariance matrix.</p>
 </section>
 <section id="random-effects-sds" class="slide level2">
 <h2>Random effects SDs</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href></a><span class="fu">print_df</span>(<span class="fu">as.data.frame</span>(<span class="fu">round</span>(full<span class="sc">$</span>sd, <span class="dv">3</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href></a><span class="fu">print_df</span>(</span>
+<span id="cb53-2"><a href></a>  a<span class="sc">$</span>sd_summary <span class="sc">%&gt;%</span></span>
+<span id="cb53-3"><a href></a>    <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="fu">where</span>(is.numeric), <span class="sc">~</span> <span class="fu">round</span>(.x, <span class="dv">3</span>)))</span>
+<span id="cb53-4"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:auto; overflow-x: scroll; width:100%; ">
 <table class="table table-striped caption-top" style="font-size: 20px; width: auto !important; ">
 <thead>
 <tr class="header">
-<th data-quarto-table-cell-role="th" style="text-align: left; position: sticky; top: 0; background-color: #FFFFFF; white-space: nowrap; position: sticky; top: 0; background-color: #FFFFFF;"></th>
-<th data-quarto-table-cell-role="th" style="text-align: right; position: sticky; top: 0; background-color: #FFFFFF; white-space: nowrap; position: sticky; top: 0; background-color: #FFFFFF;">round(full$sd, 3)</th>
+<th data-quarto-table-cell-role="th" style="text-align: left; position: sticky; top: 0; background-color: #FFFFFF; white-space: nowrap; position: sticky; top: 0; background-color: #FFFFFF;">parameter</th>
+<th data-quarto-table-cell-role="th" style="text-align: right; position: sticky; top: 0; background-color: #FFFFFF; white-space: nowrap; position: sticky; top: 0; background-color: #FFFFFF;">estimate</th>
+<th data-quarto-table-cell-role="th" style="text-align: right; position: sticky; top: 0; background-color: #FFFFFF; white-space: nowrap; position: sticky; top: 0; background-color: #FFFFFF;">est_error</th>
+<th data-quarto-table-cell-role="th" style="text-align: right; position: sticky; top: 0; background-color: #FFFFFF; white-space: nowrap; position: sticky; top: 0; background-color: #FFFFFF;">q_low</th>
+<th data-quarto-table-cell-role="th" style="text-align: right; position: sticky; top: 0; background-color: #FFFFFF; white-space: nowrap; position: sticky; top: 0; background-color: #FFFFFF;">q_high</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_Intercept</td>
-<td style="text-align: right;">1.085</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">1.083</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.057</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.976</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">1.196</td>
 </tr>
 <tr class="even">
 <td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_diaryday_c</td>
-<td style="text-align: right;">0.018</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.018</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.001</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.016</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.020</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_provided_support_actor_cwp</td>
-<td style="text-align: right;">0.154</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.153</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.018</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.119</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.190</td>
 </tr>
 <tr class="even">
 <td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_provided_support_partner_cwp</td>
-<td style="text-align: right;">0.109</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.107</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.021</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.065</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.147</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_Intercept</td>
-<td style="text-align: right;">1.085</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">1.083</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.057</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.976</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">1.196</td>
 </tr>
 <tr class="even">
 <td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_diaryday_c</td>
-<td style="text-align: right;">0.018</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.018</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.001</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.016</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.020</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_actor_cwp</td>
-<td style="text-align: right;">0.154</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.153</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.018</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.119</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.190</td>
 </tr>
 <tr class="even">
 <td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_partner_cwp</td>
-<td style="text-align: right;">0.109</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.107</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.021</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.065</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.147</td>
 </tr>
 </tbody>
 </table>
@@ -8128,7 +8106,7 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 <section id="random-effect-correlation-matrix" class="slide level2">
 <h2>Random effect correlation matrix</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href></a><span class="fu">print_df</span>(<span class="fu">as.data.frame</span>(<span class="fu">round</span>(full<span class="sc">$</span>cor, <span class="dv">3</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href></a><span class="fu">print_df</span>(<span class="fu">as.data.frame</span>(<span class="fu">round</span>(a<span class="sc">$</span>full_correlation_matrix, <span class="dv">3</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:auto; overflow-x: scroll; width:100%; ">
 <table class="table table-striped caption-top" style="font-size: 20px; width: auto !important; ">
@@ -8240,6 +8218,420 @@ column-gap:.7rem; row-gap:.45rem; align-items:baseline; justify-content:start; w
 </div>
 </div>
 </section>
+<section id="full-reporting-summary" class="slide level2">
+<h2>Full reporting summary</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href></a><span class="fu">print_df</span>(</span>
+<span id="cb55-2"><a href></a>  a<span class="sc">$</span>reporting_summary <span class="sc">%&gt;%</span></span>
+<span id="cb55-3"><a href></a>    <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="fu">where</span>(is.numeric), <span class="sc">~</span> <span class="fu">round</span>(.x, <span class="dv">3</span>))),</span>
+<span id="cb55-4"><a href></a>  <span class="at">rows_to_pack =</span> <span class="fu">list</span>(</span>
+<span id="cb55-5"><a href></a>    <span class="st">&#39;Fixed Effects&#39;</span> <span class="ot">=</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">6</span>),</span>
+<span id="cb55-6"><a href></a>    <span class="st">&#39;Back-Transformed SDs&#39;</span> <span class="ot">=</span> <span class="fu">c</span>(<span class="dv">7</span>, <span class="dv">14</span>),</span>
+<span id="cb55-7"><a href></a>    <span class="st">&#39;Back-Transformed Correlations&#39;</span> <span class="ot">=</span> <span class="fu">c</span>(<span class="dv">15</span>, <span class="dv">42</span>),</span>
+<span id="cb55-8"><a href></a>    <span class="st">&#39;Residual Structure&#39;</span> <span class="ot">=</span> <span class="fu">c</span>(<span class="dv">43</span>, <span class="dv">46</span>)</span>
+<span id="cb55-9"><a href></a>  ),</span>
+<span id="cb55-10"><a href></a>  <span class="at">scroll_height =</span> <span class="st">&#39;50vh&#39;</span></span>
+<span id="cb55-11"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:50vh; overflow-x: scroll; width:100%; ">
+<table class="table table-striped caption-top" style="font-size: 20px; width: auto !important; ">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th" style="text-align: left; position: sticky; top: 0; background-color: #FFFFFF; white-space: nowrap; position: sticky; top: 0; background-color: #FFFFFF;">section</th>
+<th data-quarto-table-cell-role="th" style="text-align: left; position: sticky; top: 0; background-color: #FFFFFF; white-space: nowrap; position: sticky; top: 0; background-color: #FFFFFF;">parameter</th>
+<th data-quarto-table-cell-role="th" style="text-align: right; position: sticky; top: 0; background-color: #FFFFFF; white-space: nowrap; position: sticky; top: 0; background-color: #FFFFFF;">estimate</th>
+<th data-quarto-table-cell-role="th" style="text-align: right; position: sticky; top: 0; background-color: #FFFFFF; white-space: nowrap; position: sticky; top: 0; background-color: #FFFFFF;">est_error</th>
+<th data-quarto-table-cell-role="th" style="text-align: right; position: sticky; top: 0; background-color: #FFFFFF; white-space: nowrap; position: sticky; top: 0; background-color: #FFFFFF;">q_low</th>
+<th data-quarto-table-cell-role="th" style="text-align: right; position: sticky; top: 0; background-color: #FFFFFF; white-space: nowrap; position: sticky; top: 0; background-color: #FFFFFF;">q_high</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd" data-grouplength="6">
+<td colspan="6" style="border-bottom: 1px solid"><strong>Fixed Effects</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Fixed effects</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">Intercept</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">5.111</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.064</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">4.990</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">5.235</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Fixed effects</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">diaryday_c</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.004</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.001</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.001</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.006</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Fixed effects</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">provided_support_actor_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.300</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.013</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.274</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.327</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Fixed effects</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">provided_support_partner_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.149</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.015</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.120</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.179</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Fixed effects</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">provided_support_actor_cbp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">1.304</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.088</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">1.136</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">1.477</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Fixed effects</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">provided_support_partner_cbp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.402</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.082</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.232</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.560</td>
+</tr>
+<tr class="even" data-grouplength="8">
+<td colspan="6" style="border-bottom: 1px solid"><strong>Back-Transformed SDs</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect SDs</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_Intercept</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">1.083</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.057</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.976</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">1.196</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect SDs</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_diaryday_c</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.018</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.001</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.016</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.020</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect SDs</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_provided_support_actor_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.153</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.018</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.119</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.190</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect SDs</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_provided_support_partner_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.107</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.021</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.065</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.147</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect SDs</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_Intercept</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">1.083</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.057</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.976</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">1.196</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect SDs</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_diaryday_c</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.018</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.001</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.016</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.020</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect SDs</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_actor_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.153</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.018</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.119</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.190</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect SDs</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_partner_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.107</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.021</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.065</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.147</td>
+</tr>
+<tr class="odd" data-grouplength="28">
+<td colspan="6" style="border-bottom: 1px solid"><strong>Back-Transformed Correlations</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_diaryday_c with PartnerA_Intercept</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.579</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.054</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.467</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.678</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_provided_support_actor_cwp with PartnerA_Intercept</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.572</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.085</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.386</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.722</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_provided_support_actor_cwp with PartnerA_diaryday_c</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.364</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.102</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.150</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.550</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_provided_support_partner_cwp with PartnerA_Intercept</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.157</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.119</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.077</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.387</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_provided_support_partner_cwp with PartnerA_diaryday_c</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.147</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.130</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.112</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.399</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerA_provided_support_partner_cwp with PartnerA_provided_support_actor_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.265</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.157</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.026</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.574</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_Intercept with PartnerA_Intercept</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.232</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.091</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.405</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.054</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_Intercept with PartnerA_diaryday_c</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.128</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.085</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.291</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.039</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_Intercept with PartnerA_provided_support_actor_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.382</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.102</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.573</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.182</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_Intercept with PartnerA_provided_support_partner_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.039</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.126</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.207</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.279</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_diaryday_c with PartnerA_Intercept</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.128</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.085</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.291</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.039</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_diaryday_c with PartnerA_diaryday_c</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.133</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.120</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.364</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.105</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_diaryday_c with PartnerA_provided_support_actor_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.209</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.112</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.418</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.024</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_diaryday_c with PartnerA_provided_support_partner_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.046</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.135</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.214</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.305</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_diaryday_c with PartnerB_Intercept</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.579</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.054</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.467</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.678</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_actor_cwp with PartnerA_Intercept</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.382</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.102</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.573</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.182</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_actor_cwp with PartnerA_diaryday_c</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.209</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.112</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.418</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.024</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_actor_cwp with PartnerA_provided_support_actor_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.759</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.153</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.991</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.414</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_actor_cwp with PartnerA_provided_support_partner_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.110</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.159</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.414</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.199</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_actor_cwp with PartnerB_Intercept</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.572</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.085</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.386</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.722</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_actor_cwp with PartnerB_diaryday_c</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.364</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.102</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.150</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.550</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_partner_cwp with PartnerA_Intercept</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.039</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.126</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.207</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.279</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_partner_cwp with PartnerA_diaryday_c</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.046</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.135</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.214</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.305</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_partner_cwp with PartnerA_provided_support_actor_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.110</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.159</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.414</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.199</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_partner_cwp with PartnerA_provided_support_partner_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.263</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.381</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.522</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.972</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_partner_cwp with PartnerB_Intercept</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.157</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.119</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.077</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.387</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_partner_cwp with PartnerB_diaryday_c</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.147</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.130</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.112</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.399</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Back-transformed random-effect correlations</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">PartnerB_provided_support_partner_cwp with PartnerB_provided_support_actor_cwp</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.265</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.157</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">-0.026</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.574</td>
+</tr>
+<tr class="even" data-grouplength="4">
+<td colspan="6" style="border-bottom: 1px solid"><strong>Residual Structure</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Residual structure</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">residual_variance</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.878</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.012</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.855</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.902</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Residual structure</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">same_day_residual_correlation</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.038</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.014</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.008</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.064</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Residual structure</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">same_day_residual_covariance</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.033</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.013</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.007</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.056</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; white-space: nowrap; padding: 10px; padding-left: 2em;" data-indentlevel="1">Residual structure</td>
+<td style="text-align: left; white-space: nowrap; padding: 10px;">sigma</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.937</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.007</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.925</td>
+<td style="text-align: right; white-space: nowrap; padding: 10px;">0.950</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
 <section id="references" class="slide level2 smaller scrollable">
 <h2>References</h2>
 
@@ -8285,6 +8677,12 @@ Lüdecke, D., Makowski, D., Ben-Shachar, M. S., Patil, I., Wiernik, B. M., Bache
 </div>
 <div id="ref-nickellBiasesDynamicModels1981" class="csl-entry" role="listitem">
 Nickell, S. (1981). Biases in dynamic models with fixed effects. <em>Econometrica</em>, <em>49</em>(6), 1417–1426. <a href="https://doi.org/10.2307/1911408">https://doi.org/10.2307/1911408</a>
+</div>
+<div id="ref-R-nlme" class="csl-entry" role="listitem">
+Pinheiro, J., Bates, D., &amp; R Core Team. (2026). <em>Nlme: Linear and nonlinear mixed effects models</em>. <a href="https://svn.r-project.org/R-packages/trunk/nlme/">https://svn.r-project.org/R-packages/trunk/nlme/</a>
+</div>
+<div id="ref-R-MASS" class="csl-entry" role="listitem">
+Ripley, B., &amp; Venables, B. (2025). <em>MASS: Support functions and datasets for venables and ripley’s MASS</em>. <a href="http://www.stats.ox.ac.uk/pub/MASS4/">http://www.stats.ox.ac.uk/pub/MASS4/</a>
 </div>
 <div id="ref-stadlerHowCompanionshipRelated2023" class="csl-entry" role="listitem">
 Stadler, G., Scholz, U., Bolger, N., Shrout, P. E., Knoll, N., &amp; Lüscher, J. (2023). How is companionship related to romantic partners’ affect, relationship satisfaction, and health behavior? <span>Using</span> a longitudinal dyadic score model to understand daily and couple-level effects of a dyadic predictor. <em>Applied Psychology: Health and Well-Being</em>, <em>15</em>(4), 1530–1554. <a href="https://doi.org/10.1111/aphw.12450">https://doi.org/10.1111/aphw.12450</a>

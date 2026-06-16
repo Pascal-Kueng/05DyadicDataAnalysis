@@ -1,0 +1,282 @@
+---
+title: "Exchangeable Dyads: Model and Back-Transformation"
+author: "Pascal Kueng"
+format:
+  pdf:
+    pdf-engine: xelatex
+    toc: false
+    number-sections: true
+    papersize: a4
+    geometry: ["margin=1in"]
+    colorlinks: true
+    include-in-header:
+      text: |
+        \usepackage{fvextra}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{fontsize=\scriptsize,breaklines,breakanywhere,commandchars=\\\{\}}
+        \usepackage{pdflscape}
+execute:
+  warning: false
+  message: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  cache = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+
+library(brms)
+library(glmmTMB)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(knitr)
+library(kableExtra)
+source(file.path("00_R_Functions", "ReportModels.R"))
+
+options(
+  brms.backend = "cmdstanr",
+  brms.file_refit = "on_change"
+)
+```
+
+Assume `df_long_dim` contains one row per person-day and two rows per
+`coupleID:diaryday`. The exchangeability code uses `Idiff = +1/-1` to represent
+partner deviations from the dyad-level mean.
+
+# Data structure
+
+```{r idiff-data-structure-table, echo=FALSE}
+idiff_example <- tibble(
+  coupleID = rep(31, 6),
+  userID = c(rep("31_1", 3), rep("31_2", 3)),
+  diaryday = rep(0:2, 2),
+  couple_day = rep(c("31.0", "31.1", "31.2"), 2),
+  member = c(rep(1, 3), rep(2, 3)),
+  Idiff = c(rep(1, 3), rep(-1, 3)),
+  is_partner1 = as.numeric(Idiff == 1),
+  is_partner2 = as.numeric(Idiff == -1)
+)
+
+kable(
+  idiff_example,
+  caption = "Example person-day structure for an exchangeable dyad"
+)
+```
+
+`Idiff` is constant within person and opposite within dyad. The dummy variables
+used in `glmmTMB`, `is_partner1` and `is_partner2`, must be constructed from the
+same `Idiff` coding.
+
+# glmmTMB model
+
+```{r glmmTMB-model, eval=FALSE}
+model_exch_long_apim_glmmtmb <- glmmTMB(
+  closeness ~ 1 +
+
+    # Pooled fixed effects: no gender-specific intercepts or slopes.
+    diaryday_c +
+    provided_support_actor_cwp +
+    provided_support_partner_cwp +
+    provided_support_actor_cbp +
+    provided_support_partner_cbp +
+
+    # Dyad-level means and slopes.
+    (1 + diaryday_c +
+       provided_support_actor_cwp +
+       provided_support_partner_cwp | coupleID) +
+
+    # Partner deviations from the dyad-level effects.
+    # This block is kept separate from the dyad-level block so that the
+    # sum and difference components are independent.
+    (0 + Idiff +
+       I(Idiff * diaryday_c) +
+       I(Idiff * provided_support_actor_cwp) +
+       I(Idiff * provided_support_partner_cwp) | coupleID) +
+
+    # Same-day residual interdependence:
+    # homogeneous compound symmetry = one residual variance plus one
+    # partner residual correlation.
+    # Important: is_partner1 and is_partner2 must be constructed from the
+    # same Idiff coding used above, e.g. is_partner1 = 1 when Idiff == 1
+    # and is_partner2 = 1 when Idiff == -1.
+    homcs(0 + is_partner1 + is_partner2 | coupleID:diaryday),
+
+  # The residual variance is represented by the homcs block above.
+  # Without dispformula = ~ 0, glmmTMB would add a second independent
+  # residual variance on top of the dyadic residual covariance structure.
+  # For families without a residual, dispformula should NOT be set to zero. 
+  dispformula = ~ 0,
+  family = gaussian(),
+  data = df_long_dim
+)
+```
+
+The residual block could also be written as independent sum/difference terms:
+
+```{r glmmTMB-idiff-residual, eval=FALSE}
+(1 | coupleID:diaryday) +
+(0 + Idiff | coupleID:diaryday)
+```
+
+With `Idiff = +1/-1`, this has the same parameter count as `homcs(...)`: one
+sum variance and one difference variance, which rotate back to one homogeneous
+residual variance and one residual covariance.
+
+# brms model
+
+```{r brms-model, eval=FALSE}
+formula_exch_long_apim <- bf(
+  closeness ~ 1 +
+
+    # Pooled fixed effects.
+    diaryday_c +
+    provided_support_actor_cwp +
+    provided_support_partner_cwp +
+    provided_support_actor_cbp +
+    provided_support_partner_cbp +
+
+    # Dyad-level means and slopes.
+    (1 + diaryday_c +
+       provided_support_actor_cwp +
+       provided_support_partner_cwp | coupleID) +
+
+    # Partner deviations from the dyad-level effects.
+    (0 + Idiff +
+       I(Idiff * diaryday_c) +
+       I(Idiff * provided_support_actor_cwp) +
+       I(Idiff * provided_support_partner_cwp) | coupleID) +
+
+    # Native residual correlation between the two partners on the same day.
+    # We use unstr() instead of cs() because brms currently restricts cs()
+    # residual correlations to be positive. With exactly two members per group
+    # (dyads), unstr() is equivalent here because only one residual correlation
+    # is estimated. For triads or larger groups, unstr() would no longer impose
+    # the compound-symmetry constraint.
+    unstr(time = member, gr = couple_day)
+
+  # No sigma formula is specified here. Thus, sigma ~ 1 is implied,
+  # meaning one homogeneous residual variance for both partners.
+  # If sigma is modelled with its own formula, brms estimates the sigma
+  # coefficients on the log scale, so those coefficients must be exponentiated
+  # before reporting them as residual SDs.
+)
+
+priors_exch_long_apim <- c(
+  prior(normal(4, 2), class = "Intercept"),
+  prior(normal(0, 2), class = "b"),
+  prior(exponential(1), class = "sd"),
+  prior(lkj(2), class = "cor"),
+  prior(student_t(3, 0, 1.5), class = "sigma"),
+  prior(lkj(2), class = "cortime")
+)
+
+model_exch_long_apim <- brm(
+  formula = formula_exch_long_apim,
+  data = df_long_dim,
+  family = gaussian(link = identity),
+  prior = priors_exch_long_apim,
+  chains = 4,
+  cores = 4,
+  iter = 2000,
+  warmup = 1000,
+  seed = 123,
+  file = file.path("brms_cache", "model_apim_ind_long_apim")
+)
+```
+
+```{r load-cached-fit, include=FALSE}
+cached_fit <- file.path("brms_cache", "model_apim_ind_long_apim.rds")
+if (!file.exists(cached_fit)) {
+  stop(
+    "Cached brms fit not found: ", cached_fit,
+    ". Run the brms model chunk first, then render this file again."
+  )
+}
+model_exch_long_apim <- readRDS(cached_fit)
+```
+
+# Back-transformation
+
+The model estimates a sum block and an `Idiff` block. For exchangeable dyads,
+the full APIM random-effects matrix is recovered by rotating these two blocks:
+
+$$
+\operatorname{Var}(A) = \operatorname{Var}(B) =
+\Sigma_{\text{sum}} + \Sigma_{\text{diff}}
+$$
+
+$$
+\operatorname{Cov}(A, B) =
+\Sigma_{\text{sum}} - \Sigma_{\text{diff}}
+$$
+
+This exact rotation assumes that the sum and difference random-effect blocks are
+independent.
+
+The helper function `summarize_exchangeable_apim_brms()` is defined in
+`00_R_Functions/ReportModels.R`. It reconstructs the sum and `Idiff` covariance
+matrices for every posterior draw, rotates each draw into the full APIM
+partner-level matrix, and then summarizes the transformed covariance, SD,
+correlation, fixed-effect, and residual quantities.
+
+For `glmmTMB`, the same back-transformation is algebraically possible, but
+interval estimation is less direct because there are no posterior draws. A
+`glmmTMB` workflow would usually transform parametric bootstrap draws or
+asymptotic draws from the fitted parameter covariance matrix.
+
+```{r backtransform-code}
+apim_results <- summarize_exchangeable_apim_brms(
+  model_exch_long_apim,
+  gr = "coupleID",
+  idiff = "Idiff",
+  term_labels = c("int", "day", "actor_wp", "partner_wp"),
+  partner_labels = c("A", "B")
+)
+```
+
+# Variance-covariance matrix
+
+```{r covariance-table}
+kable(
+  round(apim_results$full_covariance_matrix, 3),
+  caption = "Back-transformed full APIM random-effects variance-covariance matrix",
+  booktabs = TRUE
+) |>
+  kable_styling(latex_options = "scale_down", font_size = 7)
+```
+
+# SD table
+
+```{r sd-table}
+kable(
+  apim_results$sd_summary,
+  digits = 3,
+  caption = "Back-transformed APIM random-effect standard deviations with 95% credible intervals"
+)
+```
+
+# Correlation table
+
+```{r correlation-table}
+kable(
+  round(apim_results$full_correlation_matrix, 3),
+  caption = "Back-transformed APIM random-effect correlation matrix",
+  booktabs = TRUE
+) |>
+  kable_styling(latex_options = "scale_down", font_size = 7)
+```
+
+# Final reporting summary
+
+```{r final-summary-table, echo=FALSE}
+apim_results$reporting_summary |>
+  mutate(across(where(is.numeric), ~ round(.x, 3))) |>
+  kable(
+    caption = "Compact reporting summary",
+    booktabs = TRUE
+  ) |>
+  kable_styling(latex_options = c("scale_down", "repeat_header"), font_size = 7)
+```

@@ -2972,40 +2972,12 @@ Note: This only holds true when the means and Idiffs are uncorrelated. This is w
 ## Extract Full APIM Random Effects Variance-Covariance Matrix
 
 ```{r extract-exch-long-apim-covariance, cache=TRUE, dependson='fit-exch-long-apim-brms'}
-# Custom function
-rotate_apim_covariance <- function(
-    fit,
-    gr = "coupleID",
-    Idiff = "Idiff"
-) {
-  random_effects <- fit$ranef
-  random_effects <- random_effects[random_effects$group == gr,]
-
-  SUM <- random_effects$coef[!grepl(Idiff, random_effects$coef)]
-  DIFF <- random_effects$coef[grepl(Idiff, random_effects$coef)]
-
-  varcor <- VarCorr(fit)[[gr]]
-
-  within_person_covariance_matrix <- varcor$cov[SUM,'Estimate',SUM] + varcor$cov[DIFF,'Estimate',DIFF]
-  cross_person_covariance_matrix <- varcor$cov[SUM,'Estimate',SUM] - varcor$cov[DIFF,'Estimate',DIFF]
-
-  p <- nrow(within_person_covariance_matrix)
-
-  Full <- rbind(
-    cbind(within_person_covariance_matrix,  cross_person_covariance_matrix),
-    cbind(cross_person_covariance_matrix, within_person_covariance_matrix)
-  )
-
-  # nice labels
-  base <- SUM
-  rn <- c(paste0("PartnerA_", base), paste0("PartnerB_", base))
-  colnames(Full) <- rn
-  rownames(Full) <- rn
-
-  return(list(within_person_covariance_matrix=within_person_covariance_matrix, cross_person_covariance_matrix=cross_person_covariance_matrix, full_covariance_matrix=Full))
-}
-
-a <- rotate_apim_covariance(model_exch_long_apim)
+a <- summarize_exchangeable_apim_brms(
+  model_exch_long_apim,
+  gr = "coupleID",
+  idiff = "Idiff",
+  partner_labels = c("PartnerA", "PartnerB")
+)
 
 ```
 
@@ -3029,30 +3001,39 @@ print_wide_matrix(a$full_covariance_matrix, font_size = 6)
 ```
 
 
-## Convert to correlation matrix of random effects
+The helper function `summarize_exchangeable_apim_brms()` is defined in `00_R_Functions/ReportModels.R`. It rotates every posterior draw, so the interval estimates for the transformed SDs, correlations, covariances, and residual quantities are computed on the transformed scale.
 
-```{r convert-exch-long-apim-cov-cor, cache=TRUE, dependson='extract-exch-long-apim-covariance'}
-# Custom function
-sd_cor <- function(Sigma) {
-  sds  <- sqrt(diag(Sigma))
-  cors <- cov2cor(Sigma)
-  list(sd = sds, cor = cors)
-}
-
-full <- sd_cor(a$full_covariance_matrix)
-```
-
+For `glmmTMB`, the same back-transformation is algebraically possible, but interval estimation is less direct because there are no posterior draws. One would usually transform parametric bootstrap draws or asymptotic draws from the fitted parameter covariance matrix.
 
 ## Random effects SDs
 
 ```{r results-exch-long-apim-re-sds}
-print_df(as.data.frame(round(full$sd, 3)))
+print_df(
+  a$sd_summary %>%
+    mutate(across(where(is.numeric), ~ round(.x, 3)))
+)
 ```
 
 ## Random effect correlation matrix
 
 ```{r results-exch-long-apim-re-cor}
-print_wide_matrix(full$cor, font_size = 6)
+print_wide_matrix(a$full_correlation_matrix, font_size = 6)
+```
+
+## Full reporting summary
+
+```{r results-exch-long-apim-reporting-summary}
+print_df(
+  a$reporting_summary %>%
+    mutate(across(where(is.numeric), ~ round(.x, 3))),
+  rows_to_pack = list(
+    'Fixed Effects' = c(1, 6),
+    'Back-Transformed SDs' = c(7, 14),
+    'Back-Transformed Correlations' = c(15, 42),
+    'Residual Structure' = c(43, 46)
+  ),
+  scroll_height = '50vh'
+)
 ```
 
 ## References

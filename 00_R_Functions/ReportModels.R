@@ -1,4 +1,4 @@
-# Main Functions in this file (3):
+# Main Functions in this file (4):
 
 ###################################
 # 1. my_brm
@@ -67,6 +67,16 @@
 # ```r
 # comparison <- report_side_by_side(model1, model2, model_rows_fixed = c("Intercept", "Variable1"))
 # ```
+
+###################################
+# 4. summarize_exchangeable_apim_brms
+###################################
+# Description:
+# This function rotates the sum and Idiff random-effect blocks from an
+# exchangeable-dyad brms model back to the full APIM partner-level
+# variance-covariance matrix. It performs the rotation for every posterior draw,
+# so SDs, correlations, covariances, fixed effects, and residual quantities can
+# be reported with posterior intervals on the transformed scale.
 
 
 # Function for modelling where we can specify whether to use MI or not. 
@@ -2289,5 +2299,224 @@ DHARMa.check_brms.all <- function(model, integer = FALSE, outliers_type = 'defau
 }
 
 
+summarise_posterior_vector <- function(x, probs = c(0.025, 0.975)) {
+  tibble::tibble(
+    estimate = mean(x),
+    est_error = stats::sd(x),
+    q_low = stats::quantile(x, probs[1], names = FALSE),
+    q_high = stats::quantile(x, probs[2], names = FALSE)
+  )
+}
 
+
+make_brms_covariance_draw <- function(draw, terms, gr = "coupleID") {
+  p <- length(terms)
+  sds <- as.numeric(draw[paste0("sd_", gr, "__", terms)])
+  cor_mat <- diag(1, p)
+
+  if (anyNA(sds)) {
+    missing_sd <- paste0("sd_", gr, "__", terms)[is.na(sds)]
+    stop("Missing brms SD parameter(s): ", paste(missing_sd, collapse = ", "))
+  }
+
+  if (p > 1) {
+    for (j in 2:p) {
+      for (i in 1:(j - 1)) {
+        cor_name <- paste0("cor_", gr, "__", terms[i], "__", terms[j])
+        cor_name_rev <- paste0("cor_", gr, "__", terms[j], "__", terms[i])
+
+        if (cor_name %in% names(draw)) {
+          cor_mat[i, j] <- cor_mat[j, i] <- as.numeric(draw[[cor_name]])
+        } else if (cor_name_rev %in% names(draw)) {
+          cor_mat[i, j] <- cor_mat[j, i] <- as.numeric(draw[[cor_name_rev]])
+        } else {
+          stop("Missing brms correlation parameter: ", cor_name)
+        }
+      }
+    }
+  }
+
+  diag(sds) %*% cor_mat %*% diag(sds)
+}
+
+
+summarize_exchangeable_apim_brms <- function(
+    fit,
+    gr = "coupleID",
+    idiff = "Idiff",
+    term_labels = NULL,
+    partner_labels = c("A", "B"),
+    probs = c(0.025, 0.975),
+    include_fixed = TRUE,
+    include_residual = TRUE
+) {
+  if (length(partner_labels) != 2) {
+    stop("partner_labels must contain exactly two labels.")
+  }
+
+  random_effects <- fit$ranef
+  random_effects <- random_effects[random_effects$group == gr, ]
+
+  sum_terms <- random_effects$coef[!grepl(idiff, random_effects$coef)]
+  diff_terms <- random_effects$coef[grepl(idiff, random_effects$coef)]
+
+  if (length(sum_terms) != length(diff_terms)) {
+    stop("The sum and Idiff random-effect blocks must contain the same number of terms.")
+  }
+
+  if (is.null(term_labels)) {
+    term_labels <- sum_terms
+  }
+
+  if (length(term_labels) != length(sum_terms)) {
+    stop("term_labels must have the same length as the sum random-effect terms.")
+  }
+
+  draws <- as.data.frame(posterior::as_draws_df(fit))
+
+  covariance_draws <- purrr::map(seq_len(nrow(draws)), function(i) {
+    sigma_sum <- make_brms_covariance_draw(draws[i, ], sum_terms, gr = gr)
+    sigma_diff <- make_brms_covariance_draw(draws[i, ], diff_terms, gr = gr)
+
+    within_person <- sigma_sum + sigma_diff
+    cross_person <- sigma_sum - sigma_diff
+
+    full <- rbind(
+      cbind(within_person, cross_person),
+      cbind(cross_person, within_person)
+    )
+
+    labels <- c(
+      paste0(partner_labels[1], "_", term_labels),
+      paste0(partner_labels[2], "_", term_labels)
+    )
+
+    dimnames(within_person) <- list(term_labels, term_labels)
+    dimnames(cross_person) <- list(term_labels, term_labels)
+    dimnames(full) <- list(labels, labels)
+
+    list(
+      within_person = within_person,
+      cross_person = cross_person,
+      full_covariance = full
+    )
+  })
+
+  mean_matrix <- function(component) {
+    Reduce("+", purrr::map(covariance_draws, component)) / length(covariance_draws)
+  }
+
+  full_covariance_matrix <- mean_matrix("full_covariance")
+  within_person_covariance_matrix <- mean_matrix("within_person")
+  cross_person_covariance_matrix <- mean_matrix("cross_person")
+  full_correlation_matrix <- stats::cov2cor(full_covariance_matrix)
+
+  covariance_summary <- purrr::map_dfr(covariance_draws, function(draw) {
+    as.data.frame(as.table(draw$full_covariance)) |>
+      dplyr::rename(parameter_1 = Var1, parameter_2 = Var2, value = Freq) |>
+      dplyr::mutate(parameter = paste(parameter_1, "with", parameter_2)) |>
+      dplyr::select(parameter, value)
+  }, .id = "draw") |>
+    dplyr::group_by(parameter) |>
+    dplyr::summarise(summarise_posterior_vector(value, probs = probs), .groups = "drop")
+
+  sd_summary <- purrr::map_dfr(covariance_draws, function(draw) {
+    sds <- sqrt(diag(draw$full_covariance))
+    tibble::tibble(parameter = names(sds), value = unname(sds))
+  }, .id = "draw") |>
+    dplyr::group_by(parameter) |>
+    dplyr::summarise(summarise_posterior_vector(value, probs = probs), .groups = "drop")
+
+  cor_summary <- purrr::map_dfr(covariance_draws, function(draw) {
+    cor_matrix <- stats::cov2cor(draw$full_covariance)
+    as.data.frame(as.table(cor_matrix)) |>
+      dplyr::rename(parameter_1 = Var1, parameter_2 = Var2, value = Freq) |>
+      dplyr::filter(as.integer(parameter_1) > as.integer(parameter_2)) |>
+      dplyr::mutate(parameter = paste(parameter_1, "with", parameter_2)) |>
+      dplyr::select(parameter, value)
+  }, .id = "draw") |>
+    dplyr::group_by(parameter) |>
+    dplyr::summarise(summarise_posterior_vector(value, probs = probs), .groups = "drop")
+
+  fixed_summary <- NULL
+  if (include_fixed) {
+    fixed_summary <- brms::fixef(fit) |>
+      as.data.frame() |>
+      tibble::rownames_to_column("parameter") |>
+      dplyr::transmute(
+        section = "Fixed effects",
+        parameter,
+        estimate = Estimate,
+        est_error = Est.Error,
+        q_low = Q2.5,
+        q_high = Q97.5
+      )
+  }
+
+  residual_summary <- NULL
+  if (include_residual) {
+    # brms sigma regression coefficients (b_sigma_*) are on the log scale.
+    # In models without a sigma formula, posterior$sigma is already the
+    # residual SD on the response scale.
+    if ("sigma" %in% names(draws)) {
+      sigma_response <- draws$sigma
+    } else if ("b_sigma_Intercept" %in% names(draws)) {
+      sigma_response <- exp(draws$b_sigma_Intercept)
+    } else {
+      sigma_response <- NULL
+    }
+
+    residual_draws <- tibble::tibble()
+
+    if (!is.null(sigma_response)) {
+      residual_draws <- tibble::tibble(
+        sigma = sigma_response,
+        residual_variance = sigma_response^2
+      )
+    }
+
+    if ("cortime__1__2" %in% names(draws)) {
+      residual_draws$same_day_residual_correlation <- draws$cortime__1__2
+
+      if (!is.null(sigma_response)) {
+        residual_draws$same_day_residual_covariance <- draws$cortime__1__2 * sigma_response^2
+      }
+    }
+
+    if (ncol(residual_draws) > 0) {
+      residual_summary <- residual_draws |>
+        tidyr::pivot_longer(
+          dplyr::everything(),
+          names_to = "parameter",
+          values_to = "value"
+        ) |>
+        dplyr::group_by(parameter) |>
+        dplyr::summarise(summarise_posterior_vector(value, probs = probs), .groups = "drop") |>
+        dplyr::mutate(section = "Residual structure", .before = parameter)
+    }
+  }
+
+  reporting_summary <- dplyr::bind_rows(
+    fixed_summary,
+    sd_summary |>
+      dplyr::mutate(section = "Back-transformed random-effect SDs", .before = parameter),
+    cor_summary |>
+      dplyr::mutate(section = "Back-transformed random-effect correlations", .before = parameter),
+    residual_summary
+  )
+
+  list(
+    within_person_covariance_matrix = within_person_covariance_matrix,
+    cross_person_covariance_matrix = cross_person_covariance_matrix,
+    full_covariance_matrix = full_covariance_matrix,
+    full_correlation_matrix = full_correlation_matrix,
+    covariance_summary = covariance_summary,
+    sd_summary = sd_summary,
+    cor_summary = cor_summary,
+    residual_summary = residual_summary,
+    fixed_summary = fixed_summary,
+    reporting_summary = reporting_summary,
+    covariance_draws = covariance_draws
+  )
+}
 
