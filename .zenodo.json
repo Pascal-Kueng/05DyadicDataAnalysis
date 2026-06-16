@@ -23,6 +23,18 @@
   "version": "v2.0.4",
   "related_identifiers": [
     {
+      "identifier": "10.5281/zenodo.20709724",
+      "relation": "isNewVersionOf",
+      "scheme": "doi",
+      "resource_type": "publication-report"
+    },
+    {
+      "identifier": "10.5281/zenodo.17400655",
+      "relation": "isVersionOf",
+      "scheme": "doi",
+      "resource_type": "publication-report"
+    },
+    {
       "identifier": "https://github.com/Pascal-Kueng/05DyadicDataAnalysis",
       "relation": "isSupplementTo",
       "scheme": "url",

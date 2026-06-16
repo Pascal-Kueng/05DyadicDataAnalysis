@@ -99,8 +99,9 @@ options(knitr.kable.NA = "", width = 120)
 >
 > The PDF version below is a static archival version for indexing, citation, and long-term reference.
 
-**DOI:** 10.5281/zenodo.17400655  
-**Suggested citation:** Küng, P. M. (2026). *Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling* (Version v2.0.4). University of Zurich. DOI: 10.5281/zenodo.17400655
+**Version DOI:** 10.5281/zenodo.20709724  
+**All-versions DOI:** 10.5281/zenodo.17400655  
+**Suggested citation:** Küng, P. M. (2026). *Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling* (Version v2.0.4). University of Zurich. DOI: 10.5281/zenodo.20709724
 
 
 ## Overview

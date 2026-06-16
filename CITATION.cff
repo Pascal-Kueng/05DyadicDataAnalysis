@@ -6,7 +6,14 @@ authors:
   - family-names: "Küng"
     given-names: "Pascal M."
     affiliation: "University of Zurich"
-doi: "10.5281/zenodo.17400655"
+doi: "10.5281/zenodo.20709724"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.20709724"
+    description: "Version DOI for v2.0.4"
+  - type: doi
+    value: "10.5281/zenodo.17400655"
+    description: "All-versions DOI"
 url: "https://pascal-kueng.github.io/05DyadicDataAnalysis/"
 repository-code: "https://github.com/Pascal-Kueng/05DyadicDataAnalysis"
 version: "v2.0.4"
