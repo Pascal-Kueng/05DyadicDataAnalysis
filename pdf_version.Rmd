@@ -1,7 +1,7 @@
 ---
 title: "Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling"
 subtitle: "Cross-Sectional and Intensive Longitudinal APIM and DIM"
-author: "Pascal Küng"
+author: "Pascal M. Küng"
 date: "last-modified"
 abstract: >
   This tutorial presents applied Bayesian multilevel modelling for dyadic data,
@@ -98,6 +98,9 @@ options(knitr.kable.NA = "", width = 120)
 > <https://pascal-kueng.github.io/05DyadicDataAnalysis/DyadicDataAnalysis.html>
 >
 > The PDF version below is a static archival version for indexing, citation, and long-term reference.
+
+**DOI:** 10.5281/zenodo.17400655  
+**Suggested citation:** Küng, P. M. (2026). *Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling* (Version v2.0.4). University of Zurich. DOI: 10.5281/zenodo.17400655
 
 
 ## Overview

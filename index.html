@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling</title>
+  <meta name="description" content="Applied Bayesian multilevel modelling tutorial for distinguishable and exchangeable dyads, covering cross-sectional and intensive longitudinal APIM and DIM models.">
+
+  <meta name="citation_title" content="Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling">
+  <meta name="citation_author" content="Küng, Pascal M.">
+  <meta name="citation_publication_date" content="2026/06/16">
+  <meta name="citation_online_date" content="2026/06/16">
+  <meta name="citation_doi" content="10.5281/zenodo.17400655">
+  <meta name="citation_technical_report_institution" content="University of Zurich">
+  <meta name="citation_technical_report_number" content="v2.0.4">
+  <meta name="citation_pdf_url" content="https://pascal-kueng.github.io/05DyadicDataAnalysis/pdf_version.pdf">
+  <meta name="citation_abstract_html_url" content="https://pascal-kueng.github.io/05DyadicDataAnalysis/">
+  <meta name="citation_keywords" content="dyadic data; APIM; DIM; Bayesian multilevel modelling; brms; cmdstanr; longitudinal diary data">
+
+  <meta name="DC.title" content="Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling">
+  <meta name="DC.creator" content="Küng, Pascal M.">
+  <meta name="DC.issued" content="2026-06-16">
+  <meta name="DC.identifier" content="https://doi.org/10.5281/zenodo.17400655">
+  <meta name="DC.identifier" content="https://pascal-kueng.github.io/05DyadicDataAnalysis/pdf_version.pdf">
+  <meta name="DC.publisher" content="University of Zurich">
+  <meta name="DC.type" content="Text">
+  <meta name="DC.language" content="en">
+
+  <meta property="og:title" content="Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://pascal-kueng.github.io/05DyadicDataAnalysis/">
+  <meta property="og:description" content="Applied Bayesian multilevel modelling tutorial for distinguishable and exchangeable dyads, covering cross-sectional and intensive longitudinal APIM and DIM models.">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ScholarlyArticle",
+    "name": "Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling",
+    "headline": "Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling",
+    "author": {
+      "@type": "Person",
+      "name": "Pascal M. Küng",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "University of Zurich"
+      }
+    },
+    "datePublished": "2026-06-16",
+    "dateModified": "2026-06-16",
+    "identifier": "https://doi.org/10.5281/zenodo.17400655",
+    "url": "https://pascal-kueng.github.io/05DyadicDataAnalysis/",
+    "sameAs": [
+      "https://doi.org/10.5281/zenodo.17400655",
+      "https://github.com/Pascal-Kueng/05DyadicDataAnalysis"
+    ],
+    "encoding": {
+      "@type": "MediaObject",
+      "contentUrl": "https://pascal-kueng.github.io/05DyadicDataAnalysis/pdf_version.pdf",
+      "encodingFormat": "application/pdf"
+    },
+    "keywords": [
+      "dyadic data",
+      "APIM",
+      "DIM",
+      "Bayesian multilevel modelling",
+      "brms",
+      "cmdstanr",
+      "longitudinal diary data"
+    ],
+    "description": "Applied Bayesian multilevel modelling tutorial for distinguishable and exchangeable dyads, covering cross-sectional and intensive longitudinal APIM and DIM models."
+  }
+  </script>
+
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+      color: #1f2933;
+      background: #f7f8fa;
+    }
+
+    body {
+      margin: 0;
+    }
+
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 56px 24px 72px;
+      background: #fff;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.25rem);
+      line-height: 1.12;
+      margin: 0 0 16px;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      font-size: 1.25rem;
+      margin: 0 0 24px;
+      color: #415466;
+    }
+
+    .metadata {
+      margin: 0 0 32px;
+      color: #52616f;
+    }
+
+    h2 {
+      margin-top: 36px;
+      font-size: 1.3rem;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 32px 0;
+    }
+
+    .actions a {
+      display: inline-block;
+      padding: 10px 14px;
+      border: 1px solid #315b7d;
+      color: #123b5d;
+      text-decoration: none;
+      font-weight: 650;
+    }
+
+    .actions a:first-child {
+      background: #123b5d;
+      color: #fff;
+    }
+
+    code {
+      background: #eef2f5;
+      padding: 2px 5px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <article>
+      <h1>Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling</h1>
+      <p class="subtitle">Cross-Sectional and Intensive Longitudinal APIM and DIM</p>
+      <p class="metadata">
+        Pascal M. Küng, University of Zurich<br>
+        Version v2.0.4, 2026-06-16<br>
+        DOI: <a href="https://doi.org/10.5281/zenodo.17400655">10.5281/zenodo.17400655</a>
+      </p>
+
+      <h2>Abstract</h2>
+      <p>
+        This tutorial presents applied Bayesian multilevel modelling for dyadic data,
+        covering both distinguishable and exchangeable dyads. It develops cross-sectional
+        and intensive longitudinal variants of the Actor-Partner Interdependence Model
+        (APIM) and the Dyad-Individual Model (DIM), demonstrates their algebraic
+        equivalence, and discusses implications for interpretation. Using simulated
+        data, it provides fully reproducible code to rebuild the models and assess
+        parameter recovery. The tutorial offers comprehensive <code>brms</code>
+        implementations, including random-effects structures, heterogeneous residual
+        variances, compound-symmetry residuals, and optional AR(1) processes.
+      </p>
+
+      <div class="actions">
+        <a href="pdf_version.pdf">Open PDF tutorial</a>
+        <a href="DyadicDataAnalysis.html">Open interactive slides</a>
+        <a href="https://github.com/Pascal-Kueng/05DyadicDataAnalysis">Source repository</a>
+      </div>
+
+      <h2>Suggested Citation</h2>
+      <p>
+        Küng, P. M. (2026). <em>Distinguishable and Exchangeable Dyads:
+        Bayesian Multilevel Modelling</em> (Version v2.0.4). University of Zurich.
+        <a href="https://doi.org/10.5281/zenodo.17400655">https://doi.org/10.5281/zenodo.17400655</a>
+      </p>
+
+      <h2>Keywords</h2>
+      <p>
+        dyadic data; APIM; DIM; Bayesian multilevel modelling; brms; cmdstanr;
+        longitudinal diary data; compound symmetry; leave-one-out cross-validation
+      </p>
+    </article>
+  </main>
+</body>
+</html>

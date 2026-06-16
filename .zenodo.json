@@ -1,0 +1,38 @@
+{
+  "title": "Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling",
+  "upload_type": "publication",
+  "publication_type": "report",
+  "description": "Applied Bayesian multilevel modelling tutorial for distinguishable and exchangeable dyads, covering cross-sectional and intensive longitudinal APIM and DIM models.",
+  "creators": [
+    {
+      "name": "Küng, Pascal M.",
+      "affiliation": "University of Zurich"
+    }
+  ],
+  "keywords": [
+    "dyadic data analysis",
+    "APIM",
+    "DIM",
+    "Bayesian multilevel modelling",
+    "brms",
+    "cmdstanr",
+    "intensive longitudinal data analysis"
+  ],
+  "license": "cc-by-4.0",
+  "language": "eng",
+  "version": "v2.0.4",
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/Pascal-Kueng/05DyadicDataAnalysis",
+      "relation": "isSupplementTo",
+      "scheme": "url",
+      "resource_type": "software"
+    },
+    {
+      "identifier": "https://pascal-kueng.github.io/05DyadicDataAnalysis/pdf_version.pdf",
+      "relation": "isIdenticalTo",
+      "scheme": "url",
+      "resource_type": "publication-report"
+    }
+  ]
+}

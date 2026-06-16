@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this tutorial, please cite it as below."
+type: report
+title: "Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling"
+authors:
+  - family-names: "Küng"
+    given-names: "Pascal M."
+    affiliation: "University of Zurich"
+doi: "10.5281/zenodo.17400655"
+url: "https://pascal-kueng.github.io/05DyadicDataAnalysis/"
+repository-code: "https://github.com/Pascal-Kueng/05DyadicDataAnalysis"
+version: "v2.0.4"
+date-released: "2026-06-16"
+abstract: "Applied Bayesian multilevel modelling tutorial for distinguishable and exchangeable dyads, covering cross-sectional and intensive longitudinal APIM and DIM models."
+keywords:
+  - dyadic data
+  - APIM
+  - DIM
+  - Bayesian multilevel modelling
+  - brms
+  - cmdstanr
+  - longitudinal diary data
+license: "CC-BY-4.0"

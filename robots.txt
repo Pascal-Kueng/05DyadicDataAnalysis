@@ -1,0 +1,13 @@
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Googlebot-News
+Allow: /
+
+User-agent: *
+Allow: /
+
+Sitemap: https://pascal-kueng.github.io/05DyadicDataAnalysis/sitemap.xml
