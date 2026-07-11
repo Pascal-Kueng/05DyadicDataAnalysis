@@ -11,7 +11,7 @@ You can view or download the prebuilt **DyadicDataAnalysis.html** presentation a
 - 📄 **[Open PDF version](https://pascal-kueng.github.io/05DyadicDataAnalysis/pdf_version.pdf)**
 - 📌 **[Distinguishable dyads quick guide](https://pascal-kueng.github.io/05DyadicDataAnalysis/distinguishable_dyads_model_output.pdf)**
 - 📌 **[Exchangeable dyads quick guide](https://pascal-kueng.github.io/05DyadicDataAnalysis/exchangeable_dyads_backtransform.pdf)**
-- 🔎 **[Scholar-friendly landing page](https://pascal-kueng.github.io/05DyadicDataAnalysis/)**
+- 🔎 **[Tutorial overview and citation](https://pascal-kueng.github.io/05DyadicDataAnalysis/)**
 - 💾 **[Download zip folder with HTML file included](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/releases/latest)**
 
 ---

@@ -62,6 +62,24 @@ For readers who want the model code and reporting tables without the full tutori
 * [Distinguishable dyads quick guide](distinguishable_dyads_model_output.pdf)
 * [Exchangeable dyads quick guide](exchangeable_dyads_backtransform.pdf)
 
+## Preparing Dyadic Data with `interdep`
+
+[`interdep`](https://pascal-kueng.github.io/interdep/) prepares dyadic data for multilevel models [@interdep2026]. It:
+
+* validates long-format dyadic data
+* supports cross-sectional and intensive longitudinal designs
+* creates model-ready variables for APIM, DIM, and undirected DSM specifications
+* handles distinguishable, exchangeable, and mixed dyad compositions
+
+Install the development version from GitHub with [`pak`](https://pak.r-lib.org/):
+
+```r
+# install.packages("pak")
+pak::pak("Pascal-Kueng/interdep")
+```
+
+[Getting started](https://pascal-kueng.github.io/interdep/articles/getting-started.html) · [Function reference](https://pascal-kueng.github.io/interdep/reference/index.html) · [Source code](https://github.com/Pascal-Kueng/interdep)
+
 ## Loading Libraries and setting CmdStan Backend
 
 Some functions used in this presentation are sourced from the files available
