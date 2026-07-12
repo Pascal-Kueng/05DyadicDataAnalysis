@@ -39,7 +39,16 @@ If you want to run all analyses or rebuild the slides locally:
    cmdstanr::install_cmdstan()
    ```
 
-6. Run the code interactively or use the **Render** button to rebuild the slides.
+6. Run the code interactively, or rebuild either output from the terminal:
+
+   ```sh
+   quarto render DyadicDataAnalysis.Rmd --to revealjs --output DyadicDataAnalysis.html
+   quarto render DyadicDataAnalysis.Rmd --to pdf --output dyadic-data-analysis-tutorial.pdf
+   ```
+
+Both outputs are generated from the same format-aware source. Interactive
+elements are included only in HTML; the PDF uses static replacements and more
+compact table formatting.
 
 ---
 

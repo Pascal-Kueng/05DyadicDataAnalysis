@@ -1,8 +1,29 @@
 ---
 title: "Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling"
 subtitle: "Cross-Sectional and Intensive Longitudinal APIM and DIM"
-author: "Pascal Küng"
+author: "Pascal M. Küng"
 date: "last-modified"
+abstract: >
+  This tutorial presents applied Bayesian multilevel modelling for dyadic data,
+  covering both distinguishable and exchangeable dyads. We develop cross-sectional
+  and intensive longitudinal variants of the Actor–Partner Interdependence Model
+  (APIM) and the Dyad–Individual Model (DIM), demonstrate their algebraic
+  equivalence, and discuss implications for interpretation. Using simulated data,
+  we provide fully reproducible code to rebuild the models and assess parameter
+  recovery. The tutorial offers comprehensive {brms} implementations, including
+  random-effects structures, heterogeneous residual variances, compound-symmetry
+  residuals, and optional AR(1) processes. We illustrate diagnostics and model
+  comparison and show how to extract dyad-level variance–covariance components.
+keywords:
+  - dyadic data
+  - APIM
+  - DIM
+  - Bayesian multilevel modelling
+  - brms
+  - cmdstanr
+  - longitudinal diary data
+  - compound symmetry
+  - leave-one-out cross-validation
 format:
   revealjs:
     embed-resources: true
@@ -26,6 +47,32 @@ format:
     footer: "<span>Dyadic Multilevel Modelling • brms/cmdstanr • Pascal Küng</span>"
     css: Embed/styles.css
     include-after-body: Embed/fit-scroll-blocks.html
+  pdf:
+    pdf-engine: xelatex
+    include-in-header:
+      text: |
+        % Code/output wrapping
+        \usepackage{fvextra}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{fontsize=\small,breaklines,breakanywhere,commandchars=\\\{\}}
+        \fvset{breaklines,breakanywhere}
+
+        % Tighter tables and more flexible line breaking
+        \usepackage{etoolbox}
+        \AtBeginEnvironment{longtable}{\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{0.95}\small}
+        \emergencystretch=2em
+        \usepackage{pdflscape}
+        \usepackage{needspace}
+    include-before-body:
+      text: |
+        \RecustomVerbatimEnvironment{Highlighting}{Verbatim}{fontsize=\scriptsize,breaklines,breakanywhere,commandchars=\\\{\}}
+    toc: false
+    toc-depth: 2
+    number-sections: true
+    papersize: a4
+    geometry: ["margin=1in"]
+    colorlinks: true
+    df-print: default
+lang: en
 bibliography:
   - Embed/Temp.bib
   - Embed/Rpackages.bib
@@ -36,11 +83,38 @@ nocite: |
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache.lazy = FALSE)
+knitr::opts_chunk$set(
+  echo = TRUE,
+  cache.lazy = FALSE,
+  cache.extra = if (knitr::is_latex_output()) "pdf-output-font-v1" else NULL
+)
 rm(list = ls())
 gc()
+default_output_hook <- knitr::knit_hooks$get("output")
+knitr::knit_hooks$set(output = function(x, options) {
+  out <- default_output_hook(x, options)
+  if (knitr::is_latex_output()) {
+    return(paste0("\\begingroup\\scriptsize\n", out, "\n\\endgroup\n"))
+  }
+  out
+})
 library(glue)
+options(knitr.kable.NA = "", width = 120)
 ```
+
+::: {.content-visible when-format="pdf"}
+
+> **Interactive HTML version (recommended):**
+> The tutorial is best viewed as [interactive slides](https://pascal-kueng.github.io/05DyadicDataAnalysis/DyadicDataAnalysis.html).
+> This PDF is a static archival version for indexing, citation, and long-term reference.
+
+**DOI:** [10.5281/zenodo.17400655](https://doi.org/10.5281/zenodo.17400655)
+
+**Suggested citation:** Küng, P. M. (2026). *Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling*. University of Zurich.
+
+The [GitHub repository](https://github.com/Pascal-Kueng/05DyadicDataAnalysis) contains the source, helpers, model code, and quick guides.
+
+:::
 
 ## Overview
 
@@ -80,6 +154,34 @@ pak::pak("Pascal-Kueng/interdep")
 
 [Getting started](https://pascal-kueng.github.io/interdep/articles/getting-started.html) · [Function reference](https://pascal-kueng.github.io/interdep/reference/index.html) · [Source code](https://github.com/Pascal-Kueng/interdep)
 
+## Readable Names in This Tutorial
+
+`interdep` deliberately returns explicit, self-documenting names. For readable
+model formulas, this tutorial uses shorter aliases after data preparation is
+complete:
+
+| Canonical `interdep` name | Tutorial alias | Interpretation |
+|:---|:---|:---|
+| `.i_diff_assumed_exchangeable_arbitrary` | `idiff` | arbitrary $-1/+1$ member contrast |
+| `.i_provided_support_cwp_dyad_mean` | `support_cwp_mean` | dyad mean of within-person support |
+| `.i_provided_support_cwp_within_dyad_deviation` | `support_cwp_dev` | member deviation from that dyad mean |
+| `.i_provided_support_cbp_dyad_mean` | `support_cbp_mean` | dyad mean of between-person support |
+| `.i_provided_support_cbp_within_dyad_deviation` | `support_cbp_dev` | member deviation from that dyad mean |
+
+The reusable helper renames only generated columns that are present:
+
+```{r interdep-tutorial-alias-example, eval=FALSE}
+model_data <- prepared_data |>
+  rename_interdep_for_tutorial(
+    predictor = "provided_support",
+    alias = "support"
+  )
+```
+
+The mapping is cosmetic: values and statistical meanings are unchanged. Apply
+it only to the final model-ready output; continue using canonical names while
+calling `interdep` preparation functions.
+
 ## Loading Libraries and setting CmdStan Backend
 
 Some functions used in this presentation are sourced from the files available
@@ -98,6 +200,19 @@ library(purrr)
 source(file.path('00_R_Functions', 'ReportModels.R'))
 source(file.path('00_R_Functions', 'PrettyTables.R'))
 source(file.path('00_R_Functions', 'PrepareData.R'))
+
+print_apim_preview <- function(df) {
+  if (knitr::is_latex_output()) {
+    preview_cols <- c(
+      "userID", "coupleID", "member", "gender", "is_male", "is_female",
+      "satisfaction", "communication_actor_gmc",
+      "communication_partner_gmc"
+    )
+    df <- df |>
+      dplyr::select(dplyr::any_of(preview_cols))
+  }
+  print_df(head(df))
+}
 
 options(
   brms.backend = 'cmdstanr',
@@ -350,7 +465,7 @@ df_apim <- df %>%
     member = ifelse(is_female == 1, 1, 2)
   )
 
-print_df(head(df_apim))
+print_apim_preview(df_apim)
 
 ```
 
@@ -367,7 +482,7 @@ df_apim <- relocate(df_apim, 'member', .after = 'coupleID')
 
 ```{r data-dist-apim-preview, echo=FALSE}
 
-print_df(head(df_apim))
+print_apim_preview(df_apim)
 
 ```
 
@@ -1013,13 +1128,34 @@ print_couple_preview <- function(df, couple_id,
   dplyr::bind_rows(p1c, ellipsis_row, p2c)
 }
 
+print_couple_preview_for_output <- function(df, couple_id, days = 0:3,
+                                            pdf_cols = NULL) {
+  out <- print_couple_preview(df, couple_id = couple_id, days = days)
+  if (knitr::is_latex_output() && !is.null(pdf_cols)) {
+    out <- out |>
+      dplyr::select(dplyr::any_of(pdf_cols))
+  }
+  out
+}
+
 
 ```
 
 
 ```{r data-dist-long-apim-preview, echo=FALSE}
 
-print_df(print_couple_preview(df_long_apim, couple_id = "31"))
+print_df(
+  print_couple_preview_for_output(
+    df_long_apim,
+    couple_id = "31",
+    pdf_cols = c(
+      "userID", "coupleID", "couple_day", "diaryday", "diaryday_c",
+      "gender", "member", "is_male", "is_female", "closeness",
+      "provided_support_actor", "provided_support_partner"
+    )
+  ),
+  font_size = if (knitr::is_latex_output()) 6 else 20
+)
 
 ```
 
@@ -1501,9 +1637,13 @@ In this instance, the maximal model (no AR) seems to be the preferred one.
 
 In the case of overfitting, we could try to improve the model by subsequently excluding the smallest random effects (or correlations between them) and compare various models. For more guidance on random effects check out @delrosarioPracticalGuideSpecifying2025.
 
+```{=latex}
+\begin{landscape}
+```
+
 ## Maximal Model Specification: Comparing Estimates to Simulated Values (Ground Truth)
 
-```{r results-dist-long-ground-truth, echo = FALSE, cache=TRUE, dependson=c('fit-dist-apim-long-complex-brms', 'simulate-longitudinal-data', 'data-dist-long-apim-center')}
+```{r results-dist-long-ground-truth, echo = FALSE, message=FALSE, warning=FALSE, cache=TRUE, dependson=c('fit-dist-apim-long-complex-brms', 'simulate-longitudinal-data', 'data-dist-long-apim-center')}
 
 # HOW WELL DO THE RECOVERED PARAMETERS FIT THE SIMULATED VALUES?
 
@@ -1795,6 +1935,9 @@ print_df(
 
 ```
 
+```{=latex}
+\end{landscape}
+```
 
 
 
@@ -1840,7 +1983,7 @@ For illustration, we now fit exchangeability-constrained models to the same dist
 
 ```{r data-exch-apim-preview}
 
-print_df(head(df_apim))
+print_apim_preview(df_apim)
 
 ```
 
@@ -1998,35 +2141,55 @@ See: <a href="https://easystats.github.io/report/reference/report.compare.loo.ht
 
 ```{r diagram-exch-dim, echo=FALSE, cache=TRUE}
 
-DiagrammeR::grViz(glue("
-  digraph DIM {{
-    graph [
-      size='11,11!'
-      layout=dot
-      rankdir='LR'
-      label='Dyad–Individual Model (DIM)'
-      labelloc=t
-    ]
+if (knitr::is_html_output()) {
+  DiagrammeR::grViz(glue("
+    digraph DIM {{
+      graph [
+        size='11,11!'
+        layout=dot
+        rankdir='LR'
+        label='Dyad–Individual Model (DIM)'
+        labelloc=t
+      ]
 
-    node [
-      shape=box
-      fixedsize=true
-      width=1.4
-      fontsize=10
-    ]
-    pre1 [label='Communication\\nBetween-couple (cbc)']
-    out1 [label='Satisfaction\\n(Self)']
-    pre2 [label='Communication\\nWithin-couple (cwc)']
+      node [
+        shape=box
+        fixedsize=true
+        width=1.4
+        fontsize=10
+      ]
+      pre1 [label='Communication\\nBetween-couple (cbc)']
+      out1 [label='Satisfaction\\n(Self)']
+      pre2 [label='Communication\\nWithin-couple (cwc)']
 
-    edge [
-      minlen=2.5
-      labelfloat=true
-      fontsize=12
-    ]
-    pre1 -> out1 [label='between']
-    pre2 -> out1 [taillabel='within' labeldistance=4 labelangle=-15 constraint=false]
-  }}
-"))
+      edge [
+        minlen=2.5
+        labelfloat=true
+        fontsize=12
+      ]
+      pre1 -> out1 [label='between']
+      pre2 -> out1 [taillabel='within' labeldistance=4 labelangle=-15 constraint=false]
+    }}
+  "))
+} else {
+  # Native R graphics keep the PDF build independent of HTML-widget screenshot tools.
+  plot.new()
+  plot.window(xlim = c(0, 10), ylim = c(0, 10))
+  title("Dyad–Individual Model (DIM)")
+
+  draw_node <- function(x, y, label) {
+    rect(x - 1.5, y - 0.8, x + 1.5, y + 0.8)
+    text(x, y, label, cex = 0.9)
+  }
+
+  draw_node(2.2, 7, "Communication\nBetween-couple (cbc)")
+  draw_node(2.2, 3, "Communication\nWithin-couple (cwc)")
+  draw_node(7.8, 5, "Satisfaction\n(Self)")
+  arrows(3.8, 6.7, 6.2, 5.6, length = 0.1)
+  arrows(3.8, 3.3, 6.2, 4.4, length = 0.1)
+  text(5, 6.5, "between", pos = 3)
+  text(5, 3.5, "within", pos = 1)
+}
 
 
 ```
@@ -2290,12 +2453,12 @@ print_df(
 
   <!-- Model coefficients -->
   <div id="model-coefs"
-       data-apim-b0="`r round(fixef(model_exch_apim)['Intercept','Estimate'], 2)`"
-       data-apim-ba="`r round(fixef(model_exch_apim)['communication_actor_gmc','Estimate'], 2)`"
-       data-apim-bp="`r round(fixef(model_exch_apim)['communication_partner_gmc','Estimate'], 2)`"
-       data-dim-b0 ="`r round(fixef(model_exch_dim)['Intercept','Estimate'], 2)`"
-       data-dim-cb ="`r round(fixef(model_exch_dim)['communication_cbc','Estimate'], 2)`"
-       data-dim-cw ="`r round(fixef(model_exch_dim)['communication_cwc','Estimate'], 2)`"></div>
+       data-apim-b0="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['Intercept','Estimate'], 2) else ''`"
+       data-apim-ba="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['communication_actor_gmc','Estimate'], 2) else ''`"
+       data-apim-bp="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['communication_partner_gmc','Estimate'], 2) else ''`"
+       data-dim-b0 ="`r if (knitr::is_html_output()) round(fixef(model_exch_dim)['Intercept','Estimate'], 2) else ''`"
+       data-dim-cb ="`r if (knitr::is_html_output()) round(fixef(model_exch_dim)['communication_cbc','Estimate'], 2) else ''`"
+       data-dim-cw ="`r if (knitr::is_html_output()) round(fixef(model_exch_dim)['communication_cwc','Estimate'], 2) else ''`"></div>
 
   <div class="equations">
     <div id="eq-table" class="eq-table math"></div>
@@ -2779,9 +2942,9 @@ updateOutputs(); render();
   </div>
 
   <div id="sd2-coefs"
-       data-b0="`r round(fixef(model_exch_apim)['Intercept','Estimate'], 2)`"
-       data-ba="`r round(fixef(model_exch_apim)['communication_actor_gmc','Estimate'], 2)`"
-       data-bp="`r round(fixef(model_exch_apim)['communication_partner_gmc','Estimate'], 2)`"></div>
+       data-b0="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['Intercept','Estimate'], 2) else ''`"
+       data-ba="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['communication_actor_gmc','Estimate'], 2) else ''`"
+       data-bp="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['communication_partner_gmc','Estimate'], 2) else ''`"></div>
 
   <script>
   (function(){
@@ -2943,6 +3106,23 @@ updateOutputs(); render();
   </script>
 ```
 
+::: {.content-visible when-format="pdf"}
+
+In the interactive HTML slides, this section contains sliders that demonstrate
+the APIM–DIM reparameterization. In this static version:
+
+* actor and partner predictors are rewritten as a dyad-level mean and a
+  within-dyad half-difference; and
+* the DIM coefficients are a linear reparameterization of the APIM coefficients,
+  so fitted values are unchanged.
+
+```text
+x_cbc = (x_actor_gmc + x_partner_gmc) / 2
+x_cwc = (x_actor_gmc - x_partner_gmc) / 2
+```
+
+:::
+
 
 ## Equivalence APIM and DIM
 
@@ -3068,7 +3248,19 @@ df_long_apim2 <- df_long_apim %>%
 
 ```{r data-exch-long-apim-preview, echo=FALSE}
 
-print_df(print_couple_preview(df_long_apim2, couple_id = "31"))
+print_df(
+  print_couple_preview_for_output(
+    df_long_apim2,
+    couple_id = "31",
+    pdf_cols = c(
+      "userID", "coupleID", "couple_day", "diaryday", "diaryday_c",
+      "member", "closeness", "provided_support_actor",
+      "provided_support_partner", "provided_support_actor_cbp",
+      "provided_support_actor_cwp"
+    )
+  ),
+  font_size = if (knitr::is_latex_output()) 6 else 20
+)
 
 ```
 
@@ -3129,6 +3321,25 @@ print_df(print_couple_preview(df_long_dim, couple_id = "31"))
 
 ```
 
+::: {.content-visible when-format="pdf"}
+
+```{r data-exch-long-dim-preview, echo=FALSE, cache=TRUE, dependson='data-exch-long-dim-create', eval=knitr::is_latex_output()}
+print_df(
+  print_couple_preview_for_output(
+    df_long_dim,
+    couple_id = "31",
+    pdf_cols = c(
+      "userID", "coupleID", "diaryday", "diaryday_c", "member",
+      "provided_support_cbc", "provided_support_cwcbp",
+      "provided_support_cwp_mean", "provided_support_cwp_halfdiff"
+    )
+  ),
+  font_size = 6
+)
+```
+
+:::
+
 
 ## Exchangeable Dyads - L-DIM/L-APIM: Preparing the Mean-Deviation Idiff Approach
 
@@ -3149,7 +3360,20 @@ df_long_dim <- df_long_dim %>%
   dplyr::select(-base, -flip)
 
 
-print_df(print_couple_preview(df_long_dim, couple_id = "31", days = 0:4))
+print_df(
+  print_couple_preview_for_output(
+    df_long_dim,
+    couple_id = "31",
+    days = 0:4,
+    pdf_cols = c(
+      "userID", "coupleID", "Idiff", "is_partner1", "is_partner2",
+      "diaryday", "diaryday_c", "provided_support_cbc",
+      "provided_support_cwcbp", "provided_support_cwp_mean",
+      "provided_support_cwp_halfdiff"
+    )
+  ),
+  font_size = if (knitr::is_latex_output()) 6 else 20
+)
 
 ```
 
@@ -3474,7 +3698,7 @@ print_df(a$cross_person_covariance_matrix)
 ## Extract Full APIM Random Effects Variance-Covariance Matrix: Full Matrix
 
 ```{r results-exch-long-apim-cov-full}
-print_df(a$full_covariance_matrix)
+print_wide_matrix(a$full_covariance_matrix, font_size = 6)
 ```
 
 
@@ -3494,7 +3718,7 @@ print_df(
 ## Random effect correlation matrix
 
 ```{r results-exch-long-apim-re-cor}
-print_df(as.data.frame(round(a$full_correlation_matrix, 3)))
+print_wide_matrix(a$full_correlation_matrix, font_size = 6)
 ```
 
 ## Full reporting summary

@@ -1,4 +1,4 @@
-# Main Functions in this file (2):
+# Main Functions in this file (3):
 
 ###################################
 # 1. print_df
@@ -34,6 +34,14 @@
 #
 # Example:
 # export_xlsx(html_table, file = "output.xlsx", merge_option = "both", simplify_2nd_row = TRUE, colwidths = c(20, 30, 25), verbose = TRUE, rows_to_pack = list("Header1" = c(2, 4)))
+
+
+###################################
+# 3. print_wide_matrix
+###################################
+# Description:
+# This function prints wide covariance and correlation matrices using the
+# regular slide styling in HTML and compact, scaled LaTeX styling in PDF.
 
 
 
@@ -87,7 +95,22 @@ check_and_load_packages <- function(packages) {
   }
 }
 
-# Main function for kable printing
+# Shorten technical labels so wide model tables remain readable in the PDF.
+clean_pdf_label <- function(x) {
+  x <- gsub("provided_support", "support", x, fixed = TRUE)
+  x <- gsub("communication", "comm", x, fixed = TRUE)
+  x <- gsub("diaryday", "day", x, fixed = TRUE)
+  x <- gsub("_gmc", "", x, fixed = TRUE)
+  x <- gsub("_cbp", " BP", x, fixed = TRUE)
+  x <- gsub("_cwp", " WP", x, fixed = TRUE)
+  x <- gsub("_cw", " W", x, fixed = TRUE)
+  x <- gsub("_cb", " B", x, fixed = TRUE)
+  x <- gsub("_", " ", x, fixed = TRUE)
+  x <- gsub(":", ": ", x, fixed = TRUE)
+  gsub(",", ", ", x, fixed = TRUE)
+}
+
+# Main function for format-aware kable printing
 print_df <- function(df,
                      caption = NULL,
                      digits = NULL,
@@ -95,7 +118,7 @@ print_df <- function(df,
                      rows_to_pack = NULL,
                      scroll_height = "auto",    # "auto" | numeric (px) | CSS length ("50vh", "20rem")
                      scroll_width  = "100%",
-                     font_size = 20) {
+                     font_size = if (knitr::is_latex_output()) 7 else 20) {
   
   normalize_css_len <- function(x, default = "auto") {
     if (is.null(x)) return(default)
@@ -106,6 +129,78 @@ print_df <- function(df,
   required_packages <- c("knitr", "kableExtra", "dplyr")
   check_and_load_packages(required_packages)
   validate_packing_input(rows_to_pack, nrow(df))
+
+  if (knitr::is_latex_output()) {
+    df <- as.data.frame(df)
+    if (!identical(rownames(df), as.character(seq_len(nrow(df))))) {
+      df <- tibble::rownames_to_column(df, var = " ")
+    }
+
+    names(df) <- clean_pdf_label(names(df))
+
+    if (!is.null(digits)) {
+      numeric_cols <- vapply(df, is.numeric, logical(1))
+      df[numeric_cols] <- lapply(df[numeric_cols], round, digits = digits)
+    }
+
+    character_cols <- vapply(df, is.character, logical(1))
+    df[character_cols] <- lapply(df[character_cols], clean_pdf_label)
+
+    use_longtable <- nrow(df) > 28
+    wide_table <- ncol(df) >= 5 ||
+      any(vapply(df, function(x) {
+        is.character(x) && max(nchar(x), na.rm = TRUE) > 22
+      }, logical(1)))
+    alignments <- ifelse(vapply(df, is.numeric, logical(1)), "r", "l")
+
+    tbl <- knitr::kable(
+      df,
+      caption = caption,
+      escape = FALSE,
+      align = alignments,
+      row.names = FALSE,
+      booktabs = TRUE,
+      longtable = use_longtable
+    )
+
+    if (use_longtable) {
+      tbl <- tbl |>
+        kableExtra::kable_styling(
+          font_size = min(font_size, 7),
+          latex_options = "repeat_header",
+          position = "left"
+        )
+    } else {
+      latex_options <- if (wide_table && is.null(rows_to_pack)) {
+        "scale_down"
+      } else {
+        character()
+      }
+      if (length(latex_options) > 0) {
+        tbl <- suppressWarnings(
+          tbl |>
+            kableExtra::kable_styling(
+              font_size = font_size,
+              latex_options = latex_options,
+              position = "left"
+            )
+        )
+      } else {
+        tbl <- tbl |>
+          kableExtra::kable_styling(
+            font_size = font_size,
+            position = "left"
+          )
+      }
+    }
+
+    if (use_longtable && ncol(df) >= 4) {
+      tbl <- tbl |>
+        kableExtra::column_spec(1, width = "13em")
+    }
+
+    return(packing(tbl, rows_to_pack))
+  }
   
   if (!is.null(digits)) {
     df <- df %>% dplyr::mutate(dplyr::across(where(is.numeric), ~ round(.x, digits)))
@@ -146,6 +241,49 @@ print_df <- function(df,
   
   kbl <- packing(kbl, rows_to_pack)
   return(kbl)
+}
+
+# Print covariance/correlation matrices compactly in PDF and normally in HTML.
+print_wide_matrix <- function(x, digits = 3, font_size = 6) {
+  if (!knitr::is_latex_output()) {
+    return(print_df(as.data.frame(round(x, digits)), digits = digits))
+  }
+
+  df <- as.data.frame(round(x, digits))
+  if (!identical(rownames(df), as.character(seq_len(nrow(df))))) {
+    df <- tibble::rownames_to_column(df, var = " ")
+  }
+
+  clean_matrix_label <- function(x) {
+    x <- clean_pdf_label(x)
+    x <- gsub("PartnerA", "PA", x, fixed = TRUE)
+    x <- gsub("PartnerB", "PB", x, fixed = TRUE)
+    x <- gsub("Intercept", "Int", x, fixed = TRUE)
+    x <- gsub("support", "sup", x, fixed = TRUE)
+    x <- gsub("actor", "act", x, fixed = TRUE)
+    gsub("partner", "prt", x, fixed = TRUE)
+  }
+
+  names(df) <- clean_matrix_label(names(df))
+  df <- df |>
+    dplyr::mutate(dplyr::across(where(is.character), clean_matrix_label))
+
+  suppressWarnings(
+    knitr::kable(
+      df,
+      format = "latex",
+      escape = FALSE,
+      row.names = FALSE,
+      booktabs = TRUE,
+      linesep = rep("", max(nrow(df) - 1, 0)),
+      align = ifelse(vapply(df, is.numeric, logical(1)), "r", "l")
+    ) |>
+      kableExtra::kable_styling(
+        font_size = font_size,
+        latex_options = "scale_down",
+        position = "left"
+      )
+  )
 }
 
 
@@ -428,6 +566,3 @@ export_xlsx <- function(html_table,
   saveWorkbook(wb, file, overwrite = TRUE)
   if (verbose) message("Workbook saved successfully.")
 }
-
-
-

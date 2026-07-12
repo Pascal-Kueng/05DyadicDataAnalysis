@@ -1,18 +1,30 @@
 #!/usr/bin/env Rscript
 
 rmd_file <- "DyadicDataAnalysis.Rmd"
+rmd_files <- c(
+  rmd_file,
+  "distinguishable-dyads-quick-guide.Rmd",
+  "exchangeable-dyads-quick-guide.Rmd"
+)
 
-if (!file.exists(rmd_file)) {
-  stop("Cannot find ", sQuote(rmd_file), ". Run from the repository root.", call. = FALSE)
+missing_files <- rmd_files[!file.exists(rmd_files)]
+if (length(missing_files) > 0) {
+  stop(
+    "Cannot find ", paste(sQuote(missing_files), collapse = ", "),
+    ". Run from the repository root.",
+    call. = FALSE
+  )
 }
 
 if (!requireNamespace("knitr", quietly = TRUE)) {
   stop("Package 'knitr' is required for this check.", call. = FALSE)
 }
 
-extracted_r <- tempfile(fileext = ".R")
-invisible(knitr::purl(rmd_file, output = extracted_r, documentation = 0, quiet = TRUE))
-invisible(parse(extracted_r))
+for (file in rmd_files) {
+  extracted_r <- tempfile(fileext = ".R")
+  invisible(knitr::purl(file, output = extracted_r, documentation = 0, quiet = TRUE))
+  invisible(parse(extracted_r))
+}
 
 lines <- readLines(rmd_file, warn = FALSE)
 
@@ -136,4 +148,7 @@ if (!is.null(failures) && nrow(failures) > 0) {
   quit(status = 1)
 }
 
-message("Rmd validation passed: purl, parse, code-line-numbers, and targeted text checks succeeded.")
+message(
+  "Rmd validation passed for active sources: purl, parse, ",
+  "code-line-numbers, and targeted text checks succeeded."
+)

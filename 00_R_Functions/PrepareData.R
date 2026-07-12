@@ -1,3 +1,112 @@
+#' Build the tutorial's aliases for interdep-generated columns
+#'
+#' Creates the explicit mapping used to shorten `interdep` column names in the
+#' tutorial. Names are the tutorial aliases and values are the canonical
+#' `interdep` names, matching the convention used by `dplyr::rename()`.
+#'
+#' @param predictor A single predictor name as supplied to `interdep`.
+#' @param alias A shorter stem to use for that predictor in model formulas.
+#'
+#' @return A named character vector with tutorial aliases as names and
+#'   canonical `interdep` column names as values.
+interdep_tutorial_name_map <- function(predictor, alias = predictor) {
+  if (!is.character(predictor) || length(predictor) != 1L ||
+      is.na(predictor) || !nzchar(predictor)) {
+    stop("`predictor` must be one non-empty character string.", call. = FALSE)
+  }
+  if (!is.character(alias) || length(alias) != 1L ||
+      is.na(alias) || !nzchar(alias)) {
+    stop("`alias` must be one non-empty character string.", call. = FALSE)
+  }
+
+  canonical_names <- c(
+    ".i_diff_assumed_exchangeable_arbitrary",
+    paste0(".i_", predictor, "_cwp"),
+    paste0(".i_", predictor, "_cbp"),
+    paste0(".i_", predictor, "_raw_actor"),
+    paste0(".i_", predictor, "_raw_partner"),
+    paste0(".i_", predictor, "_cwp_actor"),
+    paste0(".i_", predictor, "_cwp_partner"),
+    paste0(".i_", predictor, "_cbp_actor"),
+    paste0(".i_", predictor, "_cbp_partner"),
+    paste0(".i_", predictor, "_raw_dyad_mean_gmc"),
+    paste0(".i_", predictor, "_raw_within_dyad_deviation"),
+    paste0(".i_", predictor, "_cwp_dyad_mean"),
+    paste0(".i_", predictor, "_cwp_within_dyad_deviation"),
+    paste0(".i_", predictor, "_cbp_dyad_mean"),
+    paste0(".i_", predictor, "_cbp_within_dyad_deviation")
+  )
+  tutorial_names <- c(
+    "idiff",
+    paste0(alias, "_cwp"),
+    paste0(alias, "_cbp"),
+    paste0(alias, "_actor"),
+    paste0(alias, "_partner"),
+    paste0(alias, "_actor_cwp"),
+    paste0(alias, "_partner_cwp"),
+    paste0(alias, "_actor_cbp"),
+    paste0(alias, "_partner_cbp"),
+    paste0(alias, "_dyad_mean_gmc"),
+    paste0(alias, "_dyad_dev"),
+    paste0(alias, "_cwp_mean"),
+    paste0(alias, "_cwp_dev"),
+    paste0(alias, "_cbp_mean"),
+    paste0(alias, "_cbp_dev")
+  )
+
+  stats::setNames(canonical_names, tutorial_names)
+}
+
+#' Rename interdep-generated columns for readable tutorial formulas
+#'
+#' Renames the generated columns that are present in the data and records the
+#' applied mapping in the `tutorial_name_map` attribute. This helper is
+#' intended for the final, model-ready output: it returns an ordinary tibble
+#' rather than an `interdep_data` object because its canonical metadata no
+#' longer describes the renamed columns.
+#'
+#' @inheritParams interdep_tutorial_name_map
+#' @param data A data frame returned after all `interdep` preparation steps.
+#'
+#' @return A tibble containing tutorial-friendly aliases.
+rename_interdep_for_tutorial <- function(data, predictor, alias = predictor) {
+  if (!is.data.frame(data)) {
+    stop("`data` must be a data frame.", call. = FALSE)
+  }
+
+  previous_name_map <- attr(data, "tutorial_name_map", exact = TRUE)
+  name_map <- interdep_tutorial_name_map(predictor, alias)
+  name_map <- name_map[unname(name_map) %in% names(data)]
+
+  if (length(name_map) == 0L) {
+    stop(
+      "No matching `interdep` columns were found for predictor `",
+      predictor,
+      "`.",
+      call. = FALSE
+    )
+  }
+
+  untouched_names <- setdiff(names(data), unname(name_map))
+  collisions <- intersect(names(name_map), untouched_names)
+  if (length(collisions) > 0L) {
+    stop(
+      "Tutorial aliases already exist in `data`: ",
+      paste(collisions, collapse = ", "),
+      ". Choose a different `alias`.",
+      call. = FALSE
+    )
+  }
+
+  out <- data
+  class(out) <- setdiff(class(out), "interdep_data")
+  attr(out, "interdep") <- NULL
+  out <- tibble::as_tibble(out)
+  names(out)[match(unname(name_map), names(out))] <- names(name_map)
+  attr(out, "tutorial_name_map") <- c(previous_name_map, name_map)
+  out
+}
+
 #' (Step 1) Reshape Dyadic Data into Actor-Partner Format
 #'
 #' This is the first step in the data preparation pipeline. It takes a

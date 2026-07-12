@@ -3,7 +3,7 @@
 This repository contains an R Markdown slide deck and supporting R functions for dyadic data analysis. Use the sections below to keep contributions consistent and reproducible.
 
 ## Project Structure & Module Organization
-- `DyadicDataAnalysis.Rmd` is the primary slide source; `dyadic-data-analysis-tutorial.Rmd` is the PDF variant.
+- `DyadicDataAnalysis.Rmd` is the single format-aware source for both the interactive HTML slides and archival PDF.
 - `00_R_Functions/` holds reusable R helpers (e.g., `PrepareData.R`, `PrettyTables.R`, `ReportModels.R`).
 - `Embed/` stores bibliography/assets used by the slides.
 - Rendered artifacts live in `DyadicDataAnalysis.html`, `dyadic-data-analysis-tutorial.pdf`, and their `*_files/` directories.
@@ -11,8 +11,8 @@ This repository contains an R Markdown slide deck and supporting R functions for
 
 ## Build, Test, and Development Commands
 - `renv::restore()` installs the pinned R package set from `renv.lock`.
-- `quarto render DyadicDataAnalysis.Rmd` rebuilds the HTML slides.
-- `quarto render dyadic-data-analysis-tutorial.Rmd` rebuilds the PDF output.
+- `quarto render DyadicDataAnalysis.Rmd --to revealjs --output DyadicDataAnalysis.html` rebuilds the HTML slides.
+- `quarto render DyadicDataAnalysis.Rmd --to pdf --output dyadic-data-analysis-tutorial.pdf` rebuilds the PDF output.
 - Optional (for Bayesian models): `cmdstanr::install_cmdstan()` after installing `cmdstanr`.
 
 ## Coding Style & Naming Conventions

@@ -45,7 +45,7 @@ source(file.path('00_R_Functions', 'PrettyTables.R'))
 source(file.path('00_R_Functions', 'PrepareData.R'))
 
 options(
-  brms.backend = 'cmdstan',
+  brms.backend = 'cmdstanr',
   brms.file_refit = 'on_change'
 )
 ```
@@ -728,5 +728,4 @@ pkgs <- c("brms","bmlm","easystats","DHARMa","tidyverse","cmdstanr","loo","rstan
 knitr::write_bib(pkgs, "Embed/Rpackages.bib")
 
 ```
-
 
