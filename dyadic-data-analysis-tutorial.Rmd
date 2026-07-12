@@ -339,7 +339,7 @@ print_apim_preview <- function(df) {
 }
 
 options(
-  brms.backend = 'cmdstan',
+  brms.backend = 'cmdstanr',
   brms.file_refit = 'on_change'
 )
 ```
