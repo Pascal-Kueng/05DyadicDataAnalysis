@@ -207,9 +207,8 @@ source(file.path('00_R_Functions', 'PrepareData.R'))
 print_apim_preview <- function(df) {
   if (knitr::is_latex_output()) {
     preview_cols <- c(
-      "userID", "coupleID", "member", "gender", "is_male", "is_female",
-      "satisfaction", "communication_actor_gmc",
-      "communication_partner_gmc"
+      "userID", "coupleID", "gender", "is_male", "is_female",
+      "satisfaction", "communication_actor", "communication_partner"
     )
     df <- df |>
       dplyr::select(dplyr::any_of(preview_cols))
@@ -412,7 +411,10 @@ temp_df_for_outcome <- temp_df_for_outcome %>%
 
 # Finalize: ORIGINAL OUTPUT FORMAT
 df <- temp_df_for_outcome %>%
-  dplyr::select(userID, coupleID, gender, communication, satisfaction)
+  dplyr::select(userID, coupleID, gender, communication, satisfaction) %>%
+  dplyr::mutate(
+    gender = factor(gender, levels = c(1, 2), labels = c("female", "male"))
+  )
 
 ```
 
@@ -428,19 +430,6 @@ print_df(head(df))
 ```
 
 
-```{r data-dist-apim-filter-dyads, results='hide', echo=FALSE, message=FALSE, cache=TRUE, dependson='simulate-cross-sectional-data'}
-# subsetting distinguishable dyads
-df_filt <- df %>%
-  reshape_dyadic_data(
-    person_id = 'userID',
-    dyad_id = 'coupleID',
-    vars_to_reshape = c('communication', 'gender')
-  )
-
-df <- df[df_filt$gender_actor != df_filt$gender_partner, ]
-
-```
-
 ## Distinguishable Dyads - Cross-Sectional APIM
 
 ![Distinguishable APIM](Embed/APIM_dist.png)
@@ -449,35 +438,21 @@ df <- df[df_filt$gender_actor != df_filt$gender_partner, ]
 
 ## Distinguishable Dyads - Preparing Data
 
-```{r data-dist-apim-prepare, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-dist-apim-filter-dyads'}
-df_apim <- df %>%
-  # Reshaping to Actor-Partner format (4-field)
-  reshape_dyadic_data(
-    person_id = 'userID',
-    dyad_id = 'coupleID',
-    vars_to_reshape = 'communication'
-  )  %>%
-  mutate(
-    # Optional: grand-mean centering
-    communication_actor_gmc = communication_actor - mean(communication_actor),
-    communication_partner_gmc = communication_partner - mean(communication_partner),
-
-    # Create Dummy-Variables for male and female
-    is_female = ifelse(gender == 1, 1, 0),
-    is_male = ifelse(gender == 2, 1, 0),
-    member = ifelse(is_female == 1, 1, 2)
+```{r data-dist-apim-prepare, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='simulate-cross-sectional-data'}
+df_apim <- prepare_interdep_data(
+  data = df,
+  group = coupleID,
+  member = userID,
+  role = gender,
+  predictors = communication,
+  model_type = "apim",
+  include_compositions = "female-male"
+) %>%
+  rename_interdep_for_tutorial(
+    predictor = "communication"
   )
 
 print_apim_preview(df_apim)
-
-```
-
-
-```{r data-dist-apim-relocate-indicators, echo = FALSE, results='hide', message = FALSE, warning= FALSE, error=FALSE, cache=TRUE, dependson='data-dist-apim-prepare'}
-# Selecting only distinguishable Dyads
-
-df_apim <- relocate(df_apim, 'is_male', 'is_female', .after = 'gender')
-df_apim <- relocate(df_apim, 'member', .after = 'coupleID')
 
 ```
 
@@ -1059,31 +1034,33 @@ df_long <- panel |>
   dplyr::mutate(closeness = mu_it + e_it) |>
   dplyr::select(userID, coupleID, diaryday, gender,
                 closeness, provided_support) |>
-  dplyr::arrange(coupleID, userID, diaryday)
+  dplyr::arrange(coupleID, userID, diaryday) |>
+  dplyr::mutate(
+    gender = factor(gender, levels = c(1, 2), labels = c("female", "male"))
+  )
 
 ```
 
+```{r data-dist-long-raw-preview}
+print_df(head(df_long))
+```
 
 ```{r data-dist-long-apim-reshape, echo = FALSE, results='hide', warning=FALSE, message=FALSE, cache=TRUE, dependson='simulate-longitudinal-data'}
 
-df_long_apim <- df_long %>%
-  reshape_dyadic_data(
-    person_id = 'userID',
-    dyad_id = 'coupleID',
-    time = 'diaryday',
-    vars_to_reshape = c('provided_support')
+df_long_apim <- prepare_interdep_data(
+  data = df_long,
+  group = coupleID,
+  member = userID,
+  role = gender,
+  time = diaryday,
+  predictors = provided_support,
+  model_type = "apim"
+) %>%
+  rename_interdep_for_tutorial(
+    predictor = "provided_support"
   ) %>%
   mutate(
-    is_female = ifelse(gender == 1, 1, 0),
-    is_male = ifelse(gender ==2, 1, 0),
-    member = ifelse(is_female == 1, 1, 2),
-    couple_day = interaction(coupleID, diaryday, drop = TRUE),
     diaryday_c = diaryday - mean(diaryday)
-  ) %>%
-  dplyr::select(
-    userID, coupleID, couple_day, diaryday, diaryday_c, gender, member,
-    is_male, is_female, closeness, provided_support_actor,
-    provided_support_partner
   )
 
 
@@ -1152,9 +1129,10 @@ print_df(
     df_long_apim,
     couple_id = "31",
     pdf_cols = c(
-      "userID", "coupleID", "couple_day", "diaryday", "diaryday_c",
-      "gender", "member", "is_male", "is_female", "closeness",
-      "provided_support_actor", "provided_support_partner"
+      "userID", "coupleID", "diaryday", "diaryday_c", "gender",
+      "is_male", "is_female", "closeness", "provided_support_actor_cwp",
+      "provided_support_partner_cwp", "provided_support_actor_cbp",
+      "provided_support_partner_cbp"
     )
   ),
   font_size = if (knitr::is_latex_output()) 6 else 20
@@ -1175,26 +1153,10 @@ Although the data contain couple, person, and day structure, the APIM is written
 
 ## Distinguishable Dyads - L-APIM - Centering
 
-```{r data-dist-long-apim-center, results='hide', cache=TRUE, dependson='data-dist-long-apim-reshape'}
-df_long_apim <- bmlm::isolate(
-  df_long_apim,
-  by = 'userID', # NOT coupleID
-  value = c('provided_support_actor', 'provided_support_partner'),
-  which = 'both'
-) %>%
-# renaming to avoid confusion with between- and within COUPLE centred DIM variables
-  rename(
-    provided_support_actor_cwp = provided_support_actor_cw,
-    provided_support_partner_cwp = provided_support_partner_cw,
-    provided_support_actor_cbp = provided_support_actor_cb,
-    provided_support_partner_cbp = provided_support_partner_cb,
-  ) %>%
-  # Centering time
-  mutate(
-    diaryday_c = scale(diaryday, center = TRUE, scale = FALSE)
-  )
-
-```
+`prepare_interdep_data()` performs this predictor decomposition before creating
+the actor and partner columns. The centered `diaryday_c` variable above is a
+separate time transformation for the models, not part of the dyadic predictor
+construction.
 
 
 ## Distinguishable Dyads - L-APIM - Model nlme

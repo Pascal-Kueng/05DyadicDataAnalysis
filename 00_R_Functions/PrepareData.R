@@ -20,6 +20,8 @@ interdep_tutorial_name_map <- function(predictor, alias = predictor) {
   }
 
   canonical_names <- c(
+    ".i_is_female_x_male_female",
+    ".i_is_female_x_male_male",
     ".i_diff_assumed_exchangeable_arbitrary",
     paste0(".i_", predictor, "_cwp"),
     paste0(".i_", predictor, "_cbp"),
@@ -37,6 +39,8 @@ interdep_tutorial_name_map <- function(predictor, alias = predictor) {
     paste0(".i_", predictor, "_cbp_within_dyad_deviation")
   )
   tutorial_names <- c(
+    "is_female",
+    "is_male",
     "idiff",
     paste0(alias, "_cwp"),
     paste0(alias, "_cbp"),
@@ -76,6 +80,23 @@ rename_interdep_for_tutorial <- function(data, predictor, alias = predictor) {
 
   previous_name_map <- attr(data, "tutorial_name_map", exact = TRUE)
   name_map <- interdep_tutorial_name_map(predictor, alias)
+
+  arbitrary_diff_cols <- grep(
+    "^\\.i_diff_.*_arbitrary$",
+    names(data),
+    value = TRUE
+  )
+  if (length(arbitrary_diff_cols) > 1L) {
+    stop(
+      "More than one arbitrary difference column is present. Rename the ",
+      "required composition explicitly rather than using the `idiff` alias.",
+      call. = FALSE
+    )
+  }
+  if (length(arbitrary_diff_cols) == 1L) {
+    name_map["idiff"] <- arbitrary_diff_cols
+  }
+
   name_map <- name_map[unname(name_map) %in% names(data)]
 
   if (length(name_map) == 0L) {
