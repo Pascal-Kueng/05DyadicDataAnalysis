@@ -4356,6 +4356,46 @@
       "Author": "Daniel Lüdecke [aut, cre] (ORCID: <https://orcid.org/0000-0002-8895-3206>), Dominique Makowski [aut, ctb] (ORCID: <https://orcid.org/0000-0001-5375-9967>), Indrajeet Patil [aut, ctb] (ORCID: <https://orcid.org/0000-0003-1995-6531>), Philip Waggoner [aut, ctb] (ORCID: <https://orcid.org/0000-0002-7825-7573>), Mattan S. Ben-Shachar [aut, ctb] (ORCID: <https://orcid.org/0000-0002-4287-4801>), Brenton M. Wiernik [aut, ctb] (ORCID: <https://orcid.org/0000-0001-9560-6336>), Vincent Arel-Bundock [aut, ctb] (ORCID: <https://orcid.org/0000-0003-2042-7063>), Etienne Bacher [aut, ctb] (ORCID: <https://orcid.org/0000-0002-9271-5075>), Alex Hayes [rev] (ORCID: <https://orcid.org/0000-0002-4985-5160>), Grant McDermott [ctb] (ORCID: <https://orcid.org/0000-0001-7883-8573>), Rémi Thériault [ctb] (ORCID: <https://orcid.org/0000-0003-4315-6788>), Alex Reinhart [ctb] (ORCID: <https://orcid.org/0000-0002-6658-514X>)",
       "Repository": "CRAN"
     },
+    "interdep": {
+      "Package": "interdep",
+      "Version": "0.0.0.9000",
+      "Source": "GitHub",
+      "Title": "Prepare Dyadic Data for Multilevel Models",
+      "Authors@R": "person(\"Pascal\", \"Küng\", , \"kueng.pascal@gmail.com\", role = c(\"aut\", \"cre\"))",
+      "Description": "Helps researchers prepare cross-sectional and intensive longitudinal dyadic data for multilevel models, including generalized multilevel models. The package supports common dyadic designs with one kind of dyad, while also handling studies that combine different kinds of dyads, such as female-male, female-female, and male-male couples. It validates long-format dyadic data and creates the role, composition, temporal predictor decomposition, and model-ready columns needed for dyadic multilevel model parameterizations such as APIM, DIM, and undirected DSM. Prepared data can be used with multilevel model engines such as 'glmmTMB'.",
+      "License": "MIT + file LICENSE",
+      "Encoding": "UTF-8",
+      "Roxygen": "list(markdown = TRUE)",
+      "RoxygenNote": "8.0.0",
+      "Suggests": [
+        "glmmTMB",
+        "knitr",
+        "MASS",
+        "rmarkdown",
+        "testthat (>= 3.0.0)",
+        "usethis"
+      ],
+      "Config/testthat/edition": "3",
+      "Imports": [
+        "dplyr (>= 1.1.0)",
+        "pillar",
+        "rlang (>= 0.4.0)",
+        "tidyselect",
+        "tibble (>= 3.0.0)"
+      ],
+      "VignetteBuilder": "knitr",
+      "Depends": [
+        "R (>= 4.1)"
+      ],
+      "LazyData": "true",
+      "URL": "https://pascal-kueng.github.io/interdep/",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "Pascal-Kueng",
+      "RemoteRepo": "interdep",
+      "RemoteRef": "main",
+      "RemoteSha": "b207a7a77369fa6959a826a60570d045a4d6e2f0"
+    },
     "isoband": {
       "Package": "isoband",
       "Version": "0.3.0",

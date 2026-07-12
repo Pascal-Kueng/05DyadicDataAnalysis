@@ -35,6 +35,31 @@
   margin-bottom: 1em;      /* space below tables too */
 }
 
+/* Complete interdep-to-tutorial mappings without overflowing their slides. */
+.reveal .tutorial-alias-table > p {
+  font-size: 0.72em;
+  line-height: 1.2;
+  margin: 0.25em 0 0.4em;
+}
+
+.reveal .tutorial-alias-table table {
+  width: 100%;
+  font-size: 0.55em;
+  line-height: 1.08;
+  margin: 0.2em 0 0;
+}
+
+.reveal .tutorial-alias-table table th,
+.reveal .tutorial-alias-table table td {
+  padding: 0.2em 0.35em;
+  vertical-align: middle;
+}
+
+.reveal .tutorial-alias-table table code {
+  font-size: 0.94em;
+  white-space: nowrap;
+}
+
 /* Compact verbose model summaries without changing rendered tables. */
 .reveal .model-summary-output pre,
 .reveal pre.model-summary-output {

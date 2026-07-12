@@ -28,12 +28,14 @@ knitr::opts_chunk$set(
 
 library(brms)
 library(glmmTMB)
+library(interdep)
 library(dplyr)
 library(tidyr)
 library(tibble)
 library(knitr)
 library(kableExtra)
 source(file.path("00_R_Functions", "ReportModels.R"))
+source(file.path("00_R_Functions", "PrepareData.R"))
 
 options(
   brms.backend = "cmdstanr",
@@ -69,17 +71,42 @@ knitr::include_graphics(file.path("Embed", "APIM_dist.png"))
 
 # Data structure
 
-```{r distinguishable-data-structure-table, echo=FALSE}
-dist_example <- tibble(
-  coupleID = rep(31, 6),
-  userID = c(rep("31_1", 3), rep("31_2", 3)),
-  diaryday = rep(0:2, 2),
-  couple_day = rep(c("31.0", "31.1", "31.2"), 2),
-  gender = c(rep("female", 3), rep("male", 3)),
-  member = c(rep(1, 3), rep(2, 3)),
-  is_female = as.numeric(gender == "female"),
-  is_male = as.numeric(gender == "male")
+```{r distinguishable-data-preparation}
+dist_raw <- tibble(
+  coupleID = rep(31:32, each = 6),
+  userID = rep(c("31_1", "31_2", "32_1", "32_2"), each = 3),
+  diaryday = rep(0:2, 4),
+  gender = rep(c("female", "male", "female", "male"), each = 3),
+  closeness = c(5.2, 5.5, 5.1, 4.8, 5.0, 5.3,
+                4.9, 5.1, 5.0, 5.4, 5.2, 5.5),
+  provided_support = c(4.1, 4.5, 4.3, 3.9, 4.2, 4.4,
+                       4.0, 4.3, 4.1, 4.6, 4.5, 4.7)
 )
+
+df_long_apim <- prepare_interdep_data(
+  data = dist_raw,
+  group = coupleID,
+  member = userID,
+  role = gender,
+  time = diaryday,
+  predictors = provided_support,
+  model_type = "apim"
+) |>
+  rename_interdep_for_tutorial(
+    predictor = "provided_support"
+  ) |>
+  mutate(
+    diaryday_c = diaryday - mean(diaryday)
+  )
+```
+
+```{r distinguishable-data-structure-table, echo=FALSE}
+dist_example <- df_long_apim |>
+  select(
+    coupleID, userID, diaryday, gender, is_female, is_male,
+    provided_support_cwp_actor, provided_support_cwp_partner,
+    provided_support_cbp_actor, provided_support_cbp_partner
+  )
 
 kable(
   dist_example,
@@ -87,8 +114,9 @@ kable(
 )
 ```
 
-The dummy variables define partner role. They are used in the fixed effects,
-random effects, residual variance model, and residual covariance model.
+`prepare_interdep_data()` creates the role indicators and the within-person and
+between-person actor-partner predictors. The tutorial helper drops the `.i_`
+prefix while retaining names such as `cwp_actor` and `cbp_partner`.
 
 # glmmTMB model
 
@@ -101,16 +129,16 @@ model_dist_apim_long_glmmtmb <- glmmTMB(
     is_female:diaryday_c +
 
     # Between-person APIM effects.
-    is_male:provided_support_actor_cbp +
-    is_male:provided_support_partner_cbp +
-    is_female:provided_support_actor_cbp +
-    is_female:provided_support_partner_cbp +
+    is_male:provided_support_cbp_actor +
+    is_male:provided_support_cbp_partner +
+    is_female:provided_support_cbp_actor +
+    is_female:provided_support_cbp_partner +
 
     # Within-person APIM effects.
-    is_male:provided_support_actor_cwp +
-    is_male:provided_support_partner_cwp +
-    is_female:provided_support_actor_cwp +
-    is_female:provided_support_partner_cwp +
+    is_male:provided_support_cwp_actor +
+    is_male:provided_support_cwp_partner +
+    is_female:provided_support_cwp_actor +
+    is_female:provided_support_cwp_partner +
 
     # Dyad-level random intercepts and time slopes.
     (0 + is_male + is_female +
@@ -142,16 +170,16 @@ formula_dist_apim_long_simple <- bf(
     is_female:diaryday_c +
 
     # Between-person APIM effects.
-    is_male:provided_support_actor_cbp +
-    is_male:provided_support_partner_cbp +
-    is_female:provided_support_actor_cbp +
-    is_female:provided_support_partner_cbp +
+    is_male:provided_support_cbp_actor +
+    is_male:provided_support_cbp_partner +
+    is_female:provided_support_cbp_actor +
+    is_female:provided_support_cbp_partner +
 
     # Within-person APIM effects.
-    is_male:provided_support_actor_cwp +
-    is_male:provided_support_partner_cwp +
-    is_female:provided_support_actor_cwp +
-    is_female:provided_support_partner_cwp +
+    is_male:provided_support_cwp_actor +
+    is_male:provided_support_cwp_partner +
+    is_female:provided_support_cwp_actor +
+    is_female:provided_support_cwp_partner +
 
     # Dyad-level random intercepts and time slopes.
     (0 + is_male + is_female +
@@ -159,7 +187,7 @@ formula_dist_apim_long_simple <- bf(
        is_female:diaryday_c | coupleID) +
 
     # Native same-day residual correlation between partners.
-    unstr(time = member, gr = couple_day),
+    unstr(time = gender, gr = coupleID:diaryday),
 
   # Role-specific residual SDs.
   # brms estimates sigma coefficients on the log scale, so b_sigma_* draws

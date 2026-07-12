@@ -29,12 +29,14 @@ knitr::opts_chunk$set(
 
 library(brms)
 library(glmmTMB)
+library(interdep)
 library(dplyr)
 library(tidyr)
 library(tibble)
 library(knitr)
 library(kableExtra)
 source(file.path("00_R_Functions", "ReportModels.R"))
+source(file.path("00_R_Functions", "PrepareData.R"))
 
 options(
   brms.backend = "cmdstanr",
@@ -72,23 +74,47 @@ For intensive longitudinal data, an exchangeable APIM needs to model:
 knitr::include_graphics(file.path("Embed", "APIM_ind_1.png"))
 ```
 
-Assume `df_long_dim` contains one row per person-day and two rows per
-`coupleID:diaryday`. The exchangeability code uses `Idiff = +1/-1` to represent
-partner deviations from the dyad-level mean.
+`prepare_interdep_data()` creates the APIM and DIM predictors together. Omitting
+`role` states the exchangeability assumption, while `seed` makes its arbitrary
+member contrast reproducible.
 
 # Data structure
 
-```{r idiff-data-structure-table, echo=FALSE}
-idiff_example <- tibble(
-  coupleID = rep(31, 6),
-  userID = c(rep("31_1", 3), rep("31_2", 3)),
-  diaryday = rep(0:2, 2),
-  couple_day = rep(c("31.0", "31.1", "31.2"), 2),
-  member = c(rep(1, 3), rep(2, 3)),
-  Idiff = c(rep(1, 3), rep(-1, 3)),
-  is_partner1 = as.numeric(Idiff == 1),
-  is_partner2 = as.numeric(Idiff == -1)
+```{r exchangeable-data-preparation}
+exchangeable_raw <- tibble(
+  coupleID = rep(31:32, each = 6),
+  userID = rep(c("31_1", "31_2", "32_1", "32_2"), each = 3),
+  diaryday = rep(0:2, 4),
+  closeness = c(5.2, 5.5, 5.1, 4.8, 5.0, 5.3,
+                4.9, 5.1, 5.0, 5.4, 5.2, 5.5),
+  provided_support = c(4.1, 4.5, 4.3, 3.9, 4.2, 4.4,
+                       4.0, 4.3, 4.1, 4.6, 4.5, 4.7)
 )
+
+df_long_dim <- prepare_interdep_data(
+  data = exchangeable_raw,
+  group = coupleID,
+  member = userID,
+  time = diaryday,
+  predictors = provided_support,
+  model_type = c("apim", "dim"),
+  seed = 123
+) |>
+  rename_interdep_for_tutorial(
+    predictor = "provided_support"
+  ) |>
+  mutate(
+    diaryday_c = diaryday - mean(diaryday)
+  )
+```
+
+```{r idiff-data-structure-table, echo=FALSE}
+idiff_example <- df_long_dim |>
+  select(
+    coupleID, userID, diaryday, idiff,
+    provided_support_cwp_actor, provided_support_cwp_partner,
+    provided_support_cwp_dyad_mean, provided_support_cwp_dev
+  )
 
 kable(
   idiff_example,
@@ -96,9 +122,10 @@ kable(
 )
 ```
 
-`Idiff` is constant within person and opposite within dyad (randomly assigned). The dummy variables
-used in `glmmTMB`, `is_partner1` and `is_partner2`, must be constructed from the
-same `Idiff` coding (e.g. `is_partner1 = 1` when `Idiff == 1` and `is_partner2 = 1` when `Idiff == -1`.)
+`idiff` is constant within person and opposite within dyad. Its sign has no
+substantive meaning. The tutorial helper drops the `.i_` prefix while retaining
+the package's `cwp_actor`, `cbp_partner`, and `cwp_dyad_mean` ordering; only the
+long `within_dyad_deviation` suffix is shortened to `dev`.
 
 # glmmTMB model
 
@@ -108,28 +135,28 @@ model_exch_long_apim_glmmtmb <- glmmTMB(
 
     # Pooled fixed effects: no gender-specific intercepts or slopes.
     diaryday_c +
-    provided_support_actor_cwp +
-    provided_support_partner_cwp +
-    provided_support_actor_cbp +
-    provided_support_partner_cbp +
+    provided_support_cwp_actor +
+    provided_support_cwp_partner +
+    provided_support_cbp_actor +
+    provided_support_cbp_partner +
 
     # Dyad-level means and slopes.
     (1 + diaryday_c +
-       provided_support_actor_cwp +
-       provided_support_partner_cwp | coupleID) +
+       provided_support_cwp_actor +
+       provided_support_cwp_partner | coupleID) +
 
     # Partner deviations from the dyad-level effects.
     # This block is kept separate from the dyad-level block so that the
     # common/couple-mean and deviation components are independent.
-    (0 + Idiff +
-       I(Idiff * diaryday_c) +
-       I(Idiff * provided_support_actor_cwp) +
-       I(Idiff * provided_support_partner_cwp) | coupleID) +
+    (0 + idiff +
+       I(idiff * diaryday_c) +
+       I(idiff * provided_support_cwp_actor) +
+       I(idiff * provided_support_cwp_partner) | coupleID) +
 
     # Same-day residual interdependence:
-    # homogeneous compound symmetry = one residual variance plus one
-    # partner residual correlation.
-    homcs(0 + is_partner1 + is_partner2 | coupleID:diaryday),
+    # Independent common and member-deviation components imply homogeneous
+    # residual variance and covariance.
+    (1 | coupleID:diaryday) + (0 + idiff | coupleID:diaryday),
 
   # The residual variance is represented by the homcs block above.
   # Without dispformula = ~ 0, glmmTMB would add a second independent
@@ -145,10 +172,10 @@ The residual block could also be written as independent common/deviation terms:
 
 ```{r glmmTMB-idiff-residual, eval=FALSE}
 (1 | coupleID:diaryday) +
-(0 + Idiff | coupleID:diaryday)
+(0 + idiff | coupleID:diaryday)
 ```
 
-With `Idiff = +1/-1`, this has the same parameter count as `homcs(...)`: one
+With `idiff = +1/-1`, this has one
 common variance and one deviation variance, which rotate back to one homogeneous
 residual variance and one residual covariance.
 
@@ -160,21 +187,21 @@ formula_exch_long_apim <- bf(
 
     # Pooled fixed effects.
     diaryday_c +
-    provided_support_actor_cwp +
-    provided_support_partner_cwp +
-    provided_support_actor_cbp +
-    provided_support_partner_cbp +
+    provided_support_cwp_actor +
+    provided_support_cwp_partner +
+    provided_support_cbp_actor +
+    provided_support_cbp_partner +
 
     # Dyad-level means and slopes.
     (1 + diaryday_c +
-       provided_support_actor_cwp +
-       provided_support_partner_cwp | coupleID) +
+       provided_support_cwp_actor +
+       provided_support_cwp_partner | coupleID) +
 
     # Partner deviations from the dyad-level effects.
-    (0 + Idiff +
-       I(Idiff * diaryday_c) +
-       I(Idiff * provided_support_actor_cwp) +
-       I(Idiff * provided_support_partner_cwp) | coupleID) +
+    (0 + idiff +
+       I(idiff * diaryday_c) +
+       I(idiff * provided_support_cwp_actor) +
+       I(idiff * provided_support_cwp_partner) | coupleID) +
 
     # Native residual correlation between the two partners on the same day.
     # We use unstr() instead of cs() because brms currently restricts cs()
@@ -182,7 +209,7 @@ formula_exch_long_apim <- bf(
     # (dyads), unstr() is equivalent here because only one residual correlation
     # is estimated. For triads or larger groups, unstr() would no longer impose
     # the compound-symmetry constraint.
-    unstr(time = member, gr = couple_day)
+    unstr(time = idiff, gr = coupleID:diaryday)
 
   # No sigma formula is specified here. Thus, sigma ~ 1 is implied,
   # meaning one homogeneous residual variance for both partners.
@@ -227,24 +254,24 @@ model_exch_long_apim <- readRDS(cached_fit)
 
 # Back-transformation
 
-The model estimates a common/couple-mean block and an `Idiff` deviation block. For exchangeable dyads,
+The model estimates a common/couple-mean block and an `idiff` deviation block. For exchangeable dyads,
 the full APIM random-effects matrix is recovered by rotating these two blocks:
 
 $$
 \operatorname{Var}(A) = \operatorname{Var}(B) =
-\Sigma_{\text{common}} + \Sigma_{\text{Idiff}}
+\Sigma_{\text{common}} + \Sigma_{\text{idiff}}
 $$
 
 $$
 \operatorname{Cov}(A, B) =
-\Sigma_{\text{common}} - \Sigma_{\text{Idiff}}
+\Sigma_{\text{common}} - \Sigma_{\text{idiff}}
 $$
 
-This exact rotation assumes that the common/couple-mean and `Idiff` deviation random-effect blocks are
+This exact rotation assumes that the common/couple-mean and `idiff` deviation random-effect blocks are
 independent.
 
 The helper function `summarize_exchangeable_apim_brms()` used below is defined in
-`00_R_Functions/ReportModels.R` on GitHub. It reconstructs the common/couple-mean and `Idiff` covariance
+`00_R_Functions/ReportModels.R` on GitHub. It reconstructs the common/couple-mean and `idiff` covariance
 matrices for every posterior draw, rotates each draw into the full APIM
 partner-level matrix, and then summarizes the transformed covariance, SD,
 correlation, fixed-effect, and residual quantities.
@@ -254,10 +281,14 @@ interval estimation (CI) is less direct because there are no posterior draws. A 
 implementing the delta-method is also available on GitHub.
 
 ```{r backtransform-code}
+idiff_term <- if (
+  "sd_coupleID__idiff" %in% posterior::variables(model_exch_long_apim)
+) "idiff" else "Idiff"
+
 apim_results <- summarize_exchangeable_apim_brms(
   model_exch_long_apim,
   gr = "coupleID",
-  idiff = "Idiff",
+  idiff = idiff_term,
   term_labels = c("int", "day", "actor_wp", "partner_wp"),
   partner_labels = c("A", "B")
 )
