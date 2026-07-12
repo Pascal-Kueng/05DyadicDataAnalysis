@@ -168,7 +168,10 @@ complete:
 | `.i_provided_support_cbp_dyad_mean` | `support_cbp_mean` | dyad mean of between-person support |
 | `.i_provided_support_cbp_within_dyad_deviation` | `support_cbp_dev` | member deviation from that dyad mean |
 
-The reusable helper renames only generated columns that are present:
+To keep these aliases consistent, this tutorial uses
+`rename_interdep_for_tutorial()`, defined in
+[`00_R_Functions/PrepareData.R`](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/blob/main/00_R_Functions/PrepareData.R).
+The helper renames only generated columns that are present:
 
 ```{r interdep-tutorial-alias-example, eval=FALSE}
 model_data <- prepared_data |>
