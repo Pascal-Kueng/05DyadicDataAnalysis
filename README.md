@@ -1,18 +1,20 @@
-# Tutorial: Distinguishable and Exchangeable Dyads - Bayesian Multilevel Modelling
-Cross-Sectional and Intensive Longitudinal APIM and DIM
+# Tutorial: Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling
+
+*Cross-sectional and intensive longitudinal APIM and DIM*
 
 [![DOI](https://zenodo.org/badge/1079959998.svg)](https://doi.org/10.5281/zenodo.17400655)
 
-## View Presentation
+## Access the tutorial
 
-You can view or download the prebuilt **DyadicDataAnalysis.html** presentation and the static PDF tutorial:
+Choose the interactive slide deck, the archival PDF, or one of the concise model guides:
 
-- ✅ **[Open in browser (Ctr+Click for new tab)](https://pascal-kueng.github.io/05DyadicDataAnalysis/DyadicDataAnalysis.html)**
-- 📄 **[Open PDF version](https://pascal-kueng.github.io/05DyadicDataAnalysis/pdf_version.pdf)**
-- 📌 **[Distinguishable dyads quick guide](https://pascal-kueng.github.io/05DyadicDataAnalysis/distinguishable_dyads_model_output.pdf)**
-- 📌 **[Exchangeable dyads quick guide](https://pascal-kueng.github.io/05DyadicDataAnalysis/exchangeable_dyads_backtransform.pdf)**
-- 🔎 **[Tutorial overview and citation](https://pascal-kueng.github.io/05DyadicDataAnalysis/)**
-- 💾 **[Download zip folder with HTML file included](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/releases/latest)**
+- **[Interactive HTML tutorial](https://pascal-kueng.github.io/05DyadicDataAnalysis/DyadicDataAnalysis.html)**
+- **[Archival PDF tutorial](https://pascal-kueng.github.io/05DyadicDataAnalysis/dyadic-data-analysis-tutorial.pdf)**
+- **[Distinguishable dyads quick guide](https://pascal-kueng.github.io/05DyadicDataAnalysis/distinguishable-dyads-quick-guide.pdf)**
+- **[Exchangeable dyads quick guide](https://pascal-kueng.github.io/05DyadicDataAnalysis/exchangeable-dyads-quick-guide.pdf)**
+- **[Tutorial overview and citation](https://pascal-kueng.github.io/05DyadicDataAnalysis/)**
+- **[`interdep` data-preparation package](https://pascal-kueng.github.io/interdep/)**
+- **[Download the latest release](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/releases/latest)**
 
 ---
 
@@ -21,22 +23,24 @@ You can view or download the prebuilt **DyadicDataAnalysis.html** presentation a
 
 If you want to run all analyses or rebuild the slides locally:
 
-1. [Download zip folder](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/releases/latest) or clone the repository
+1. [Download the latest release](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/releases/latest) or clone the repository.
 2. **Open** the `00DyadicDataAnalysis.Rproj`.
 3. **Open** the presentation `DyadicDataAnalysis.Rmd`.
-4. Install project packages via the terminal:
+4. Restore the project packages in the R console:
+
    ```r
    renv::restore()
    ```
-5. (Recommended: Set up the use of `cmdstanr` backend for `brms`)
+
+5. To run the Bayesian models, install CmdStan:
 
    ```r
-   install.packages("cmdstanr", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
-   cmdstanr::check_cmdstan_toolchain(fix=TRUE)
+   cmdstanr::check_cmdstan_toolchain(fix = TRUE)
    cmdstanr::install_cmdstan()
    ```
-6. Run interactively or build the slides ("render" button at the top)
+
+6. Run the code interactively or use the **Render** button to rebuild the slides.
 
 ---
 
-[![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
+Tutorial content is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); code is licensed under the [MIT License](LICENSE-CODE).

@@ -41,7 +41,7 @@
       "resource_type": "software"
     },
     {
-      "identifier": "https://pascal-kueng.github.io/05DyadicDataAnalysis/pdf_version.pdf",
+      "identifier": "https://pascal-kueng.github.io/05DyadicDataAnalysis/dyadic-data-analysis-tutorial.pdf",
       "relation": "isIdenticalTo",
       "scheme": "url",
       "resource_type": "publication-report"

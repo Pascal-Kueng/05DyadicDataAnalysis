@@ -1,5 +1,5 @@
 ---
-title: "Distinguishable Dyads: Model and Output"
+title: "Distinguishable Dyads: Model Specification and Output"
 author: "Pascal Küng"
 format:
   pdf:

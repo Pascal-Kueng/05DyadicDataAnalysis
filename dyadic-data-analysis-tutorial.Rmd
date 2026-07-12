@@ -125,8 +125,26 @@ options(knitr.kable.NA = "", width = 120)
 
 For readers who want the model code and reporting tables without the full tutorial:
 
-* [Distinguishable dyads quick guide](distinguishable_dyads_model_output.pdf)
-* [Exchangeable dyads quick guide](exchangeable_dyads_backtransform.pdf)
+* [Distinguishable dyads quick guide](distinguishable-dyads-quick-guide.pdf)
+* [Exchangeable dyads quick guide](exchangeable-dyads-quick-guide.pdf)
+
+## Preparing Dyadic Data with `interdep`
+
+[`interdep`](https://pascal-kueng.github.io/interdep/) prepares dyadic data for multilevel models [@interdep2026]. It:
+
+* validates long-format dyadic data
+* supports cross-sectional and intensive longitudinal designs
+* creates model-ready variables for APIM, DIM, and undirected DSM specifications
+* handles distinguishable, exchangeable, and mixed dyad compositions
+
+Install the development version from GitHub with [`pak`](https://pak.r-lib.org/):
+
+```r
+# install.packages("pak")
+pak::pak("Pascal-Kueng/interdep")
+```
+
+[Getting started](https://pascal-kueng.github.io/interdep/articles/getting-started.html) · [Function reference](https://pascal-kueng.github.io/interdep/reference/index.html) · [Source code](https://github.com/Pascal-Kueng/interdep)
 
 ## Loading Libraries and setting CmdStan Backend
 
@@ -653,13 +671,19 @@ we could also remove `us` and simply write
 
 `(0 + is_male + is_female | coupleID)`.
 
-unstructured means, that both `is_male` and `is_female` both get their own residual variance, 
-and a correlation is freely estimated between the two. If there were more than two members (e.g., triads), 
-unstructured would estimate a different correlation for each pair. 
+An unstructured covariance matrix gives `is_male` and `is_female` their own
+variance and freely estimates their correlation. With more than two members
+(e.g., triads), it would estimate a separate correlation for every pair.
 
-An unstructured matrix for just two persons is written as: 
+For two partners, the covariance matrix is:
 
-!TODO: insert matrix. 
+$$
+\boldsymbol{\Sigma} =
+\begin{pmatrix}
+\sigma^2_{female} & \rho\,\sigma_{female}\sigma_{male} \\
+\rho\,\sigma_{female}\sigma_{male} & \sigma^2_{male}
+\end{pmatrix}.
+$$
 
 ## Distinguishable Dyads - Fitting the Model in glmmTMB
 
@@ -1189,7 +1213,7 @@ df_long_apim <- df_long %>%
 
 ```{r data-long-preview-helper, echo = FALSE, results='hide', warning=FALSE, message=FALSE}
 
-# Function for previev (not needed for analysis!)
+# Function for preview (not needed for analysis!)
 print_couple_preview <- function(df, couple_id,
                                  days = 0:3) {
   # Filter/sort/select with original types
@@ -1550,7 +1574,7 @@ Note: Sigma rows are shown on the response scale; they were exponentiated from b
 
 In this model, same-day partner interdependence is handled by `unstr(time = member, gr = couple_day)`. In current univariate brms models, we cannot combine this residual correlation structure with `ar()` in the same formula. 
 
-glmmTMB currently also does not allow partner-interdependence across time, but I have a fork of glmmTMB with added support and am currently working of integrating this with upstream glmmTMB. 
+glmmTMB currently also does not allow partner interdependence across time, but I have a fork of glmmTMB with added support and am currently working on integrating this with upstream glmmTMB.
 
 ## Excursion: Dynamic Workaround
 
@@ -2698,7 +2722,7 @@ print_df(print_couple_preview_pdf(
 
 ## Exchangeable Dyads - L-DIM/L-APIM: glmmTMB
 
-```{r fit-exch-long-apim-glmmtmb, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-exch-long-idiff'}
+```{r fit-exch-long-apim-glmmtmb, eval=FALSE, results='hide', message=FALSE, warning=FALSE}
 #| code-line-numbers: "1-4|6-11|13-18|20-21|23-28|30-34|36-39"
 
 model_exch_long_apim_glmmtmb <- glmmTMB(
@@ -2724,7 +2748,7 @@ model_exch_long_apim_glmmtmb <- glmmTMB(
     (1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp | coupleID) +
 
     # Both partners' deviations from these dyad-level means and slopes.
-    # Note: separate random effects block to make them uncorrelated form dyad-level REs.
+    # Note: separate random-effects block to make them uncorrelated with dyad-level REs.
     (0 + Idiff +
          I(Idiff * diaryday_c) +
          I(Idiff * provided_support_actor_cwp) +
@@ -2745,7 +2769,7 @@ model_exch_long_apim_glmmtmb <- glmmTMB(
 
 ## Exchangeable Dyads - L-DIM/L-APIM: glmmTMB
 
-```{r results-exch-long-apim-glmmtmb, echo=FALSE, class.output='model-summary-output', cache=TRUE, dependson='fit-exch-long-apim-glmmtmb'}
+```{r results-exch-long-apim-glmmtmb, eval=FALSE, echo=FALSE, class.output='model-summary-output'}
 summary(model_exch_long_apim_glmmtmb)
 ```
 
@@ -2779,7 +2803,7 @@ formula_exch_long_apim <- bf(
     (1 + diaryday_c + provided_support_actor_cwp + provided_support_partner_cwp | coupleID) +
 
     # Both partners' deviations from these dyad-level means and slopes.
-    # Note: separate random effects block to make them uncorrelated form dyad-level REs.
+    # Note: separate random-effects block to make them uncorrelated with dyad-level REs.
     (0 + Idiff +
          I(Idiff * diaryday_c) +
          I(Idiff * provided_support_actor_cwp) +
@@ -2891,7 +2915,7 @@ This equivalence assumes exactly two rows per couple-day, independent common/cou
 
 The model code keeps `homcs(...)` because it states the residual structure more directly.
 
-It does also not need back-transformation. 
+It also does not need back-transformation.
 
 ## Exchangeable Dyads - L-DIM/L-APIM: Results
 

@@ -1,3 +1,13 @@
-CC BY 4.0
+# Licensing
 
-The material in this repository is licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a><img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;">
+Unless a file states otherwise:
+
+- Tutorial prose, slides, figures, and rendered documents are licensed under
+  the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/)
+  (CC BY 4.0).
+- R code, scripts, and reusable helper functions are licensed under the
+  [MIT License](LICENSE-CODE).
+
+Copyright © 2026 Pascal M. Küng.
+
+Third-party software and assets retain their respective licenses.

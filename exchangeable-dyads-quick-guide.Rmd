@@ -1,5 +1,5 @@
 ---
-title: "Exchangeable Dyads: Model and Back-Transformation"
+title: "Exchangeable Dyads: Model Specification and Back-Transformation"
 author: "Pascal Küng"
 format:
   pdf:
