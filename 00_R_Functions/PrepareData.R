@@ -1,15 +1,15 @@
-#' Build the tutorial's aliases for interdep-generated columns
+#' Build the tutorial's aliases for dyadMLM-generated columns
 #'
-#' Creates the explicit mapping used to shorten `interdep` column names in the
+#' Creates the explicit mapping used to shorten `dyadMLM` column names in the
 #' tutorial. Names are the tutorial aliases and values are the canonical
-#' `interdep` names, matching the convention used by `dplyr::rename()`.
+#' `dyadMLM` names, matching the convention used by `dplyr::rename()`.
 #'
-#' @param predictor A single predictor name as supplied to `interdep`.
+#' @param predictor A single predictor name as supplied to `dyadMLM`.
 #' @param alias A shorter stem to use for that predictor in model formulas.
 #'
 #' @return A named character vector with tutorial aliases as names and
-#'   canonical `interdep` column names as values.
-interdep_tutorial_name_map <- function(predictor, alias = predictor) {
+#'   canonical `dyadMLM` column names as values.
+dyadmlm_tutorial_name_map <- function(predictor, alias = predictor) {
   if (!is.character(predictor) || length(predictor) != 1L ||
       is.na(predictor) || !nzchar(predictor)) {
     stop("`predictor` must be one non-empty character string.", call. = FALSE)
@@ -20,23 +20,23 @@ interdep_tutorial_name_map <- function(predictor, alias = predictor) {
   }
 
   canonical_names <- c(
-    ".i_is_female_x_male_female",
-    ".i_is_female_x_male_male",
-    ".i_diff_assumed_exchangeable_arbitrary",
-    paste0(".i_", predictor, "_cwp"),
-    paste0(".i_", predictor, "_cbp"),
-    paste0(".i_", predictor, "_actor"),
-    paste0(".i_", predictor, "_partner"),
-    paste0(".i_", predictor, "_cwp_actor"),
-    paste0(".i_", predictor, "_cwp_partner"),
-    paste0(".i_", predictor, "_cbp_actor"),
-    paste0(".i_", predictor, "_cbp_partner"),
-    paste0(".i_", predictor, "_dyad_mean_gmc"),
-    paste0(".i_", predictor, "_within_dyad_deviation"),
-    paste0(".i_", predictor, "_cwp_dyad_mean"),
-    paste0(".i_", predictor, "_cwp_within_dyad_deviation"),
-    paste0(".i_", predictor, "_cbp_dyad_mean"),
-    paste0(".i_", predictor, "_cbp_within_dyad_deviation")
+    ".dy_is_female_x_male_female",
+    ".dy_is_female_x_male_male",
+    ".dy_member_contrast_assumed_exchangeable_arbitrary",
+    paste0(".dy_", predictor, "_cwp"),
+    paste0(".dy_", predictor, "_cbp"),
+    paste0(".dy_", predictor, "_actor"),
+    paste0(".dy_", predictor, "_partner"),
+    paste0(".dy_", predictor, "_cwp_actor"),
+    paste0(".dy_", predictor, "_cwp_partner"),
+    paste0(".dy_", predictor, "_cbp_actor"),
+    paste0(".dy_", predictor, "_cbp_partner"),
+    paste0(".dy_", predictor, "_dyad_mean_gmc"),
+    paste0(".dy_", predictor, "_within_dyad_dev"),
+    paste0(".dy_", predictor, "_cwp_dyad_mean"),
+    paste0(".dy_", predictor, "_cwp_within_dyad_dev"),
+    paste0(".dy_", predictor, "_cbp_dyad_mean"),
+    paste0(".dy_", predictor, "_cbp_within_dyad_dev")
   )
   tutorial_names <- c(
     "is_female",
@@ -61,28 +61,28 @@ interdep_tutorial_name_map <- function(predictor, alias = predictor) {
   stats::setNames(canonical_names, tutorial_names)
 }
 
-#' Rename interdep-generated columns for readable tutorial formulas
+#' Rename dyadMLM-generated columns for readable tutorial formulas
 #'
 #' Renames the generated columns that are present in the data and records the
 #' applied mapping in the `tutorial_name_map` attribute. This helper is
 #' intended for the final, model-ready output: it returns an ordinary tibble
-#' rather than an `interdep_data` object because its canonical metadata no
+#' rather than a `dyadMLM_data` object because its canonical metadata no
 #' longer describes the renamed columns.
 #'
-#' @inheritParams interdep_tutorial_name_map
-#' @param data A data frame returned after all `interdep` preparation steps.
+#' @inheritParams dyadmlm_tutorial_name_map
+#' @param data A data frame returned after all `dyadMLM` preparation steps.
 #'
 #' @return A tibble containing tutorial-friendly aliases.
-rename_interdep_for_tutorial <- function(data, predictor, alias = predictor) {
+rename_dyadmlm_for_tutorial <- function(data, predictor, alias = predictor) {
   if (!is.data.frame(data)) {
     stop("`data` must be a data frame.", call. = FALSE)
   }
 
   previous_name_map <- attr(data, "tutorial_name_map", exact = TRUE)
-  name_map <- interdep_tutorial_name_map(predictor, alias)
+  name_map <- dyadmlm_tutorial_name_map(predictor, alias)
 
   arbitrary_diff_cols <- grep(
-    "^\\.i_diff_.*_arbitrary$",
+    "^\\.dy_member_contrast_.*_arbitrary$",
     names(data),
     value = TRUE
   )
@@ -101,7 +101,7 @@ rename_interdep_for_tutorial <- function(data, predictor, alias = predictor) {
 
   if (length(name_map) == 0L) {
     stop(
-      "No matching `interdep` columns were found for predictor `",
+      "No matching `dyadMLM` columns were found for predictor `",
       predictor,
       "`.",
       call. = FALSE
@@ -120,8 +120,8 @@ rename_interdep_for_tutorial <- function(data, predictor, alias = predictor) {
   }
 
   out <- data
-  class(out) <- setdiff(class(out), "interdep_data")
-  attr(out, "interdep") <- NULL
+  class(out) <- setdiff(class(out), "dyadMLM_data")
+  attr(out, "dyadMLM") <- NULL
   out <- tibble::as_tibble(out)
   names(out)[match(unname(name_map), names(out))] <- names(name_map)
   attr(out, "tutorial_name_map") <- c(previous_name_map, name_map)

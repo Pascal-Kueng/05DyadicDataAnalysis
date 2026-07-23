@@ -2606,6 +2606,51 @@
       "Maintainer": "Hadley Wickham <hadley@posit.co>",
       "Repository": "CRAN"
     },
+    "dyadMLM": {
+      "Package": "dyadMLM",
+      "Version": "0.1.0",
+      "Source": "GitHub",
+      "Title": "Tools for Dyadic Multilevel Models",
+      "Authors@R": "person(\"Pascal\", \"Küng\", , \"kueng.pascal@gmail.com\", role = c(\"aut\", \"cre\", \"cph\"), comment = c(ORCID = \"0000-0001-7346-9414\"))",
+      "Description": "Provides tools for dyadic multilevel modeling with linear and generalized linear mixed-effects models. It validates and prepares long-format cross-sectional and intensive longitudinal data, including ecological momentary assessment designs, for distinguishable and exchangeable dyads. It also supports datasets containing multiple observed dyad compositions. It constructs composition-aware, model-ready variables for Actor-Partner Interdependence Models (APIMs), Dyadic Score Models (DSMs), and Dyad-Individual Models (DIMs). Prepared data can be used with model engines such as 'glmmTMB' and 'brms' for Gaussian and non-Gaussian outcomes, including counts, proportions, and skewed continuous responses. Post-estimation tools compare compatible fitted models and back-transform exchangeable sum-and-difference random-effect covariance structures into member-level quantities. The APIM and DSM specifications and their relationships follow Iida et al. (2018) <doi:10.1177/0265407517725407>; the multilevel sum-and-difference random-effects implementation for exchangeable dyads adapts del Rosario and West (2025) <doi:10.1177/25152459251351286>.",
+      "License": "MIT + file LICENSE",
+      "Encoding": "UTF-8",
+      "Roxygen": "list(markdown = TRUE)",
+      "RoxygenNote": "8.0.0",
+      "Suggests": [
+        "brms",
+        "glmmTMB",
+        "htmltools",
+        "knitr",
+        "lavaan",
+        "marginaleffects",
+        "rmarkdown",
+        "spelling",
+        "testthat (>= 3.1.7)"
+      ],
+      "Config/testthat/edition": "3",
+      "Imports": [
+        "dplyr (>= 1.1.0)",
+        "pillar",
+        "rlang (>= 0.4.0)",
+        "tidyselect",
+        "tibble (>= 3.0.0)"
+      ],
+      "VignetteBuilder": "knitr, rmarkdown",
+      "Depends": [
+        "R (>= 4.1)"
+      ],
+      "LazyData": "true",
+      "URL": "https://pascal-kueng.github.io/dyadMLM/, https://github.com/Pascal-Kueng/dyadMLM",
+      "BugReports": "https://github.com/Pascal-Kueng/dyadMLM/issues",
+      "Language": "en-US",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "Pascal-Kueng",
+      "RemoteRepo": "dyadMLM",
+      "RemoteRef": "34d19cef7a31de736a684eb0e6e76935beb4bd67",
+      "RemoteSha": "34d19cef7a31de736a684eb0e6e76935beb4bd67"
+    },
     "easystats": {
       "Package": "easystats",
       "Version": "0.7.6",
@@ -4355,46 +4400,6 @@
       "NeedsCompilation": "no",
       "Author": "Daniel Lüdecke [aut, cre] (ORCID: <https://orcid.org/0000-0002-8895-3206>), Dominique Makowski [aut, ctb] (ORCID: <https://orcid.org/0000-0001-5375-9967>), Indrajeet Patil [aut, ctb] (ORCID: <https://orcid.org/0000-0003-1995-6531>), Philip Waggoner [aut, ctb] (ORCID: <https://orcid.org/0000-0002-7825-7573>), Mattan S. Ben-Shachar [aut, ctb] (ORCID: <https://orcid.org/0000-0002-4287-4801>), Brenton M. Wiernik [aut, ctb] (ORCID: <https://orcid.org/0000-0001-9560-6336>), Vincent Arel-Bundock [aut, ctb] (ORCID: <https://orcid.org/0000-0003-2042-7063>), Etienne Bacher [aut, ctb] (ORCID: <https://orcid.org/0000-0002-9271-5075>), Alex Hayes [rev] (ORCID: <https://orcid.org/0000-0002-4985-5160>), Grant McDermott [ctb] (ORCID: <https://orcid.org/0000-0001-7883-8573>), Rémi Thériault [ctb] (ORCID: <https://orcid.org/0000-0003-4315-6788>), Alex Reinhart [ctb] (ORCID: <https://orcid.org/0000-0002-6658-514X>)",
       "Repository": "CRAN"
-    },
-    "interdep": {
-      "Package": "interdep",
-      "Version": "0.0.0.9000",
-      "Source": "GitHub",
-      "Title": "Prepare Dyadic Data for Multilevel Models",
-      "Authors@R": "person(\"Pascal\", \"Küng\", , \"kueng.pascal@gmail.com\", role = c(\"aut\", \"cre\"))",
-      "Description": "Helps researchers prepare cross-sectional and intensive longitudinal dyadic data for multilevel models, including generalized multilevel models. The package supports common dyadic designs with one kind of dyad, while also handling studies that combine different kinds of dyads, such as female-male, female-female, and male-male couples. It validates long-format dyadic data and creates the role, composition, temporal predictor decomposition, and model-ready columns needed for dyadic multilevel model parameterizations such as APIM, DIM, and undirected DSM. Prepared data can be used with multilevel model engines such as 'glmmTMB'.",
-      "License": "MIT + file LICENSE",
-      "Encoding": "UTF-8",
-      "Roxygen": "list(markdown = TRUE)",
-      "RoxygenNote": "8.0.0",
-      "Suggests": [
-        "glmmTMB",
-        "knitr",
-        "MASS",
-        "rmarkdown",
-        "testthat (>= 3.0.0)",
-        "usethis"
-      ],
-      "Config/testthat/edition": "3",
-      "Imports": [
-        "dplyr (>= 1.1.0)",
-        "pillar",
-        "rlang (>= 0.4.0)",
-        "tidyselect",
-        "tibble (>= 3.0.0)"
-      ],
-      "VignetteBuilder": "knitr",
-      "Depends": [
-        "R (>= 4.1)"
-      ],
-      "LazyData": "true",
-      "URL": "https://pascal-kueng.github.io/interdep/",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteUsername": "Pascal-Kueng",
-      "RemoteRepo": "interdep",
-      "RemoteRef": "main",
-      "RemoteSha": "b207a7a77369fa6959a826a60570d045a4d6e2f0"
     },
     "isoband": {
       "Package": "isoband",

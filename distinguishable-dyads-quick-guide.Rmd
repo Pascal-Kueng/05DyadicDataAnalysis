@@ -1,6 +1,8 @@
 ---
 title: "Distinguishable Dyads: Model Specification and Output"
 author: "Pascal Küng"
+bibliography: Embed/Temp.bib
+csl: Embed/apa.csl
 format:
   pdf:
     pdf-engine: xelatex
@@ -28,7 +30,7 @@ knitr::opts_chunk$set(
 
 library(brms)
 library(glmmTMB)
-library(interdep)
+library(dyadMLM)
 library(dplyr)
 library(tidyr)
 library(tibble)
@@ -54,7 +56,8 @@ Distinguishable dyads have partner roles that are meaningful for the model. In
 this tutorial example, the partners are distinguished by gender and represented
 with `is_male` and `is_female`.
 
-For intensive longitudinal data, a distinguishable APIM needs to model:
+The full intensive-longitudinal specification used here models
+[@bolgerIntensiveLongitudinalMethods2013; @kenny2006dyadic]:
 
 - role-specific fixed effects, because the two partners have meaningful labels;
 - role-specific average time trends and actor/partner effects;
@@ -71,6 +74,10 @@ knitr::include_graphics(file.path("Embed", "APIM_dist.png"))
 
 # Data structure
 
+The 12 rows below only illustrate the prepared structure; the model
+specifications assume study-sized data, and the output uses the cached fit to
+the main tutorial's 11,000-row simulation.
+
 ```{r distinguishable-data-preparation}
 dist_raw <- tibble(
   coupleID = rep(31:32, each = 6),
@@ -83,16 +90,16 @@ dist_raw <- tibble(
                        4.0, 4.3, 4.1, 4.6, 4.5, 4.7)
 )
 
-df_long_apim <- prepare_interdep_data(
+df_long_apim <- prepare_dyad_data(
   data = dist_raw,
-  group = coupleID,
+  dyad = coupleID,
   member = userID,
   role = gender,
   time = diaryday,
   predictors = provided_support,
-  model_type = "apim"
+  model_types = "apim"
 ) |>
-  rename_interdep_for_tutorial(
+  rename_dyadmlm_for_tutorial(
     predictor = "provided_support"
   ) |>
   mutate(
@@ -104,19 +111,24 @@ df_long_apim <- prepare_interdep_data(
 dist_example <- df_long_apim |>
   select(
     coupleID, userID, diaryday, gender, is_female, is_male,
-    provided_support_cwp_actor, provided_support_cwp_partner,
-    provided_support_cbp_actor, provided_support_cbp_partner
+    cwp_actor = provided_support_cwp_actor,
+    cwp_partner = provided_support_cwp_partner,
+    cbp_actor = provided_support_cbp_actor,
+    cbp_partner = provided_support_cbp_partner
   )
 
 kable(
   dist_example,
-  caption = "Example person-day structure for a distinguishable dyad"
-)
+  caption = "Example person-day structure for a distinguishable dyad",
+  booktabs = TRUE
+) |>
+  kable_styling(latex_options = "scale_down", font_size = 7)
 ```
 
-`prepare_interdep_data()` creates the role indicators and the within-person and
-between-person actor-partner predictors. The tutorial helper drops the `.i_`
-prefix while retaining names such as `cwp_actor` and `cbp_partner`.
+`prepare_dyad_data()` creates the role indicators and the within-person and
+between-person actor-partner predictors. The tutorial helper drops the `.dy_`
+prefix, yielding names such as `provided_support_cwp_actor` and
+`provided_support_cbp_partner`.
 
 # glmmTMB model
 
@@ -152,7 +164,8 @@ model_dist_apim_long_glmmtmb <- glmmTMB(
   # The Gaussian residual variance is represented by the us() block above.
   # Without dispformula = ~ 0, glmmTMB would add a second independent
   # residual variance on top of the dyadic residual covariance structure.
-  # For families without a residual, dispformula should NOT be set to zero.
+  # For non-Gaussian families, dispformula controls family-specific dispersion
+  # when one exists and may be ignored otherwise; do not use ~0 as this trick.
   dispformula = ~ 0,
   family = gaussian(),
   data = df_long_apim

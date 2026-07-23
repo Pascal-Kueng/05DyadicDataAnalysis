@@ -87,7 +87,7 @@ knitr::opts_chunk$set(
   echo = TRUE,
   cache.lazy = FALSE,
   cache.extra = paste(
-    "interdep-column-schema-v2",
+    "dyadMLM-column-schema-v1",
     if (knitr::is_latex_output()) "pdf-output-font-v1" else "html-output"
   )
 )
@@ -139,62 +139,60 @@ For readers who want the model code and reporting tables without the full tutori
 * [Distinguishable dyads quick guide](distinguishable-dyads-quick-guide.pdf)
 * [Exchangeable dyads quick guide](exchangeable-dyads-quick-guide.pdf)
 
-## Preparing Dyadic Data with `interdep`
+## Preparing Dyadic Data with `dyadMLM`
 
-[`interdep`](https://pascal-kueng.github.io/interdep/) prepares dyadic data for multilevel models [@interdep2026]. It:
+[`dyadMLM`](https://pascal-kueng.github.io/dyadMLM/) prepares dyadic data for multilevel models [@dyadMLM2026]. It:
 
 * validates long-format dyadic data
 * supports cross-sectional and intensive longitudinal designs
-* creates model-ready variables for APIM, DIM, and undirected DSM specifications
+* creates model-ready variables for APIM, DIM, and DSM specifications
 * handles distinguishable, exchangeable, and mixed dyad compositions
 
 Install the development version from GitHub with [`pak`](https://pak.r-lib.org/):
 
 ```r
 # install.packages("pak")
-pak::pak("Pascal-Kueng/interdep")
+pak::pak("Pascal-Kueng/dyadMLM")
 ```
 
-[Getting started](https://pascal-kueng.github.io/interdep/articles/getting-started.html) · [Function reference](https://pascal-kueng.github.io/interdep/reference/index.html) · [Source code](https://github.com/Pascal-Kueng/interdep)
+[Getting started](https://pascal-kueng.github.io/dyadMLM/articles/getting-started.html) · [Function reference](https://pascal-kueng.github.io/dyadMLM/reference/index.html) · [Source code](https://github.com/Pascal-Kueng/dyadMLM)
 
 ## Readable Names in This Tutorial {.tutorial-alias-table}
 
-`interdep` deliberately returns explicit, self-documenting names. After data
-preparation, this tutorial drops the generated `.i_` prefix. For longitudinal
-predictors it otherwise retains the package's component order (for example,
-`cwp_actor` and `cbp_partner`) and shortens `within_dyad_deviation` to `dev`.
-The remaining aliases are:
+`dyadMLM` returns explicit, self-documenting names. This tutorial drops the
+generated `.dy_` prefix and shortens the `within_dyad_dev` suffix to
+`dyad_dev`, `cwp_dev`, or `cbp_dev`.
 
 **General and cross-sectional aliases**
 
-| Canonical `interdep` name | Tutorial alias | Interpretation |
+| Canonical `dyadMLM` name | Tutorial alias | Interpretation |
 |:---|:---|:---|
-| `.i_is_female_x_male_female` | `is_female` | female member of a female-male dyad |
-| `.i_is_female_x_male_male` | `is_male` | male member of a female-male dyad |
-| `.i_diff_female_x_male_arbitrary` | `idiff` | female-male exchangeability contrast |
-| `.i_diff_assumed_exchangeable_arbitrary` | `idiff` | role-free exchangeability contrast |
-| `.i_communication_actor` | `communication_actor` | actor's communication score |
-| `.i_communication_partner` | `communication_partner` | partner's communication score |
-| `.i_communication_dyad_mean_gmc` | `communication_dyad_mean_gmc` | grand-mean-centered dyad mean |
-| `.i_communication_within_dyad_deviation` | `communication_dyad_dev` | member's within-dyad deviation |
+| `.dy_is_female_x_male_female` | `is_female` | female member of a female-male dyad |
+| `.dy_is_female_x_male_male` | `is_male` | male member of a female-male dyad |
+| `.dy_member_contrast_female_x_male_arbitrary` | `idiff` | female-male exchangeability contrast |
+| `.dy_member_contrast_assumed_exchangeable_arbitrary` | `idiff` | role-free exchangeability contrast |
+| `.dy_communication_actor` | `communication_actor` | actor's communication score |
+| `.dy_communication_partner` | `communication_partner` | partner's communication score |
+| `.dy_communication_dyad_mean_gmc` | `communication_dyad_mean_gmc` | grand-mean-centered dyad mean |
+| `.dy_communication_within_dyad_dev` | `communication_dyad_dev` | member's within-dyad deviation |
 
 ## Applying the Tutorial Aliases
 
 To keep these aliases consistent, this tutorial uses
-`rename_interdep_for_tutorial()`, defined in
+`rename_dyadmlm_for_tutorial()`, defined in
 [`00_R_Functions/PrepareData.R`](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/blob/main/00_R_Functions/PrepareData.R).
 The helper renames only generated columns that are present:
 
-```{r interdep-tutorial-alias-example, eval=FALSE}
+```{r dyadmlm-tutorial-alias-example, eval=FALSE}
 model_data <- prepared_data |>
-  rename_interdep_for_tutorial(
+  rename_dyadmlm_for_tutorial(
     predictor = "provided_support"
   )
 ```
 
 The mapping is cosmetic: values and statistical meanings are unchanged. Apply
 it only to the final model-ready output; continue using canonical names while
-calling `interdep` preparation functions.
+calling `dyadMLM` preparation functions.
 
 ## Loading Libraries and setting CmdStan Backend
 
@@ -203,7 +201,7 @@ in the folder 00_R_Functions.
 
 ```{r load-libraries, results='hide', message=FALSE, warning=FALSE}
 library(tidyverse)
-library(interdep)
+library(dyadMLM)
 library(brms)
 library(glmmTMB)
 library(easystats)
@@ -450,16 +448,16 @@ print_df(head(df))
 ## Distinguishable Dyads - Preparing Data
 
 ```{r data-dist-apim-prepare, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='simulate-cross-sectional-data'}
-df_apim <- prepare_interdep_data(
+df_apim <- prepare_dyad_data(
   data = df,
-  group = coupleID,
+  dyad = coupleID,
   member = userID,
   role = gender,
   predictors = communication,
-  model_type = "apim",
-  include_compositions = "female-male"
+  model_types = "apim",
+  keep_compositions = "female-male"
 ) %>%
-  rename_interdep_for_tutorial(
+  rename_dyadmlm_for_tutorial(
     predictor = "communication"
   )
 
@@ -477,10 +475,10 @@ print_apim_preview(df_apim)
 
 For cross-sectional APIMs, `communication_actor` and
 `communication_partner` contain the original communication scores. The earlier
-version of this tutorial grand-mean centered both columns manually. Removing
-that centering does not change either slope or fitted value, but the
-role-specific intercepts now refer to `communication = 0` rather than average
-communication.
+version of this tutorial grand-mean centered both columns manually. At the
+likelihood level, removing that centering changes neither slopes nor fitted
+values (aside from prior impact in Bayesian fits), but the role-specific
+intercepts now refer to `communication = 0` rather than average communication.
 
 
 ## Distinguishable Dyads - Fitting the Model in glmmTMB
@@ -565,13 +563,22 @@ summary(model_dist_apim_glmmtmb)
 
 ```
 
-## glmmTMB: Current limitation
+## glmmTMB: Diagnostics with Near-Zero Gaussian Sigma {.smaller}
 
-Usually, simulation-based tools like DHARMa [@R-DHARMa] are great for residual diagnostics in complex (generalized) MLMs.
+With `dispformula = ~ 0`, `glmmTMB` fixes the Gaussian observation-level
+residual SD near zero because the dyadic variance and covariance are represented
+by the random-effect block [@R-glmmTMB]. DHARMa's default conditional simulation
+therefore contains almost no observation-level variation. For a marginal check,
+resimulate the random effects and interpret the result for that target
+[@R-DHARMa]:
 
-However, when we remove the native residuals `dispformula = ~ 0` the residual is, in practice, set to a tiny constant. This confuses model diagnostic packages!
-
-Therefore, residuals need to be manually simulated and compared.
+```r
+dharma_glmmtmb <- DHARMa::simulateResiduals(
+  model_dist_apim_glmmtmb,
+  n = 1000,
+  simulateREs = "unconditional"
+)
+```
 
 
 ## Distinguishable Dyads - Fitting the Model in brms
@@ -630,15 +637,64 @@ model_dist_apim_b <- brm(
 summary(model_dist_apim_b)
 ```
 
-## Distinguishable Dyads - Fitting the Model in brms
+## Distinguishable Dyads - Poisson Covariance in brms {.smaller}
 
-For families that have no residuals, this does not work and we need to model the
-non-independence in the random effects:
+Poisson has no separately estimated observation-level residual SD. For
+distinguishable dyads, we therefore use correlated role-specific dyad effects.
+The non-Gaussian `unstr()` formulation instead has one common latent SD and
+would impose equal role variances [@R-brms]. We simulate an actual count outcome
+rather than discretize continuous `satisfaction`.
 
-```{r fit-dist-apim-brms-poisson, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-dist-apim-prepare'}
+## Distinguishable Dyads - Fitting the Poisson Model in brms
+
+```{r simulate-dist-apim-poisson-data, include=FALSE, cache=TRUE, dependson='data-dist-apim-prepare'}
+set.seed(124)
+
+latent_by_dyad <- df_apim |>
+  dplyr::distinct(coupleID) |>
+  dplyr::arrange(coupleID)
+
+latent_effects <- MASS::mvrnorm(
+  n = nrow(latent_by_dyad),
+  mu = c(0, 0),
+  Sigma = matrix(
+    c(0.25^2, 0.30 * 0.25 * 0.40,
+      0.30 * 0.25 * 0.40, 0.40^2),
+    nrow = 2
+  )
+)
+
+latent_by_dyad <- latent_by_dyad |>
+  dplyr::mutate(
+    latent_female = latent_effects[, 1],
+    latent_male = latent_effects[, 2]
+  )
+
+df_apim_count <- df_apim |>
+  dplyr::left_join(latent_by_dyad, by = "coupleID") |>
+  dplyr::mutate(
+    count_eta =
+      is_female * (
+        log(6) +
+          0.18 * (communication_actor - mean(communication_actor)) +
+          0.06 * (communication_partner - mean(communication_partner)) +
+          latent_female
+      ) +
+      is_male * (
+        log(5) +
+          0.20 * (communication_actor - mean(communication_actor)) +
+          0.04 * (communication_partner - mean(communication_partner)) +
+          latent_male
+      ),
+    satisfaction_count = stats::rpois(dplyr::n(), exp(count_eta))
+  ) |>
+  dplyr::select(-latent_female, -latent_male, -count_eta)
+```
+
+```{r fit-dist-apim-brms-poisson, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='simulate-dist-apim-poisson-data'}
 #| code-line-numbers: "1-13|15-21|23-28|29-41"
 formula_dist_apim_c <- bf(
-  as.integer(satisfaction + 6) ~
+  satisfaction_count ~
 
     # Remove global intercept, introduce male and female intercepts.
     0 + is_male + is_female +
@@ -651,8 +707,8 @@ formula_dist_apim_c <- bf(
     communication_partner:is_male +
     communication_partner:is_female +
 
-    # Modelling residual correlation as random effects, because we cannot specify
-    # a sigma parameter, as this distribution has no residuals.
+    # Model within-dyad dependence with correlated Gaussian random effects.
+    # Poisson has no separately estimated residual-dispersion parameter.
 
     (0 + is_male + is_female | coupleID)
 
@@ -667,7 +723,7 @@ priors_dist_apim_c <- c(
 
 model_dist_apim_c <- brm(
   formula = formula_dist_apim_c,
-  data = df_apim,
+  data = df_apim_count,
   family = poisson(),
   prior = priors_dist_apim_c,
   chains = 4,
@@ -680,7 +736,7 @@ model_dist_apim_c <- brm(
 
 ```
 
-## Distinguishable Dyads - Fitting the Model in brms
+## Poisson Model in brms: Results
 
 ```{r results-dist-apim-brms-poisson-raw, echo=FALSE, class.output='model-summary-output', cache=TRUE, dependson='fit-dist-apim-brms-poisson'}
 summary(model_dist_apim_c)
@@ -688,9 +744,9 @@ summary(model_dist_apim_c)
 
 ## Distinguishable Dyads - Fitting the Model in glmmTMB
 
-```{r fit-dist-apim-glmmtmb-poisson, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-dist-apim-prepare'}
+```{r fit-dist-apim-glmmtmb-poisson, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='simulate-dist-apim-poisson-data'}
 model_glmmTMB_dist_apim_c <- glmmTMB(
-  as.integer(satisfaction + 6) ~
+  satisfaction_count ~
 
     # Remove global intercept, introduce male and female intercepts.
     0 + is_male + is_female +
@@ -703,27 +759,27 @@ model_glmmTMB_dist_apim_c <- glmmTMB(
     communication_partner:is_male +
     communication_partner:is_female +
 
-    # Modelling residual correlation as random effects, because we cannot specify
-    # a sigma parameter, as this distribution has no residuals.
+    # Model within-dyad dependence with correlated Gaussian random effects.
+    # Poisson has no separately estimated residual-dispersion parameter.
 
     (0 + is_male + is_female | coupleID)
-  , data = df_apim
+  , data = df_apim_count
   , family = poisson()
 )
 ```
 
-## Distinguishable Dyads - Fitting the Model in glmmTMB
+## Poisson Model in glmmTMB: Results
 
 ```{r results-dist-apim-glmmtmb-poisson-raw, echo=FALSE, class.output='model-summary-output', cache=TRUE, dependson='fit-dist-apim-glmmtmb-poisson'}
 summary(model_glmmTMB_dist_apim_c)
 ```
-
 
 ## Distinguishable Dyads - Check Model Convergence and Fit
 
 Check Rhats and Effective Sample Sizes (ESS_tail and ESS_bulk) directly from the brms summary. Additionally you can (using Model B as an example):
 
 ```{r diag-dist-apim-hmc, cache = TRUE, message=TRUE, dependson='fit-dist-apim-brms'}
+# In brms 2.23, draws from either Stan backend are stored as a stanfit here.
 rstan::check_hmc_diagnostics(model_dist_apim_b$fit)
 ```
 
@@ -752,24 +808,20 @@ pp_check(model_dist_apim_b, 'ecdf_overlay_grouped', group = 'is_male')
 
 ## Distinguishable Dyads - Check Model Convergence and Fit
 
-```{r pp-dist-apim-loo-pit, eval=FALSE}
-pp_check(model_dist_apim_b, type = "loo_pit_overlay")
-```
-
-## Distinguishable Dyads - Check Model Convergence and Fit
-
 ```{r diag-dist-apim-dharma, cache = TRUE, dependson='fit-dist-apim-brms'}
 # Custom function to make DHARMa work with brms (see file 'Functions')
 DHARMa.check_brms(model_dist_apim_b)
 ```
 
-## Distinguishable Dyads - Check Model Convergence and Fit
+## Distinguishable Dyads - Check Model Convergence and Fit {.smaller}
 
-In case of non-convergence, bad residuals or low predictive accuracy, the model is likely miss-specified.
-
-You can try different families that match your data by using the `family` argument. For instance, you can easily conduct an ordinal regression by simply setting `family = cumulative()` and adjusting your priors. For dichotomous outcomes you can use `family = bernoulli()`. brms supports a variety of families and link functions for these families. In general, you should use the default link function (check `?brms::family.brmsfit()`).
-
-Note that for some of the later models in this tutorial, some ESS values are too low. In this case, usually we would increase iterations (and warmup), and/or adapt_delta (see brms documentation).
+- Diagnose convergence, residual fit, and predictive accuracy separately;
+  check coding, scaling, priors, and identifiability before changing the model.
+- Choose the family and link from the outcome and substantive assumptions—for
+  example, `cumulative()` for ordered outcomes or `bernoulli()` for binary data.
+- If chains are healthy, more post-warmup draws can raise ESS. More warmup helps
+  adaptation, while higher `adapt_delta` specifically targets divergences
+  [@R-brms].
 
 
 ## Excursion: Generalized Dyadic Models
@@ -1064,17 +1116,17 @@ print_df(head(df_long))
 
 ```{r data-dist-long-apim-reshape, results='hide', warning=FALSE, message=FALSE, cache=TRUE, dependson='simulate-longitudinal-data'}
 
-df_long_apim <- prepare_interdep_data(
+df_long_apim <- prepare_dyad_data(
   data = df_long,
-  group = coupleID,
+  dyad = coupleID,
   member = userID,
   role = gender,
   time = diaryday,
   predictors = provided_support,
-  model_type = "apim"
+  model_types = "apim"
 ) %>%
-  rename_interdep_for_tutorial(
-    # Keep interdep's cwp_actor/cbp_partner component ordering.
+  rename_dyadmlm_for_tutorial(
+    # Keep dyadMLM's cwp_actor/cbp_partner component ordering.
     predictor = "provided_support"
   ) %>%
   mutate(
@@ -1161,7 +1213,7 @@ print_df(
 
 ## Distinguishable Dyads - L-APIM - Centering
 
-With repeated measures we need to center variables in order to not conflate levels of analysis:
+With repeated measures we need to center variables in order to not conflate levels of analysis [@bolgerIntensiveLongitudinalMethods2013]:
 
 * Between-Person: The person-mean in relation to the grand mean
 * Within-Person: Daily fluctuations of an individual from their person-mean
@@ -1171,7 +1223,7 @@ Although the data contain couple, person, and day structure, the APIM is written
 
 ## Distinguishable Dyads - L-APIM - Centering
 
-`prepare_interdep_data()` performs this predictor decomposition before creating
+`prepare_dyad_data()` performs this predictor decomposition before creating
 the actor and partner columns. The centered `diaryday_c` variable above is a
 separate time transformation for the models, not part of the dyadic predictor
 construction.
@@ -1341,7 +1393,7 @@ Equivalent `brms` model.
 In contrast to glmmTMB, brms provides native variance-covariance structures to model residuals directly. Therefore, we do NOT set the residuals to zero!
 
 ```{r fit-dist-apim-long-simple-brms, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-dist-long-apim-reshape'}
-#| code-line-numbers: "1-6|8-13|15-20|22-26|28-34|36-48|50-62"
+#| code-line-numbers: "1-6|8-13|15-20|22-26|28-34|36-48|50-61"
 formula_dist_apim_long_simple <- bf(
   closeness ~ 0 + is_male + is_female +
 
@@ -1429,11 +1481,25 @@ print_df(
 
 Note: Sigma rows are shown on the response scale; they were exponentiated from brms' log-sigma parameterization.
 
-## Distinguishable Dyads - L-APIM - AR(1)?
+## Distinguishable Dyads - L-APIM - AR(1)? {.smaller}
 
-In this model, same-day partner interdependence is handled by `unstr(time = gender, gr = coupleID:diaryday)`. In current univariate brms models, we cannot combine this residual correlation structure with `ar()` in the same formula.
+In this model, `unstr(time = gender, gr = coupleID:diaryday)` handles same-day
+partner interdependence. Current univariate `brms` models cannot combine this
+residual correlation structure with `ar()` in the same formula [@R-brms].
 
-glmmTMB currently also does not allow partner interdependence across time, but I have a fork of glmmTMB with added support and am currently working on integrating this with upstream glmmTMB.
+Standard `glmmTMB` can add a same-day dyadic block and independent
+person-specific AR(1) processes:
+
+```r
+us(0 + gender | coupleID:diaryday) +
+  ar1(0 + diaryday_factor | userID)
+```
+
+This additive model represents same-day dyadic shocks plus person-specific
+persistence. It splits lag-zero variance across the two blocks. These residual
+blocks contribute zero cross-partner covariance across different days, although
+dyad-level random effects can still induce cross-day covariance; this is not one
+separable partner-by-time residual process [@R-glmmTMB].
 
 ## Excursion: Dynamic Workaround
 
@@ -1549,15 +1615,19 @@ print_df(
 ```
 
 
-## Maximal Model Specification: Diagnostics
+## Maximal Model: Diagnostics and Prediction Target {.smaller}
 
-In complex models like this, we want to make sure we are not **overfitting**.
+- Check convergence and model fit before comparing predictive accuracy.
+- `loo()` holds out one observation while retaining its partner and the dyad's
+  other days. This evaluates conditional observation-level prediction, not a
+  completely new dyad.
+- For Gaussian `unstr()` models, `brms` computes the required conditional
+  density $p(y_i\mid y_{-i},\theta)$ for non-factorizable LOO
+  [@buerknerEfficientLeaveOneOut2021].
+- New-dyad prediction would instead require a grouped validation design
+  [@loo2017a].
 
-- Conduct regular model convergence checks (inspecting chains, Rhats, ESS, Multicollinearity, Residual diagnostics etc.). If these are bad (but good for a simpler model), it could be a sign of overfitting.
-
-- Leave-one-out cross-validation is a powerful tool for investigating overfitting. It tests out of sample prediction and thus punishes overfitting.
-
-## Maximal Model Specification: Diagnostics
+## Maximal Model: PSIS-LOO Diagnostics {.smaller}
 
 ```{r diag-dist-long-model-loo, eval=FALSE}
 loo1 <- loo(model_dist_apim_long_simple)
@@ -1565,7 +1635,6 @@ loo2 <- loo(model_dist_apim_long_complex)
 
 loo::pareto_k_table(loo1)
 loo::pareto_k_table(loo2)
-
 ```
 
 ```{=html}
@@ -1574,19 +1643,14 @@ loo::pareto_k_table(loo2)
 All Pareto k estimates are good (k &lt; 0.7).</code></pre>
 ```
 
+Pareto $k$ diagnoses the importance-sampling approximation; high values are
+not themselves evidence of overfitting [@loo2017a].
 
-High Pareto-k values indicate influential observations and/or unreliable importance-sampling approximations. They are not automatically evidence of overfitting, but they should be checked; `loo(model, moment_match = TRUE)` is often recommended when `loo` flags problematic values.
-
-The absolute ELPD values are not interpreted in isolation, but differences in ELPD can be used to compare models.
-
-
-## Maximal Model Specification: Diagnostics
+## Maximal Model: LOO Comparison {.smaller}
 
 ```{r diag-dist-long-model-loo-compare, eval=FALSE}
-
 a <- loo_compare(loo1, loo2)
 print(a)
-
 ```
 
 ```{=html}
@@ -1595,29 +1659,13 @@ model_dist_apim_long_complex   0.0       0.0
 model_dist_apim_long_simple  -15.4       6.7</code></pre>
 ```
 
-No obvious overfitting is detected here. The more complex model appears more predictive, but ELPD differences should be interpreted relative to their standard errors; rules such as 2x SE are rough heuristics, not hard decision thresholds.
-
-If there was no obvious difference, we could follow our theory and the philosophy of the maximal random effects structure [@barrRandomEffectsStructure2013]. Alternatively, we could follow the philosophy of parsimony, especially in the territory of such complex models.
-
-(continued on next page)
-
-## Maximal Model Specification: Diagnostics
-
-One optional summary is the `report` package's comparison output, including its approximate p-value; this should be treated as an aid to interpretation rather than a definitive model-selection test.
-
-```{r report-dist-long-model-loo, eval=FALSE}
-report::report(a)
-```
-
-<p style="font-size:80%; line-height:1.35">
-The difference in predictive accuracy, as indexed by Expected Log Predictive Density (ELPD-LOO), suggests that
-'model_dist_apim_long_complex' is the best model (ELPD = -14608.23), followed by 'model_dist_apim_long_simple'
-(diff-ELPD = -15.44 +- 6.68, p = 0.021).
-</p>
-
-In this instance, the maximal model (no AR) seems to be the preferred one.
-
-In the case of overfitting, we could try to improve the model by subsequently excluding the smallest random effects (or correlations between them) and compare various models. For more guidance on random effects check out @delrosarioPracticalGuideSpecifying2025.
+The complex model predicts the held-out observations better by 15.4 ELPD
+units (SE 6.7). This supports its additional structure for this prediction
+target, but does not prove that every variance or correlation is necessary;
+ELPD differences should be interpreted with their uncertainty
+[@loo2025a]. If performance were similar, theory, identifiability, and
+parsimony should guide simplification
+[@barrRandomEffectsStructure2013; @delrosarioPracticalGuideSpecifying2025].
 
 ```{=latex}
 \begin{landscape}
@@ -1941,7 +1989,7 @@ print_df(
 
 ## Exchangeable Dyads - Cross-Sectional APIM
 
-![Exchangeable APIM](Embed/APIM_ind_3.png)
+![Exchangeable APIM](Embed/APIM_ind_3.png){width=72%}
 [e.g., @delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]
 
 
@@ -1961,23 +2009,23 @@ But they should still be allowed to vary within each couple, while being correla
 ## Exchangeable Dyads - Cross-Sectional APIM: Data
 
 For illustration, we now prepare the same female-male dyads under an
-exchangeability constraint. This is a modelling constraint/test, not a claim
-that the data-generating dyads are truly exchangeable. Starting again from the
+exchangeability constraint. This is a modelling assumption/specification, not a
+claim that the data-generating dyads are truly exchangeable. Starting again from the
 raw data makes that changed assumption explicit.
 
 ```{r data-exch-prepare, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='simulate-cross-sectional-data'}
-df_exchangeable <- prepare_interdep_data(
+df_exchangeable <- prepare_dyad_data(
   data = df,
-  group = coupleID,
+  dyad = coupleID,
   member = userID,
   role = gender,
   predictors = communication,
-  model_type = c("apim", "dim"),
-  include_compositions = "female-male",
+  model_types = c("apim", "dim"),
+  keep_compositions = "female-male",
   set_exchangeable_compositions = "female-male",
   seed = 123
 ) %>%
-  rename_interdep_for_tutorial(
+  rename_dyadmlm_for_tutorial(
     predictor = "communication"
   )
 ```
@@ -2017,11 +2065,11 @@ model_exch_apim_glmmtmb <- glmmTMB(
     communication_actor + communication_partner +
 
     # Independent common and member-deviation terms parameterize a homogeneous
-    # two-member covariance using interdep's arbitrary contrast.
+    # two-member covariance using dyadMLM's arbitrary contrast.
     (1 | coupleID) + (0 + idiff | coupleID)
 
-    # Since we model residuals via a cs random effects structure, glmmTMB requires us to remove an
-    # additional independent residual
+    # The dyadic covariance is represented by the two random-effect blocks, so
+    # remove the additional independent Gaussian residual variance.
     , dispformula = ~ 0
 
     , data = df_exchangeable
@@ -2032,17 +2080,33 @@ model_exch_apim_glmmtmb <- glmmTMB(
 
 ## Exchangeable Dyads - Cross-Sectional APIM: glmmTMB
 
-This successfully returns a single pooled residual variance, and a correlation between partners:
+The raw `glmmTMB` summary reports the common and deviation variance
+components. The homogeneous member variance and partner correlation are
+derived from them; they are not printed directly:
 
 ```{r results-exch-apim-glmmtmb, echo=FALSE, class.output='model-summary-output', cache=TRUE, dependson='fit-exch-apim-glmmtmb'}
 summary(model_exch_apim_glmmtmb)
 ```
 
-## Exchangeable Dyads - Cross-Sectional APIM: glmmTMB
+## Exchangeable Dyads - Cross-Sectional APIM: Interpreting the Covariance {.smaller}
 
-- The gender-coded cross-sectional version does not transfer directly to ILD. 
+Let $\tau_c^2$ be the variance of the common intercept and $\tau_d^2$ the
+variance of the independent `idiff` deviation. With `idiff = -1/+1`, the
+back-transformation is
 
-- For repeated measures, we instead index the homogeneous two-partner residual structure at the couple-day level, as shown later.
+$$
+\operatorname{Var}(e_1)=\operatorname{Var}(e_2)=\tau_c^2+\tau_d^2,
+$$
+
+$$
+\operatorname{Cov}(e_1,e_2)=\tau_c^2-\tau_d^2,
+\qquad
+\rho=\frac{\tau_c^2-\tau_d^2}{\tau_c^2+\tau_d^2}.
+$$
+
+The model can therefore represent negative partner correlation when
+$\tau_d^2>\tau_c^2$ [@delrosarioPracticalGuideSpecifying2025]. For repeated
+measures, index the same structure at the couple-day level.
 
 ## Exchangeable Dyads - Cross-Sectional APIM: brms
 
@@ -2117,9 +2181,14 @@ print_df(
 ```
 
 
-## Exchangeable Dyads - Cross-Sectional APIM: Test for Distinguishability
+## Exchangeable Dyads - APIM: LOO Prediction Target {.smaller}
 
-Leave-one-out (loo) cross-validation compares out-of-sample predictive accuracy. It can be meaningful for non-nested models when they are fit to the same outcome and observations, and when the pointwise log-likelihoods are comparable.
+Observation-level PSIS-LOO can compare these models because they fit the same
+responses. With `unstr()`, `brms` uses the appropriate conditional predictive
+density for the correlated Gaussian outcomes
+[@buerknerEfficientLeaveOneOut2021]. Holding out one partner while the other
+remains observed evaluates conditional prediction—not a formal test of
+distinguishability or prediction of a new dyad.
 
 ```{r compare-exch-dist-apim-loo, eval=FALSE}
 a <- loo_compare(
@@ -2129,22 +2198,16 @@ a <- loo_compare(
 print(a)
 ```
 
+## Exchangeable Dyads - APIM: LOO Comparison {.smaller}
+
 | Model             | elpd_diff | se_diff |
 |-------------------|-----------|---------|
-| model_dist_apim   | 0.0       | 0.0     |
-| model_exch_apim   | -172.9     | 16.5    |
+| distinguishable   | 0.0       | 0.0     |
+| exchangeable      | -172.9    | 16.5    |
 
-
-```{r report-exch-dist-apim-loo, eval = FALSE}
-report::report(a)
-```
-
-<p style="font-size:80%; line-height:1.35">
-The difference in predictive accuracy, as indexed by Expected Log Predictive Density (ELPD-LOO), suggests that
-'model_dist_apim_b' is the best model (ELPD = -1806.42), followed by 'model_exch_apim' (diff-ELPD = -172.85 +-
-16.53, p < .001).<br>
-See: <a href="https://easystats.github.io/report/reference/report.compare.loo.html">documentation of "report"</a>
-</p>
+For this observation-level target, the distinguishable model predicts better.
+The ELPD difference is descriptive predictive evidence; `se_diff` summarizes
+its uncertainty [@loo2017a; @loo2025a].
 
 ## Exchangeable Dyads - Cross-Sectional DIM
 
@@ -2163,13 +2226,14 @@ if (knitr::is_html_output()) {
 
       node [
         shape=box
-        fixedsize=true
-        width=1.4
+        fixedsize=false
+        width=1.9
+        margin='0.14,0.10'
         fontsize=10
       ]
-      pre1 [label='Communication\\nBetween-couple (cbc)']
+      pre1 [label='Communication\\nBetween-couple\\n(cbc)']
       out1 [label='Satisfaction\\n(Self)']
-      pre2 [label='Communication\\nWithin-couple (cwc)']
+      pre2 [label='Communication\\nWithin-couple\\n(cwc)']
 
       edge [
         minlen=2.5
@@ -2187,15 +2251,15 @@ if (knitr::is_html_output()) {
   title("Dyad–Individual Model (DIM)")
 
   draw_node <- function(x, y, label) {
-    rect(x - 1.5, y - 0.8, x + 1.5, y + 0.8)
-    text(x, y, label, cex = 0.9)
+    rect(x - 1.8, y - 0.9, x + 1.8, y + 0.9)
+    text(x, y, label, cex = 0.78)
   }
 
-  draw_node(2.2, 7, "Communication\nBetween-couple (cbc)")
-  draw_node(2.2, 3, "Communication\nWithin-couple (cwc)")
+  draw_node(2.2, 7, "Communication\nBetween-couple\n(cbc)")
+  draw_node(2.2, 3, "Communication\nWithin-couple\n(cwc)")
   draw_node(7.8, 5, "Satisfaction\n(Self)")
-  arrows(3.8, 6.7, 6.2, 5.6, length = 0.1)
-  arrows(3.8, 3.3, 6.2, 4.4, length = 0.1)
+  arrows(4.1, 6.7, 5.9, 5.6, length = 0.1)
+  arrows(4.1, 3.3, 5.9, 4.4, length = 0.1)
   text(5, 6.5, "between", pos = 3)
   text(5, 3.5, "within", pos = 1)
 }
@@ -2207,7 +2271,7 @@ if (knitr::is_html_output()) {
 
 ## Exchangeable Dyads - Cross-Sectional DIM: Data
 
-The same `prepare_interdep_data()` call generated the DIM columns directly from
+The same `prepare_dyad_data()` call generated the DIM columns directly from
 the raw long-format observations.
 
 ```{r data-exch-dim-source-preview, echo = FALSE}
@@ -2308,13 +2372,13 @@ print_df(
 ```
 
 
-## Equivalence APIM and DIM
+## Equivalence APIM and DIM {.smaller}
 
-The APIM uses raw actor and partner predictors, whereas the generated DIM dyad
-mean is grand-mean centered. The two fitted models therefore use different
-origins: their slope and covariance parameters are directly comparable, but
-their printed intercepts are not. For the equations below, we shift the APIM
-intercept to average communication:
+`dyadMLM` grand-mean centers the DIM dyad mean, whereas these APIM predictors
+are raw. APIM and DIM slopes require the sum/difference transformations shown
+later; their residual covariance is directly comparable. The printed intercepts
+also use different origins, so shift the APIM intercept to average communication
+before comparing it [@Bolger2025Unified]:
 
 $$
 b_{0,\,APIM(GMC)} = b_{0,\,APIM(raw)} + \bar{x}
@@ -2352,11 +2416,6 @@ print_df(
 
 :::
 :::
-
-$$b_{actor} + b_{partner} = b_{cbc}$$
-$$b_{actor} - b_{partner} = b_{cwc}$$
-
-[@Bolger2025Unified]
 
 
 ## Equivalence APIM and DIM
@@ -3217,7 +3276,7 @@ print_df(
 
 ## Equivalence APIM and DIM: Takeaway
 
-* **APIM** and **DIM** are reparametrizations of the same model
+* **APIM** and **DIM** are likelihood reparametrizations of the same model (aside from prior impact in Bayesian fits)
 * **APIM**: intuitive actor/partner framing
 * **DIM**: clean separation of between vs within components
 * Estimating one model allows for directly obtaining estimates of the other
@@ -3225,28 +3284,28 @@ print_df(
 
 ### Side Note:
 
-In the **distinguishable** case, the **Dyadic Score Model (DSM)** [e.g., @stadlerHowCompanionshipRelated2023] is equivalent to the APIM! [@Bolger2025Unified; @iidaModelsInterdependentIndividuals2018]
+In the **distinguishable** case, the full **Dyadic Score Model (DSM)** [e.g., @stadlerHowCompanionshipRelated2023] is equivalent to the corresponding full APIM (aside from prior impact in Bayesian fits) [@Bolger2025Unified; @iidaModelsInterdependentIndividuals2018].
 
 
 
 ## Exchangeable Dyads - L-DIM/L-APIM: Simulated Data
 
 We start again from the raw longitudinal data and omit `role`, which tells
-`interdep` to treat the two members as exchangeable. Requesting both model
+`dyadMLM` to treat the two members as exchangeable. Requesting both model
 types creates the APIM and DIM predictors in the same model-ready object.
 
 ```{r data-exch-long-apim-source, results='hide', cache=TRUE, dependson='simulate-longitudinal-data'}
-df_long_dim <- prepare_interdep_data(
+df_long_dim <- prepare_dyad_data(
   data = df_long,
-  group = coupleID,
+  dyad = coupleID,
   member = userID,
   time = diaryday,
   predictors = provided_support,
-  model_type = c("apim", "dim"),
+  model_types = c("apim", "dim"),
   seed = 123
 ) %>%
-  rename_interdep_for_tutorial(
-    # Keep interdep's cwp_actor/cbp_partner component ordering.
+  rename_dyadmlm_for_tutorial(
+    # Keep dyadMLM's cwp_actor/cbp_partner component ordering.
     predictor = "provided_support"
   ) %>%
   mutate(
@@ -3285,11 +3344,11 @@ print_df(
 The generated `provided_support_cwp_dyad_mean` and `provided_support_cwp_dev`
 columns form the within-person DIM. The corresponding
 `provided_support_cbp_dyad_mean` and `provided_support_cbp_dev` columns form the
-between-person DIM.
+between-person DIM [@bolgerIntensiveLongitudinalMethods2013].
 
 ## Exchangeable Dyads - L-DIM/L-APIM: Preparing the Mean-Deviation `idiff` Approach
 
-The `idiff` alias refers to `interdep`'s generated arbitrary `-1/+1` member
+The `idiff` alias refers to `dyadMLM`'s generated arbitrary `-1/+1` member
 contrast. The fixed seed makes that arbitrary assignment reproducible.
 
 ::: {.content-visible when-format="pdf"}
@@ -3372,8 +3431,8 @@ model_exch_long_apim_glmmtmb <- glmmTMB(
     # Homogeneous same-day residual covariance between partners:
     (1 | coupleID:diaryday) + (0 + idiff | coupleID:diaryday)
 
-  # We remove the additional independent residual variance
-  # (only if the family has a native residual!)
+  # For this Gaussian model, remove the additional independent residual
+  # variance because the two couple-day blocks represent it.
   , dispformula = ~ 0
   , data = df_long_dim
 )
@@ -3526,14 +3585,11 @@ structure `(1 | coupleID:diaryday) + (0 + idiff | coupleID:diaryday)` uses
 independent common and member-deviation components to imply a homogeneous
 two-partner residual covariance.
 
-This parameterization assumes exactly two rows per couple-day, independent
-common/couple-mean and `idiff` deviation random-effect blocks, and
-`dispformula = ~ 0`.
-
-The model code uses these common and deviation components directly, so no
-manually constructed partner-position indicators are required.
-
-It also does not need back-transformation.
+This requires exactly two rows per couple-day, independent common and `idiff`
+blocks, and `dispformula = ~ 0`. If their variances are $\tau_c^2$ and
+$\tau_d^2$, member variance is $\tau_c^2+\tau_d^2$, covariance is
+$\tau_c^2-\tau_d^2$, and their ratio is the correlation. No manual partner
+indicators are needed [@delrosarioPracticalGuideSpecifying2025].
 
 ## Exchangeable Dyads - L-DIM/L-APIM: Results
 

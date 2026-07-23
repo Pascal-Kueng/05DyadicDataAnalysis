@@ -2484,11 +2484,17 @@ summarize_exchangeable_apim_brms <- function(
       )
     }
 
-    if ("cortime__1__2" %in% names(draws)) {
-      residual_draws$same_day_residual_correlation <- draws$cortime__1__2
+    cortime_name <- grep("^cortime__", names(draws), value = TRUE)
+    if (length(cortime_name) > 1L) {
+      stop("Expected at most one residual correlation parameter in this two-member model.")
+    }
+
+    if (length(cortime_name) == 1L) {
+      residual_correlation <- draws[[cortime_name]]
+      residual_draws$same_day_residual_correlation <- residual_correlation
 
       if (!is.null(sigma_response)) {
-        residual_draws$same_day_residual_covariance <- draws$cortime__1__2 * sigma_response^2
+        residual_draws$same_day_residual_covariance <- residual_correlation * sigma_response^2
       }
     }
 
@@ -2616,17 +2622,23 @@ summarize_distinguishable_apim_brms <- function(
       )
     }
 
-    if ("cortime__1__2" %in% names(draws)) {
-      residual_draws$same_day_residual_correlation <- draws$cortime__1__2
+    cortime_name <- grep("^cortime__", names(draws), value = TRUE)
+    if (length(cortime_name) > 1L) {
+      stop("Expected at most one residual correlation parameter in this two-member model.")
+    }
+
+    if (length(cortime_name) == 1L) {
+      residual_correlation <- draws[[cortime_name]]
+      residual_draws$same_day_residual_correlation <- residual_correlation
 
       if (all(c("sigma_is_male", "sigma_is_female") %in% names(residual_draws))) {
         residual_draws$same_day_residual_covariance <-
-          draws$cortime__1__2 *
+          residual_correlation *
           residual_draws$sigma_is_male *
           residual_draws$sigma_is_female
       } else if ("sigma" %in% names(residual_draws)) {
         residual_draws$same_day_residual_covariance <-
-          draws$cortime__1__2 * residual_draws$sigma^2
+          residual_correlation * residual_draws$sigma^2
       }
     }
 

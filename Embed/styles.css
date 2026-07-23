@@ -35,7 +35,7 @@
   margin-bottom: 1em;      /* space below tables too */
 }
 
-/* Complete interdep-to-tutorial mappings without overflowing their slides. */
+/* Complete dyadMLM-to-tutorial mappings without overflowing their slides. */
 .reveal .tutorial-alias-table > p {
   font-size: 0.72em;
   line-height: 1.2;

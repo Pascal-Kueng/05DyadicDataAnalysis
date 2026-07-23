@@ -23,12 +23,6 @@
   "version": "v2.0.9",
   "related_identifiers": [
     {
-      "identifier": "10.5281/zenodo.20720299",
-      "relation": "isNewVersionOf",
-      "scheme": "doi",
-      "resource_type": "publication-report"
-    },
-    {
       "identifier": "10.5281/zenodo.17400655",
       "relation": "isVersionOf",
       "scheme": "doi",

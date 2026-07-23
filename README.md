@@ -13,7 +13,7 @@ Choose the interactive slide deck, the archival PDF, or one of the concise model
 - **[Distinguishable dyads quick guide](https://pascal-kueng.github.io/05DyadicDataAnalysis/distinguishable-dyads-quick-guide.pdf)**
 - **[Exchangeable dyads quick guide](https://pascal-kueng.github.io/05DyadicDataAnalysis/exchangeable-dyads-quick-guide.pdf)**
 - **[Tutorial overview and citation](https://pascal-kueng.github.io/05DyadicDataAnalysis/)**
-- **[`interdep` data-preparation package](https://pascal-kueng.github.io/interdep/)**
+- **[`dyadMLM` data-preparation package](https://pascal-kueng.github.io/dyadMLM/)**
 - **[Download the latest release](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/releases/latest)**
 
 ---

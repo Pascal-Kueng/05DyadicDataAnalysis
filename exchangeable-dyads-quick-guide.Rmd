@@ -1,6 +1,8 @@
 ---
 title: "Exchangeable Dyads: Model Specification and Back-Transformation"
 author: "Pascal Küng"
+bibliography: Embed/Temp.bib
+csl: Embed/apa.csl
 format:
   pdf:
     pdf-engine: xelatex
@@ -29,7 +31,7 @@ knitr::opts_chunk$set(
 
 library(brms)
 library(glmmTMB)
-library(interdep)
+library(dyadMLM)
 library(dplyr)
 library(tidyr)
 library(tibble)
@@ -55,7 +57,8 @@ Exchangeable dyads do not have substantively meaningful partner roles. Partner
 labels are arbitrary, and flipping the labels should not change the model
 interpretation.
 
-For intensive longitudinal data, an exchangeable APIM needs to model:
+The full intensive-longitudinal specification used here models
+[@bolgerIntensiveLongitudinalMethods2013; @delrosarioPracticalGuideSpecifying2025]:
 
 - pooled fixed effects, because the two partner labels are not substantively
   different;
@@ -74,11 +77,15 @@ For intensive longitudinal data, an exchangeable APIM needs to model:
 knitr::include_graphics(file.path("Embed", "APIM_ind_1.png"))
 ```
 
-`prepare_interdep_data()` creates the APIM and DIM predictors together. Omitting
-`role` states the exchangeability assumption, while `seed` makes its arbitrary
-member contrast reproducible.
+When both are requested, `prepare_dyad_data()` creates the APIM and DIM
+predictors together. Omitting `role` states the exchangeability assumption,
+while `seed` makes its arbitrary member contrast reproducible.
 
 # Data structure
+
+The 12 rows below only illustrate the prepared structure; the model
+specifications assume study-sized data, and the output uses the cached fit to
+the main tutorial's 11,000-row simulation.
 
 ```{r exchangeable-data-preparation}
 exchangeable_raw <- tibble(
@@ -91,16 +98,16 @@ exchangeable_raw <- tibble(
                        4.0, 4.3, 4.1, 4.6, 4.5, 4.7)
 )
 
-df_long_dim <- prepare_interdep_data(
+df_long_dim <- prepare_dyad_data(
   data = exchangeable_raw,
-  group = coupleID,
+  dyad = coupleID,
   member = userID,
   time = diaryday,
   predictors = provided_support,
-  model_type = c("apim", "dim"),
+  model_types = c("apim", "dim"),
   seed = 123
 ) |>
-  rename_interdep_for_tutorial(
+  rename_dyadmlm_for_tutorial(
     predictor = "provided_support"
   ) |>
   mutate(
@@ -112,20 +119,24 @@ df_long_dim <- prepare_interdep_data(
 idiff_example <- df_long_dim |>
   select(
     coupleID, userID, diaryday, idiff,
-    provided_support_cwp_actor, provided_support_cwp_partner,
-    provided_support_cwp_dyad_mean, provided_support_cwp_dev
+    cwp_actor = provided_support_cwp_actor,
+    cwp_partner = provided_support_cwp_partner,
+    cwp_dyad_mean = provided_support_cwp_dyad_mean,
+    cwp_dev = provided_support_cwp_dev
   )
 
 kable(
   idiff_example,
-  caption = "Example person-day structure for an exchangeable dyad"
-)
+  caption = "Example person-day structure for an exchangeable dyad",
+  booktabs = TRUE
+) |>
+  kable_styling(latex_options = "scale_down", font_size = 7)
 ```
 
 `idiff` is constant within person and opposite within dyad. Its sign has no
-substantive meaning. The tutorial helper drops the `.i_` prefix while retaining
-the package's `cwp_actor`, `cbp_partner`, and `cwp_dyad_mean` ordering; only the
-long `within_dyad_deviation` suffix is shortened to `dev`.
+substantive meaning. The tutorial helper drops the `.dy_` prefix while retaining
+the package's `cwp_actor`, `cbp_partner`, and `cwp_dyad_mean` ordering, and
+shortens `within_dyad_dev` to `cwp_dev`.
 
 # glmmTMB model
 
@@ -158,26 +169,19 @@ model_exch_long_apim_glmmtmb <- glmmTMB(
     # residual variance and covariance.
     (1 | coupleID:diaryday) + (0 + idiff | coupleID:diaryday),
 
-  # The residual variance is represented by the homcs block above.
+  # The Gaussian residual covariance is represented by the two blocks above.
   # Without dispformula = ~ 0, glmmTMB would add a second independent
   # residual variance on top of the dyadic residual covariance structure.
-  # For families without a residual, dispformula should NOT be set to zero.
+  # For non-Gaussian families, dispformula controls family-specific dispersion
+  # when one exists and may be ignored otherwise; do not use ~0 as this trick.
   dispformula = ~ 0,
   family = gaussian(),
   data = df_long_dim
 )
 ```
 
-The residual block could also be written as independent common/deviation terms:
-
-```{r glmmTMB-idiff-residual, eval=FALSE}
-(1 | coupleID:diaryday) +
-(0 + idiff | coupleID:diaryday)
-```
-
-With `idiff = +1/-1`, this has one
-common variance and one deviation variance, which rotate back to one homogeneous
-residual variance and one residual covariance.
+The common and `idiff` components are rotated to member-level quantities in the
+Back-transformation section.
 
 # brms model
 
@@ -203,12 +207,10 @@ formula_exch_long_apim <- bf(
        I(idiff * provided_support_cwp_actor) +
        I(idiff * provided_support_cwp_partner) | coupleID) +
 
-    # Native residual correlation between the two partners on the same day.
-    # We use unstr() instead of cs() because brms currently restricts cs()
-    # residual correlations to be positive. With exactly two members per group
-    # (dyads), unstr() is equivalent here because only one residual correlation
-    # is estimated. For triads or larger groups, unstr() would no longer impose
-    # the compound-symmetry constraint.
+    # Native same-day residual correlation, allowed to be positive or negative.
+    # With exactly two members per group, unstr() estimates the single pairwise
+    # correlation. For triads or larger groups it estimates a fully
+    # unstructured correlation matrix.
     unstr(time = idiff, gr = coupleID:diaryday)
 
   # No sigma formula is specified here. Thus, sigma ~ 1 is implied,
@@ -252,6 +254,10 @@ if (!file.exists(cached_fit)) {
 model_exch_long_apim <- readRDS(cached_fit)
 ```
 
+The cached illustrative fit has no HMC warnings, but a few variance parameters
+mix slowly (maximum $\widehat{R} = 1.049$); refit longer before substantive
+inference.
+
 # Back-transformation
 
 The model estimates a common/couple-mean block and an `idiff` deviation block. For exchangeable dyads,
@@ -276,9 +282,9 @@ matrices for every posterior draw, rotates each draw into the full APIM
 partner-level matrix, and then summarizes the transformed covariance, SD,
 correlation, fixed-effect, and residual quantities.
 
-For `glmmTMB`, the same back-transformation is algebraically just as straightforward, but
-interval estimation (CI) is less direct because there are no posterior draws. A helper function
-implementing the delta-method is also available on GitHub.
+For `glmmTMB`, `dyadMLM::recover_exchangeable_covariance()` provides the
+algebraic point back-transformation. Interval estimates require a separate
+parametric bootstrap or transformation of asymptotic parameter draws.
 
 ```{r backtransform-code}
 idiff_term <- if (
