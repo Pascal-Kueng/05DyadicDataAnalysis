@@ -895,7 +895,7 @@ NOTE: brms estimates sigma on the log scale. In the tables, sigmas are exponenti
 # Distinguishable Dyads
 # Distinguishable Dyads - Intensive Longitudinal APIM (L-APIM)
 
-## Distinguishable Dyads - L-APIM - Simulated Dataset
+## Distinguishable Dyads - L-APIM - Raw Data
 
 ```{r simulate-longitudinal-data, echo=FALSE, results='hide', cache=TRUE}
 # Simulate Data
@@ -1114,6 +1114,8 @@ df_long <- panel |>
 print_df(head(df_long))
 ```
 
+## Distinguishable Dyads - L-APIM - Data Preparation
+
 ```{r data-dist-long-apim-reshape, results='hide', warning=FALSE, message=FALSE, cache=TRUE, dependson='simulate-longitudinal-data'}
 
 df_long_apim <- prepare_dyad_data(
@@ -1191,6 +1193,7 @@ print_couple_preview_for_output <- function(df, couple_id, days = 0:3,
 
 ```
 
+## Distinguishable Dyads - L-APIM - Prepared Data
 
 ```{r data-dist-long-apim-preview, echo=FALSE}
 
@@ -2006,12 +2009,14 @@ But they should still be allowed to vary within each couple, while being correla
 
 [e.g., @delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]
 
-## Exchangeable Dyads - Cross-Sectional APIM: Data
+## Exchangeable Dyads - Cross-Sectional APIM: Assumption
 
 For illustration, we now prepare the same female-male dyads under an
 exchangeability constraint. This is a modelling assumption/specification, not a
 claim that the data-generating dyads are truly exchangeable. Starting again from the
 raw data makes that changed assumption explicit.
+
+## Exchangeable Dyads - Cross-Sectional APIM: Preparation
 
 ```{r data-exch-prepare, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='simulate-cross-sectional-data'}
 df_exchangeable <- prepare_dyad_data(
@@ -2029,6 +2034,8 @@ df_exchangeable <- prepare_dyad_data(
     predictor = "communication"
   )
 ```
+
+## Exchangeable Dyads - Cross-Sectional APIM: Prepared Data
 
 ```{r data-exch-apim-preview}
 
