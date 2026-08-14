@@ -87,7 +87,7 @@ knitr::opts_chunk$set(
   echo = TRUE,
   cache.lazy = FALSE,
   cache.extra = paste(
-    "dyadMLM-column-schema-v1",
+    "dyadMLM-column-schema-v2",
     if (knitr::is_latex_output()) "pdf-output-font-v1" else "html-output"
   )
 )
@@ -148,33 +148,37 @@ For readers who want the model code and reporting tables without the full tutori
 * creates model-ready variables for APIM, DIM, and DSM specifications
 * handles distinguishable, exchangeable, and mixed dyad compositions
 
-Install the development version from GitHub with [`pak`](https://pak.r-lib.org/):
+Install the current [R-universe version](https://pascal-kueng.r-universe.dev/dyadMLM),
+using CRAN for dependencies:
 
 ```r
-# install.packages("pak")
-pak::pak("Pascal-Kueng/dyadMLM")
+install.packages("dyadMLM", repos = c(
+  "https://pascal-kueng.r-universe.dev",
+  "https://cloud.r-project.org"
+))
 ```
 
 [Getting started](https://pascal-kueng.github.io/dyadMLM/articles/getting-started.html) · [Function reference](https://pascal-kueng.github.io/dyadMLM/reference/index.html) · [Source code](https://github.com/Pascal-Kueng/dyadMLM)
 
 ## Readable Names in This Tutorial {.tutorial-alias-table}
 
-`dyadMLM` returns explicit, self-documenting names. This tutorial drops the
-generated `.dy_` prefix and shortens the `within_dyad_dev` suffix to
+`dyadMLM` marks generated columns with a leading dot. This tutorial drops that
+dot and shortens the `within_dyad_dev` suffix to
 `dyad_dev`, `cwp_dev`, or `cbp_dev`.
 
 **General and cross-sectional aliases**
 
 | Canonical `dyadMLM` name | Tutorial alias | Interpretation |
 |:---|:---|:---|
-| `.dy_is_female_x_male_female` | `is_female` | female member of a female-male dyad |
-| `.dy_is_female_x_male_male` | `is_male` | male member of a female-male dyad |
-| `.dy_member_contrast_female_x_male_arbitrary` | `idiff` | female-male exchangeability contrast |
-| `.dy_member_contrast_assumed_exchangeable_arbitrary` | `idiff` | role-free exchangeability contrast |
-| `.dy_communication_actor` | `communication_actor` | actor's communication score |
-| `.dy_communication_partner` | `communication_partner` | partner's communication score |
-| `.dy_communication_dyad_mean_gmc` | `communication_dyad_mean_gmc` | grand-mean-centered dyad mean |
-| `.dy_communication_within_dyad_dev` | `communication_dyad_dev` | member's within-dyad deviation |
+| `.is_female` | `is_female` | female member of a female-male dyad |
+| `.is_male` | `is_male` | male member of a female-male dyad |
+| `.member_contrast_arbitrary` | `idiff` | arbitrary exchangeability contrast |
+| `.communication_actor` | `communication_actor` | actor's communication score |
+| `.communication_partner` | `communication_partner` | partner's communication score |
+| `.communication_gmc_actor` | `communication_gmc_actor` | grand-mean-centered actor score |
+| `.communication_gmc_partner` | `communication_gmc_partner` | grand-mean-centered partner score |
+| `.communication_dyad_mean_gmc` | `communication_dyad_mean_gmc` | grand-mean-centered dyad mean |
+| `.communication_within_dyad_dev` | `communication_dyad_dev` | member's within-dyad deviation |
 
 ## Applying the Tutorial Aliases
 
@@ -214,14 +218,16 @@ source(file.path('00_R_Functions', 'PrettyTables.R'))
 source(file.path('00_R_Functions', 'PrepareData.R'))
 
 print_apim_preview <- function(df) {
-  if (knitr::is_latex_output()) {
-    preview_cols <- c(
-      "userID", "coupleID", "gender", "is_male", "is_female",
-      "satisfaction", "communication_actor", "communication_partner"
+  preview_cols <- c(
+    "userID", "coupleID", "gender", "is_male", "is_female", "idiff",
+    "satisfaction", "communication_gmc_actor", "communication_gmc_partner"
+  )
+  df <- df |>
+    dplyr::select(dplyr::any_of(preview_cols)) |>
+    dplyr::rename(
+      gmc_actor = communication_gmc_actor,
+      gmc_partner = communication_gmc_partner
     )
-    df <- df |>
-      dplyr::select(dplyr::any_of(preview_cols))
-  }
   print_df(head(df))
 }
 
@@ -455,7 +461,10 @@ df_apim <- prepare_dyad_data(
   role = gender,
   predictors = communication,
   model_types = "apim",
-  keep_compositions = "female-male"
+  keep_compositions = "female-male",
+  include_arbitrary_member_contrast = TRUE,
+  add_apim_gmc_predictors = TRUE,
+  seed = 123
 ) %>%
   rename_dyadmlm_for_tutorial(
     predictor = "communication"
@@ -473,12 +482,10 @@ print_apim_preview(df_apim)
 
 ```
 
-For cross-sectional APIMs, `communication_actor` and
-`communication_partner` contain the original communication scores. The earlier
-version of this tutorial grand-mean centered both columns manually. At the
-likelihood level, removing that centering changes neither slopes nor fitted
-values (aside from prior impact in Bayesian fits), but the role-specific
-intercepts now refer to `communication = 0` rather than average communication.
+For the likelihood-based constraint comparison, the glmmTMB models below use
+`communication_gmc_actor` and `communication_gmc_partner`. The Bayesian models
+retain the raw actor and partner scores because centering also changes the
+intercept's prior interpretation.
 
 
 ## Distinguishable Dyads - Fitting the Model in glmmTMB
@@ -504,12 +511,12 @@ model_dist_apim_glmmtmb <- glmmTMB(
     0 + is_male + is_female +
 
     # Actor effect for male and female
-    communication_actor:is_male +
-    communication_actor:is_female +
+    communication_gmc_actor:is_male +
+    communication_gmc_actor:is_female +
 
     # Partner effect for male and female
-    communication_partner:is_male +
-    communication_partner:is_female +
+    communication_gmc_partner:is_male +
+    communication_gmc_partner:is_female +
 
     # Modelling residual non-independence with an unstructured 2x2 covariance.
     us(0 + is_male + is_female | coupleID)
@@ -2011,35 +2018,23 @@ But they should still be allowed to vary within each couple, while being correla
 
 ## Exchangeable Dyads - Cross-Sectional APIM: Assumption
 
-For illustration, we now prepare the same female-male dyads under an
-exchangeability constraint. This is a modelling assumption/specification, not a
-claim that the data-generating dyads are truly exchangeable. Starting again from the
-raw data makes that changed assumption explicit.
+Exchangeability is a modelling constraint, not a claim that the dyads are truly
+exchangeable. To test that constraint, fit both models to the same prepared
+observations.
 
 ## Exchangeable Dyads - Cross-Sectional APIM: Preparation
 
 ```{r data-exch-prepare, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='simulate-cross-sectional-data'}
-df_exchangeable <- prepare_dyad_data(
-  data = df,
-  dyad = coupleID,
-  member = userID,
-  role = gender,
-  predictors = communication,
-  model_types = c("apim", "dim"),
-  keep_compositions = "female-male",
-  set_exchangeable_compositions = "female-male",
-  seed = 123
-) %>%
-  rename_dyadmlm_for_tutorial(
-    predictor = "communication"
-  )
+# Reuse the distinguishable preparation, including its arbitrary
+# -1/+1 member contrast.
+df_exchangeable_apim <- df_apim
 ```
 
 ## Exchangeable Dyads - Cross-Sectional APIM: Prepared Data
 
 ```{r data-exch-apim-preview}
 
-print_apim_preview(df_exchangeable)
+print_apim_preview(df_exchangeable_apim)
 
 ```
 
@@ -2069,7 +2064,7 @@ model_exch_apim_glmmtmb <- glmmTMB(
     1 +
 
     # Pooled actor and partner effects
-    communication_actor + communication_partner +
+    communication_gmc_actor + communication_gmc_partner +
 
     # Independent common and member-deviation terms parameterize a homogeneous
     # two-member covariance using dyadMLM's arbitrary contrast.
@@ -2079,20 +2074,27 @@ model_exch_apim_glmmtmb <- glmmTMB(
     # remove the additional independent Gaussian residual variance.
     , dispformula = ~ 0
 
-    , data = df_exchangeable
+    , data = df_exchangeable_apim
+    , family = gaussian()
 )
 
 ```
 
 
-## Exchangeable Dyads - Cross-Sectional APIM: glmmTMB
+## Exchangeable APIM - Covariance Recovery {.smaller}
 
-The raw `glmmTMB` summary reports the common and deviation variance
-components. The homogeneous member variance and partner correlation are
-derived from them; they are not printed directly:
+`recover_exchangeable_covariance()` back-transforms the common and deviation
+blocks to the homogeneous member variance and partner correlation:
 
 ```{r results-exch-apim-glmmtmb, echo=FALSE, class.output='model-summary-output', cache=TRUE, dependson='fit-exch-apim-glmmtmb'}
-summary(model_exch_apim_glmmtmb)
+dyadMLM::recover_exchangeable_covariance(
+  model_exch_apim_glmmtmb,
+  block_pairings = list(
+    shared_block = "(1 | coupleID)",
+    difference_block = "(0 + idiff | coupleID)",
+    difference_indicator = "idiff"
+  )
+)
 ```
 
 ## Exchangeable Dyads - Cross-Sectional APIM: Interpreting the Covariance {.smaller}
@@ -2145,7 +2147,7 @@ priors_exch_apim <- c(
 
 model_exch_apim <- brm(
   formula = formula_exch_apim,
-  data = df_exchangeable,
+  data = df_exchangeable_apim,
   family = gaussian(link = identity),
   prior = priors_exch_apim,
   chains = 4,
@@ -2169,7 +2171,7 @@ summary_exch_apim <- summarize_brms(
     exponentiate_sigma = TRUE
     )
 
-communication_grand_mean <- mean(df_exchangeable$communication)
+communication_grand_mean <- mean(df_exchangeable_apim$communication)
 apim_centered_intercept <-
   fixef(model_exch_apim)["Intercept", "Estimate"] +
   communication_grand_mean * (
@@ -2188,22 +2190,21 @@ print_df(
 ```
 
 
-## Exchangeable Dyads - APIM: LOO Prediction Target {.smaller}
+## Constraints vs Prediction {.smaller}
 
-Observation-level PSIS-LOO can compare these models because they fit the same
-responses. With `unstr()`, `brms` uses the appropriate conditional predictive
-density for the correlated Gaussian outcomes
-[@buerknerEfficientLeaveOneOut2021]. Holding out one partner while the other
-remains observed evaluates conditional prediction—not a formal test of
-distinguishability or prediction of a new dyad.
+`compare_nested_models()` tests the imposed exchangeability constraints with a
+likelihood-ratio comparison:
 
-```{r compare-exch-dist-apim-loo, eval=FALSE}
-a <- loo_compare(
-  loo(model_exch_apim),
-  loo(model_dist_apim_b)
+```{r compare-exch-dist-apim-glmmtmb, echo=FALSE, cache=TRUE, dependson=c('fit-dist-apim-glmmtmb', 'fit-exch-apim-glmmtmb')}
+dyadMLM::compare_nested_models(
+  model_dist_apim_glmmtmb,
+  model_exch_apim_glmmtmb
 )
-print(a)
 ```
+
+The following observation-level PSIS-LOO comparison instead evaluates
+conditional predictive performance [@buerknerEfficientLeaveOneOut2021]. It is
+not a formal test of distinguishability or prediction of a new dyad.
 
 ## Exchangeable Dyads - APIM: LOO Comparison {.smaller}
 
@@ -2278,15 +2279,30 @@ if (knitr::is_html_output()) {
 
 ## Exchangeable Dyads - Cross-Sectional DIM: Data
 
-The same `prepare_dyad_data()` call generated the DIM columns directly from
-the raw long-format observations.
+For the DIM parameterization, prepare the raw observations under the
+exchangeability assumption.
 
-```{r data-exch-dim-source-preview, echo = FALSE}
+```{r data-exch-dim-source-preview, echo=FALSE, cache=TRUE, dependson='simulate-cross-sectional-data'}
+
+df_exchangeable_dim <- prepare_dyad_data(
+  data = df,
+  dyad = coupleID,
+  member = userID,
+  role = gender,
+  predictors = communication,
+  model_types = "dim",
+  keep_compositions = "female-male",
+  set_exchangeable_compositions = "female-male",
+  seed = 123
+) %>%
+  rename_dyadmlm_for_tutorial(
+    predictor = "communication"
+  )
 
 print_df(
   head(
     dplyr::select(
-      df_exchangeable,
+      df_exchangeable_dim,
       userID, coupleID, satisfaction, communication,
       communication_dyad_mean_gmc, communication_dyad_dev, idiff
     )
@@ -2316,7 +2332,7 @@ Same assumption about exchangeability as in the APIM
 print_df(
   head(
     dplyr::select(
-      df_exchangeable,
+      df_exchangeable_dim,
       userID, coupleID, satisfaction,
       communication_dyad_mean_gmc, communication_dyad_dev, idiff
     )
@@ -2327,7 +2343,7 @@ print_df(
 
 ## Exchangeable Dyads - Cross-Sectional DIM: Model
 
-```{r fit-exch-dim-brms, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-exch-prepare'}
+```{r fit-exch-dim-brms, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-exch-dim-source-preview'}
 #| code-line-numbers: "1-7|9-14|16-27"
 formula_exch_dim <- bf(
   satisfaction ~ 1 +
@@ -2346,7 +2362,7 @@ priors_exch_dim <- c(
 
 model_exch_dim <- brm(
   formula = formula_exch_dim,
-  data = df_exchangeable,
+  data = df_exchangeable_dim,
   family = gaussian(link = identity),
   prior = priors_exch_dim,
   chains = 4,

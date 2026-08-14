@@ -134,7 +134,7 @@ kable(
 ```
 
 `idiff` is constant within person and opposite within dyad. Its sign has no
-substantive meaning. The tutorial helper drops the `.dy_` prefix while retaining
+substantive meaning. The tutorial helper removes the leading dot while retaining
 the package's `cwp_actor`, `cbp_partner`, and `cwp_dyad_mean` ordering, and
 shortens `within_dyad_dev` to `cwp_dev`.
 

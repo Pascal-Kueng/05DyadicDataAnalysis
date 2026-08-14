@@ -20,23 +20,26 @@ dyadmlm_tutorial_name_map <- function(predictor, alias = predictor) {
   }
 
   canonical_names <- c(
-    ".dy_is_female_x_male_female",
-    ".dy_is_female_x_male_male",
-    ".dy_member_contrast_assumed_exchangeable_arbitrary",
-    paste0(".dy_", predictor, "_cwp"),
-    paste0(".dy_", predictor, "_cbp"),
-    paste0(".dy_", predictor, "_actor"),
-    paste0(".dy_", predictor, "_partner"),
-    paste0(".dy_", predictor, "_cwp_actor"),
-    paste0(".dy_", predictor, "_cwp_partner"),
-    paste0(".dy_", predictor, "_cbp_actor"),
-    paste0(".dy_", predictor, "_cbp_partner"),
-    paste0(".dy_", predictor, "_dyad_mean_gmc"),
-    paste0(".dy_", predictor, "_within_dyad_dev"),
-    paste0(".dy_", predictor, "_cwp_dyad_mean"),
-    paste0(".dy_", predictor, "_cwp_within_dyad_dev"),
-    paste0(".dy_", predictor, "_cbp_dyad_mean"),
-    paste0(".dy_", predictor, "_cbp_within_dyad_dev")
+    ".is_female",
+    ".is_male",
+    ".member_contrast_arbitrary",
+    paste0(".", predictor, "_cwp"),
+    paste0(".", predictor, "_cbp"),
+    paste0(".", predictor, "_actor"),
+    paste0(".", predictor, "_partner"),
+    paste0(".", predictor, "_gmc"),
+    paste0(".", predictor, "_gmc_actor"),
+    paste0(".", predictor, "_gmc_partner"),
+    paste0(".", predictor, "_cwp_actor"),
+    paste0(".", predictor, "_cwp_partner"),
+    paste0(".", predictor, "_cbp_actor"),
+    paste0(".", predictor, "_cbp_partner"),
+    paste0(".", predictor, "_dyad_mean_gmc"),
+    paste0(".", predictor, "_within_dyad_dev"),
+    paste0(".", predictor, "_cwp_dyad_mean"),
+    paste0(".", predictor, "_cwp_within_dyad_dev"),
+    paste0(".", predictor, "_cbp_dyad_mean"),
+    paste0(".", predictor, "_cbp_within_dyad_dev")
   )
   tutorial_names <- c(
     "is_female",
@@ -46,6 +49,9 @@ dyadmlm_tutorial_name_map <- function(predictor, alias = predictor) {
     paste0(alias, "_cbp"),
     paste0(alias, "_actor"),
     paste0(alias, "_partner"),
+    paste0(alias, "_gmc"),
+    paste0(alias, "_gmc_actor"),
+    paste0(alias, "_gmc_partner"),
     paste0(alias, "_cwp_actor"),
     paste0(alias, "_cwp_partner"),
     paste0(alias, "_cbp_actor"),
@@ -81,8 +87,19 @@ rename_dyadmlm_for_tutorial <- function(data, predictor, alias = predictor) {
   previous_name_map <- attr(data, "tutorial_name_map", exact = TRUE)
   name_map <- dyadmlm_tutorial_name_map(predictor, alias)
 
+  qualified_role_cols <- c(
+    is_female = ".is_female_x_male_female",
+    is_male = ".is_female_x_male_male"
+  )
+  for (tutorial_name in names(qualified_role_cols)) {
+    if (!name_map[[tutorial_name]] %in% names(data) &&
+        qualified_role_cols[[tutorial_name]] %in% names(data)) {
+      name_map[[tutorial_name]] <- qualified_role_cols[[tutorial_name]]
+    }
+  }
+
   arbitrary_diff_cols <- grep(
-    "^\\.dy_member_contrast_.*_arbitrary$",
+    "^\\.member_contrast(_.+)?_arbitrary$",
     names(data),
     value = TRUE
   )

@@ -126,8 +126,8 @@ kable(
 ```
 
 `prepare_dyad_data()` creates the role indicators and the within-person and
-between-person actor-partner predictors. The tutorial helper drops the `.dy_`
-prefix, yielding names such as `provided_support_cwp_actor` and
+between-person actor-partner predictors. The tutorial helper removes the
+leading dot, yielding names such as `provided_support_cwp_actor` and
 `provided_support_cbp_partner`.
 
 # glmmTMB model
