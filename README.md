@@ -4,6 +4,10 @@
 
 [![DOI](https://zenodo.org/badge/1079959998.svg)](https://doi.org/10.5281/zenodo.17400655)
 
+Developed by [Pascal Küng](https://pascalkueng.com/), Postdoctoral Researcher
+at the [University of Zurich](https://www.psychology.uzh.ch/en/areas/sob/angsoz/team/kueng.html).
+[OSF profile](https://osf.io/r2qdg/).
+
 ## Access the tutorial
 
 Choose the interactive slide deck, the archival PDF, or one of the concise model guides:
