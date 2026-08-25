@@ -113,7 +113,7 @@ options(knitr.kable.NA = "", width = 120)
 
 **DOI:** [10.5281/zenodo.17400655](https://doi.org/10.5281/zenodo.17400655)
 
-**Suggested citation:** Küng, P. M. (2026). *Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling*. University of Zurich.
+**Suggested citation:** Küng, P. M. (2026). *Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling* (Version 2.0.11) [Report]. Zenodo. [https://doi.org/10.5281/zenodo.17400655](https://doi.org/10.5281/zenodo.17400655)
 
 The [GitHub repository](https://github.com/Pascal-Kueng/05DyadicDataAnalysis) contains the source, helpers, model code, and quick guides.
 
