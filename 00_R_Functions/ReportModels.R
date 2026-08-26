@@ -72,7 +72,7 @@
 # 4. summarize_exchangeable_apim_brms
 ###################################
 # Description:
-# This function rotates the common/couple-mean and Idiff deviation random-effect blocks from an
+# This function rotates the common/couple-mean and member-deviation random-effect blocks from an
 # exchangeable-dyad brms model back to the full APIM partner-level
 # variance-covariance matrix. It performs the rotation for every posterior draw,
 # so SDs, correlations, covariances, fixed effects, and residual quantities can
@@ -2352,7 +2352,7 @@ make_brms_covariance_draw <- function(draw, terms, gr = "coupleID") {
 summarize_exchangeable_apim_brms <- function(
     fit,
     gr = "coupleID",
-    idiff = "Idiff",
+    deviation_term = ".member_contrast_arbitrary",
     term_labels = NULL,
     partner_labels = c("A", "B"),
     probs = c(0.025, 0.975),
@@ -2366,11 +2366,12 @@ summarize_exchangeable_apim_brms <- function(
   random_effects <- fit$ranef
   random_effects <- random_effects[random_effects$group == gr, ]
 
-  common_terms <- random_effects$coef[!grepl(idiff, random_effects$coef)]
-  deviation_terms <- random_effects$coef[grepl(idiff, random_effects$coef)]
+  is_deviation <- grepl(deviation_term, random_effects$coef, fixed = TRUE)
+  common_terms <- random_effects$coef[!is_deviation]
+  deviation_terms <- random_effects$coef[is_deviation]
 
   if (length(common_terms) != length(deviation_terms)) {
-    stop("The common/couple-mean and Idiff deviation random-effect blocks must contain the same number of terms.")
+    stop("The common/couple-mean and member-deviation random-effect blocks must contain the same number of terms.")
   }
 
   if (is.null(term_labels)) {
@@ -2631,11 +2632,11 @@ summarize_distinguishable_apim_brms <- function(
       residual_correlation <- draws[[cortime_name]]
       residual_draws$same_day_residual_correlation <- residual_correlation
 
-      if (all(c("sigma_is_male", "sigma_is_female") %in% names(residual_draws))) {
+      if (all(c("sigma_.is_male", "sigma_.is_female") %in% names(residual_draws))) {
         residual_draws$same_day_residual_covariance <-
           residual_correlation *
-          residual_draws$sigma_is_male *
-          residual_draws$sigma_is_female
+          residual_draws[["sigma_.is_male"]] *
+          residual_draws[["sigma_.is_female"]]
       } else if ("sigma" %in% names(residual_draws)) {
         residual_draws$same_day_residual_covariance <-
           residual_correlation * residual_draws$sigma^2

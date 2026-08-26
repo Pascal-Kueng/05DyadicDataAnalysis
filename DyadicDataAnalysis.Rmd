@@ -59,6 +59,7 @@ format:
         % Tighter tables and more flexible line breaking
         \usepackage{etoolbox}
         \AtBeginEnvironment{longtable}{\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{0.95}\small}
+        \AtBeginEnvironment{CSLReferences}{\small}
         \emergencystretch=2em
         \usepackage{pdflscape}
         \usepackage{needspace}
@@ -87,7 +88,7 @@ knitr::opts_chunk$set(
   echo = TRUE,
   cache.lazy = FALSE,
   cache.extra = paste(
-    "dyadMLM-column-schema-v2",
+    "dyadMLM-canonical-column-schema-v3",
     if (knitr::is_latex_output()) "pdf-output-font-v1" else "html-output"
   )
 )
@@ -103,6 +104,10 @@ knitr::knit_hooks$set(output = function(x, options) {
 })
 library(glue)
 options(knitr.kable.NA = "", width = 120)
+if (knitr::is_html_output()) {
+  # kableExtra's HTML table helper initializes tooltips with jQuery.
+  knitr::knit_meta_add(list(jquerylib::jquery_core()))
+}
 ```
 
 ::: {.content-visible when-format="pdf"}
@@ -113,7 +118,7 @@ options(knitr.kable.NA = "", width = 120)
 
 **DOI:** [10.5281/zenodo.17400655](https://doi.org/10.5281/zenodo.17400655)
 
-**Suggested citation:** Küng, P. M. (2026). *Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling* (Version 2.0.11) [Report]. Zenodo. [https://doi.org/10.5281/zenodo.17400655](https://doi.org/10.5281/zenodo.17400655)
+**Suggested citation:** Küng, P. M. (2026). *Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling* (Version 2.0.12) [Report]. Zenodo. [https://doi.org/10.5281/zenodo.17400655](https://doi.org/10.5281/zenodo.17400655)
 
 The [GitHub repository](https://github.com/Pascal-Kueng/05DyadicDataAnalysis) contains the source, helpers, model code, and quick guides.
 
@@ -160,44 +165,6 @@ install.packages("dyadMLM", repos = c(
 
 [Getting started](https://pascal-kueng.github.io/dyadMLM/articles/getting-started.html) · [Function reference](https://pascal-kueng.github.io/dyadMLM/reference/index.html) · [Source code](https://github.com/Pascal-Kueng/dyadMLM)
 
-## Readable Names in This Tutorial {.tutorial-alias-table}
-
-`dyadMLM` marks generated columns with a leading dot. This tutorial drops that
-dot and shortens the `within_dyad_dev` suffix to
-`dyad_dev`, `cwp_dev`, or `cbp_dev`.
-
-**General and cross-sectional aliases**
-
-| Canonical `dyadMLM` name | Tutorial alias | Interpretation |
-|:---|:---|:---|
-| `.is_female` | `is_female` | female member of a female-male dyad |
-| `.is_male` | `is_male` | male member of a female-male dyad |
-| `.member_contrast_arbitrary` | `idiff` | arbitrary exchangeability contrast |
-| `.communication_actor` | `communication_actor` | actor's communication score |
-| `.communication_partner` | `communication_partner` | partner's communication score |
-| `.communication_gmc_actor` | `communication_gmc_actor` | grand-mean-centered actor score |
-| `.communication_gmc_partner` | `communication_gmc_partner` | grand-mean-centered partner score |
-| `.communication_dyad_mean_gmc` | `communication_dyad_mean_gmc` | grand-mean-centered dyad mean |
-| `.communication_within_dyad_dev` | `communication_dyad_dev` | member's within-dyad deviation |
-
-## Applying the Tutorial Aliases
-
-To keep these aliases consistent, this tutorial uses
-`rename_dyadmlm_for_tutorial()`, defined in
-[`00_R_Functions/PrepareData.R`](https://github.com/Pascal-Kueng/05DyadicDataAnalysis/blob/main/00_R_Functions/PrepareData.R).
-The helper renames only generated columns that are present:
-
-```{r dyadmlm-tutorial-alias-example, eval=FALSE}
-model_data <- prepared_data |>
-  rename_dyadmlm_for_tutorial(
-    predictor = "provided_support"
-  )
-```
-
-The mapping is cosmetic: values and statistical meanings are unchanged. Apply
-it only to the final model-ready output; continue using canonical names while
-calling `dyadMLM` preparation functions.
-
 ## Loading Libraries and setting CmdStan Backend
 
 Some functions used in this presentation are sourced from the files available
@@ -215,19 +182,15 @@ library(MASS)
 library(purrr)
 source(file.path('00_R_Functions', 'ReportModels.R'))
 source(file.path('00_R_Functions', 'PrettyTables.R'))
-source(file.path('00_R_Functions', 'PrepareData.R'))
 
 print_apim_preview <- function(df) {
   preview_cols <- c(
-    "userID", "coupleID", "gender", "is_male", "is_female", "idiff",
-    "satisfaction", "communication_gmc_actor", "communication_gmc_partner"
+    "userID", "coupleID", "gender", ".is_male", ".is_female",
+    ".member_contrast_arbitrary", "satisfaction",
+    ".communication_gmc_actor", ".communication_gmc_partner"
   )
   df <- df |>
-    dplyr::select(dplyr::any_of(preview_cols)) |>
-    dplyr::rename(
-      gmc_actor = communication_gmc_actor,
-      gmc_partner = communication_gmc_partner
-    )
+    dplyr::select(dplyr::any_of(preview_cols))
   print_df(head(df))
 }
 
@@ -465,10 +428,7 @@ df_apim <- prepare_dyad_data(
   include_arbitrary_member_contrast = TRUE,
   add_apim_gmc_predictors = TRUE,
   seed = 123
-) %>%
-  rename_dyadmlm_for_tutorial(
-    predictor = "communication"
-  )
+)
 
 print_apim_preview(df_apim)
 
@@ -483,7 +443,7 @@ print_apim_preview(df_apim)
 ```
 
 For the likelihood-based constraint comparison, the glmmTMB models below use
-`communication_gmc_actor` and `communication_gmc_partner`. The Bayesian models
+`.communication_gmc_actor` and `.communication_gmc_partner`. The Bayesian models
 retain the raw actor and partner scores because centering also changes the
 intercept's prior interpretation.
 
@@ -494,11 +454,11 @@ intercept's prior interpretation.
 
 - For Gaussian mixed models, `dispformula = ~ 0` fixes the residual variance to a tiny value. This pushes the Gaussian residual variance into the random-effect block.
 
-- In this Gaussian dyadic model, the `us(0 + is_male + is_female | coupleID)` block therefore represents the 2x2 residual variance-covariance structure between partners.
+- In this Gaussian dyadic model, the `us(0 + .is_male + .is_female | coupleID)` block therefore represents the 2x2 residual variance-covariance structure between partners.
 
 - For non-Gaussian models, this is not an ordinary residual covariance on the response scale. The same random-effect trick adds latent Gaussian heterogeneity/correlation on the linear predictor scale.
 
-- Do **not** use `dispformula = ~ 0` as a general non-Gaussian residual-covariance trick. For families with an estimable dispersion parameter, `dispformula` models that family-specific parameter via a log link; for families without one, such as Poisson or binomial, it is ignored. Partner-specific dispersion, e.g. `dispformula = ~ 0 + is_male + is_female`, is only appropriate when the family has a dispersion parameter and this is substantively intended.
+- Do **not** use `dispformula = ~ 0` as a general non-Gaussian residual-covariance trick. For families with an estimable dispersion parameter, `dispformula` models that family-specific parameter via a log link; for families without one, such as Poisson or binomial, it is ignored. Partner-specific dispersion, e.g. `dispformula = ~ 0 + .is_male + .is_female`, is only appropriate when the family has a dispersion parameter and this is substantively intended.
 
 ## Distinguishable Dyads - Fitting the Model in glmmTMB
 
@@ -508,18 +468,18 @@ model_dist_apim_glmmtmb <- glmmTMB(
   satisfaction ~
 
     # Remove global intercept, introduce male and female intercepts.
-    0 + is_male + is_female +
+    0 + .is_male + .is_female +
 
     # Actor effect for male and female
-    communication_gmc_actor:is_male +
-    communication_gmc_actor:is_female +
+    .communication_gmc_actor:.is_male +
+    .communication_gmc_actor:.is_female +
 
     # Partner effect for male and female
-    communication_gmc_partner:is_male +
-    communication_gmc_partner:is_female +
+    .communication_gmc_partner:.is_male +
+    .communication_gmc_partner:.is_female +
 
     # Modelling residual non-independence with an unstructured 2x2 covariance.
-    us(0 + is_male + is_female | coupleID)
+    us(0 + .is_male + .is_female | coupleID)
 
     # Gaussian response:
     # dispformula = ~ 0 fixes residual variance to a tiny value,
@@ -530,7 +490,7 @@ model_dist_apim_glmmtmb <- glmmTMB(
     # dispformula is family-specific dispersion, or ignored for families
     # without a dispersion parameter. Do not use ~0 as a residual trick.
     # If dispersion exists and should differ by partner, use e.g.:
-    # dispformula = ~ 0 + is_male + is_female
+    # dispformula = ~ 0 + .is_male + .is_female
 
   , data = df_apim
   , family = gaussian
@@ -542,13 +502,13 @@ model_dist_apim_glmmtmb <- glmmTMB(
 
 Note that 'unstructured' is the default in glmmTMB, so instead of
 
-`us(0 + is_male + is_female | coupleID)`
+`us(0 + .is_male + .is_female | coupleID)`
 
 we could also remove `us` and simply write 
 
-`(0 + is_male + is_female | coupleID)`.
+`(0 + .is_male + .is_female | coupleID)`.
 
-An unstructured covariance matrix gives `is_male` and `is_female` their own
+An unstructured covariance matrix gives `.is_male` and `.is_female` their own
 variance and freely estimates their correlation. With more than two members
 (e.g., triads), it would estimate a separate correlation for every pair.
 
@@ -598,21 +558,21 @@ formula_dist_apim_b <- bf(
   satisfaction ~
 
     # Remove global intercept, introduce male and female intercepts.
-    0 + is_male + is_female +
+    0 + .is_male + .is_female +
 
     # Actor effect for male and female
-    communication_actor:is_male +
-    communication_actor:is_female +
+    .communication_actor:.is_male +
+    .communication_actor:.is_female +
 
     # Partner effect for male and female
-    communication_partner:is_male +
-    communication_partner:is_female +
+    .communication_partner:.is_male +
+    .communication_partner:.is_female +
 
     # Gender indexes the two within-couple residual positions.
     unstr(time = gender, gr = coupleID),
 
   # Allowing two distinct residual variances for males vs females:
-  sigma = ~ 0 + is_male + is_female
+  sigma = ~ 0 + .is_male + .is_female
 
 )
 
@@ -681,16 +641,16 @@ df_apim_count <- df_apim |>
   dplyr::left_join(latent_by_dyad, by = "coupleID") |>
   dplyr::mutate(
     count_eta =
-      is_female * (
+      .is_female * (
         log(6) +
-          0.18 * (communication_actor - mean(communication_actor)) +
-          0.06 * (communication_partner - mean(communication_partner)) +
+          0.18 * (.communication_actor - mean(.communication_actor)) +
+          0.06 * (.communication_partner - mean(.communication_partner)) +
           latent_female
       ) +
-      is_male * (
+      .is_male * (
         log(5) +
-          0.20 * (communication_actor - mean(communication_actor)) +
-          0.04 * (communication_partner - mean(communication_partner)) +
+          0.20 * (.communication_actor - mean(.communication_actor)) +
+          0.04 * (.communication_partner - mean(.communication_partner)) +
           latent_male
       ),
     satisfaction_count = stats::rpois(dplyr::n(), exp(count_eta))
@@ -704,22 +664,22 @@ formula_dist_apim_c <- bf(
   satisfaction_count ~
 
     # Remove global intercept, introduce male and female intercepts.
-    0 + is_male + is_female +
+    0 + .is_male + .is_female +
 
     # Actor effect for male and female
-    communication_actor:is_male +
-    communication_actor:is_female +
+    .communication_actor:.is_male +
+    .communication_actor:.is_female +
 
     # Partner effect for male and female
-    communication_partner:is_male +
-    communication_partner:is_female +
+    .communication_partner:.is_male +
+    .communication_partner:.is_female +
 
     # Model within-dyad dependence with correlated Gaussian random effects.
     # Poisson has no separately estimated residual-dispersion parameter.
 
-    (0 + is_male + is_female | coupleID)
+    (0 + .is_male + .is_female | coupleID)
 
-    # sigma ~ 0 + is_male + is_female
+    # sigma ~ 0 + .is_male + .is_female
 )
 
 priors_dist_apim_c <- c(
@@ -756,20 +716,20 @@ model_glmmTMB_dist_apim_c <- glmmTMB(
   satisfaction_count ~
 
     # Remove global intercept, introduce male and female intercepts.
-    0 + is_male + is_female +
+    0 + .is_male + .is_female +
 
     # Actor effect for male and female
-    communication_actor:is_male +
-    communication_actor:is_female +
+    .communication_actor:.is_male +
+    .communication_actor:.is_female +
 
     # Partner effect for male and female
-    communication_partner:is_male +
-    communication_partner:is_female +
+    .communication_partner:.is_male +
+    .communication_partner:.is_female +
 
     # Model within-dyad dependence with correlated Gaussian random effects.
     # Poisson has no separately estimated residual-dispersion parameter.
 
-    (0 + is_male + is_female | coupleID)
+    (0 + .is_male + .is_female | coupleID)
   , data = df_apim_count
   , family = poisson()
 )
@@ -798,19 +758,25 @@ plot(model_dist_apim_b, ask = FALSE)
 ```
 
 ```{r echo=FALSE}
-p1 <- plot(model_dist_apim_b, ask=FALSE, nvariables = 3, plot = FALSE)
-p1[[2]] # Look at ALL parameters, here only a subset of 3 is printed for slides
+n_plot_variables <- if (knitr::is_latex_output()) 1 else 3
+p1 <- plot(
+  model_dist_apim_b,
+  ask = FALSE,
+  nvariables = n_plot_variables,
+  plot = FALSE
+)
+p1[[2]] # Inspect all parameters; show a compact subset in this tutorial.
 ```
 ## Distinguishable Dyads - Check Model Convergence and Fit
 
 ```{r pp-dist-apim-dens, cache = TRUE, dependson='fit-dist-apim-brms'}
-pp_check(model_dist_apim_b, 'dens_overlay_grouped', group = 'is_male')
+pp_check(model_dist_apim_b, 'dens_overlay_grouped', group = '.is_male')
 ```
 
 ## Distinguishable Dyads - Check Model Convergence and Fit
 
 ```{r pp-dist-apim-ecdf, cache = TRUE, dependson='fit-dist-apim-brms'}
-pp_check(model_dist_apim_b, 'ecdf_overlay_grouped', group = 'is_male')
+pp_check(model_dist_apim_b, 'ecdf_overlay_grouped', group = '.is_male')
 ```
 
 ## Distinguishable Dyads - Check Model Convergence and Fit
@@ -1134,10 +1100,6 @@ df_long_apim <- prepare_dyad_data(
   predictors = provided_support,
   model_types = "apim"
 ) %>%
-  rename_dyadmlm_for_tutorial(
-    # Keep dyadMLM's cwp_actor/cbp_partner component ordering.
-    predictor = "provided_support"
-  ) %>%
   mutate(
     diaryday_c = diaryday - mean(diaryday)
   )
@@ -1209,10 +1171,9 @@ print_df(
     df_long_apim,
     couple_id = "31",
     pdf_cols = c(
-      "userID", "coupleID", "diaryday", "diaryday_c", "gender",
-      "is_male", "is_female", "closeness", "provided_support_cwp_actor",
-      "provided_support_cwp_partner", "provided_support_cbp_actor",
-      "provided_support_cbp_partner"
+      "userID", "diaryday", "diaryday_c", ".is_male", ".is_female",
+      "closeness", ".provided_support_cwp_actor",
+      ".provided_support_cwp_partner"
     )
   ),
   font_size = if (knitr::is_latex_output()) 6 else 20
@@ -1253,37 +1214,37 @@ library(nlme)
 model1 <- lme(
   fixed =
     # Intercepts
-    closeness ~ 0 + is_male + is_female +
+    closeness ~ 0 + .is_male + .is_female +
 
     # Time Slopes
-    is_male:diaryday_c +
-    is_female:diaryday_c +
+    .is_male:diaryday_c +
+    .is_female:diaryday_c +
 
     # Between-Person APIM
-    is_male:provided_support_cbp_actor +
-    is_male:provided_support_cbp_partner +
+    .is_male:.provided_support_cbp_actor +
+    .is_male:.provided_support_cbp_partner +
 
-    is_female:provided_support_cbp_actor +
-    is_female:provided_support_cbp_partner +
+    .is_female:.provided_support_cbp_actor +
+    .is_female:.provided_support_cbp_partner +
 
     # Within-Person APIM
-    is_male:provided_support_cwp_actor +
-    is_male:provided_support_cwp_partner +
+    .is_male:.provided_support_cwp_actor +
+    .is_male:.provided_support_cwp_partner +
 
-    is_female:provided_support_cwp_actor +
-    is_female:provided_support_cwp_partner,
+    .is_female:.provided_support_cwp_actor +
+    .is_female:.provided_support_cwp_partner,
 
   random =
-    ~ 0 + is_male + is_female
+    ~ 0 + .is_male + .is_female
 
-    + is_male:diaryday_c + is_female:diaryday_c
+    + .is_male:diaryday_c + .is_female:diaryday_c
 
   # in nlme we need to remove many random slopes to achieve convergence
   # alternatively, we could try to remove correlations between the slopes.
-    #+ is_male:provided_support_cwp_actor
-    #+ is_male:provided_support_cwp_partner
-    #+ is_female:provided_support_cwp_actor
-    #+ is_female:provided_support_cwp_partner
+    #+ .is_male:.provided_support_cwp_actor
+    #+ .is_male:.provided_support_cwp_partner
+    #+ .is_female:.provided_support_cwp_actor
+    #+ .is_female:.provided_support_cwp_partner
   | coupleID,
 
   weights = varIdent(form = ~ 1 | gender), # heterogeneous residual variances
@@ -1302,34 +1263,34 @@ summary(model1)
 ```{r fit-dist-apim-long-glmmtmb, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-dist-long-apim-reshape'}
 #| code-line-numbers: "1-6|8-13|15-20|22-26|28-34"
 model_dist_apim_long_glmmtmb <- glmmTMB(
-  closeness ~ 0 + is_male + is_female +
+  closeness ~ 0 + .is_male + .is_female +
 
     # Time Slopes
-    is_male:diaryday_c +
-    is_female:diaryday_c +
+    .is_male:diaryday_c +
+    .is_female:diaryday_c +
 
     # Between-Person APIM
-    is_male:provided_support_cbp_actor +
-    is_male:provided_support_cbp_partner +
+    .is_male:.provided_support_cbp_actor +
+    .is_male:.provided_support_cbp_partner +
 
-    is_female:provided_support_cbp_actor +
-    is_female:provided_support_cbp_partner +
+    .is_female:.provided_support_cbp_actor +
+    .is_female:.provided_support_cbp_partner +
 
     # Within-Person APIM
-    is_male:provided_support_cwp_actor +
-    is_male:provided_support_cwp_partner +
+    .is_male:.provided_support_cwp_actor +
+    .is_male:.provided_support_cwp_partner +
 
-    is_female:provided_support_cwp_actor +
-    is_female:provided_support_cwp_partner +
+    .is_female:.provided_support_cwp_actor +
+    .is_female:.provided_support_cwp_partner +
 
   # Accounting for non-independence between partners' means and trajectories
   # and effect sensitivities via random effects:
-  (0 + is_male + is_female
-    + is_male:diaryday_c + is_female:diaryday_c
+  (0 + .is_male + .is_female
+    + .is_male:diaryday_c + .is_female:diaryday_c
   | coupleID) +
 
   # Accounting for daily non-independence
-  us(0 + is_male + is_female | coupleID:diaryday)
+  us(0 + .is_male + .is_female | coupleID:diaryday)
 
   # heteroscedastic residuals
   , dispformula = ~ 0
@@ -1356,10 +1317,10 @@ Residual variance in `nlme` must first be constructed from the output by taking 
 ::: {.model-compare-panel}
 **nlme:**
 <pre class="model-compare-output"><code>                     StdDev     Corr
-is_male              0.83645552 is_mal is_fml is_m:_
-is_female            0.90199634  0.189
-is_male:diaryday_c   0.01634796  0.544  0.033
-is_female:diaryday_c 0.01612665  0.204  0.534 -0.012
+.is_male              0.83645552 is_mal is_fml is_m:_
+.is_female            0.90199634  0.189
+.is_male:diaryday_c   0.01634796  0.544  0.033
+.is_female:diaryday_c 0.01612665  0.204  0.534 -0.012
 Residual             0.72170702
 
 Correlation Structure: Compound symmetry
@@ -1387,12 +1348,12 @@ Residual SDs by partner:
 <pre class="model-compare-output"><code>Random effects:
 Conditional model:
  Groups            Name                 Variance  Std.Dev. Corr
- coupleID          is_male              0.6814498 0.82550
-                   is_female            0.7930407 0.89053   0.19
-                   is_male:diaryday_c   0.0002637 0.01624   0.55  0.03
-                   is_female:diaryday_c 0.0002571 0.01603   0.21  0.54 -0.01
- coupleID:diaryday is_male              1.2583552 1.12176
-                   is_female            0.5206608 0.72157  0.04</code></pre>
+ coupleID          .is_male              0.6814498 0.82550
+                   .is_female            0.7930407 0.89053   0.19
+                   .is_male:diaryday_c   0.0002637 0.01624   0.55  0.03
+                   .is_female:diaryday_c 0.0002571 0.01603   0.21  0.54 -0.01
+ coupleID:diaryday .is_male              1.2583552 1.12176
+                   .is_female            0.5206608 0.72157  0.04</code></pre>
 :::
 :::
 
@@ -1405,37 +1366,37 @@ In contrast to glmmTMB, brms provides native variance-covariance structures to m
 ```{r fit-dist-apim-long-simple-brms, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-dist-long-apim-reshape'}
 #| code-line-numbers: "1-6|8-13|15-20|22-26|28-34|36-48|50-61"
 formula_dist_apim_long_simple <- bf(
-  closeness ~ 0 + is_male + is_female +
+  closeness ~ 0 + .is_male + .is_female +
 
     # Time Slopes
-    is_male:diaryday_c +
-    is_female:diaryday_c +
+    .is_male:diaryday_c +
+    .is_female:diaryday_c +
 
     # Between-Person APIM
-    is_male:provided_support_cbp_actor +
-    is_male:provided_support_cbp_partner +
+    .is_male:.provided_support_cbp_actor +
+    .is_male:.provided_support_cbp_partner +
 
-    is_female:provided_support_cbp_actor +
-    is_female:provided_support_cbp_partner +
+    .is_female:.provided_support_cbp_actor +
+    .is_female:.provided_support_cbp_partner +
 
     # Within-Person APIM
-    is_male:provided_support_cwp_actor +
-    is_male:provided_support_cwp_partner +
+    .is_male:.provided_support_cwp_actor +
+    .is_male:.provided_support_cwp_partner +
 
-    is_female:provided_support_cwp_actor +
-    is_female:provided_support_cwp_partner +
+    .is_female:.provided_support_cwp_actor +
+    .is_female:.provided_support_cwp_partner +
 
   # Accounting for non-independence between partners' means and trajectories
   # and effect sensitivities via random effects:
-  (0 + is_male + is_female
-    + is_male:diaryday_c + is_female:diaryday_c
+  (0 + .is_male + .is_female
+    + .is_male:diaryday_c + .is_female:diaryday_c
   | coupleID) +
     
   # Gender indexes the two partner residual positions within each couple-day.
   unstr(time = gender, gr = coupleID:diaryday)
 
   # heteroscedastic residuals
-  , sigma ~ 0 + is_male + is_female
+  , sigma ~ 0 + .is_male + .is_female
 )
 
 # brms' defaults for group-level SDs and correlations are sensible weak defaults
@@ -1443,8 +1404,8 @@ formula_dist_apim_long_simple <- bf(
 # set weakly regularizing priors explicitly so the modelling assumptions are visible.
 
 priors_dist_apim_long_simple <- c(
-  prior(normal(4, 2), class = "b", coef = "is_male"), # male intercept
-  prior(normal(4, 2), class = "b", coef = "is_female"), # female intercept
+  prior(normal(4, 2), class = "b", coef = ".is_male"), # male intercept
+  prior(normal(4, 2), class = "b", coef = ".is_female"), # female intercept
   prior(normal(0, 2), class = "b"), # other beta coefficients
   prior(exponential(1), class = "sd"),
   prior(lkj(2), class = "cor"),
@@ -1535,36 +1496,36 @@ formula_dist_apim_long_complex <- bf(
   closeness ~
 
     # Intercepts
-    0 + is_male + is_female +
+    0 + .is_male + .is_female +
 
     # Time Slopes
-    is_male:diaryday_c +
-    is_female:diaryday_c +
+    .is_male:diaryday_c +
+    .is_female:diaryday_c +
 
     # Between-Person APIM
-    is_male:provided_support_cbp_actor +
-    is_male:provided_support_cbp_partner +
+    .is_male:.provided_support_cbp_actor +
+    .is_male:.provided_support_cbp_partner +
 
-    is_female:provided_support_cbp_actor +
-    is_female:provided_support_cbp_partner +
+    .is_female:.provided_support_cbp_actor +
+    .is_female:.provided_support_cbp_partner +
 
     # Within-Person APIM
-    is_male:provided_support_cwp_actor +
-    is_male:provided_support_cwp_partner +
+    .is_male:.provided_support_cwp_actor +
+    .is_male:.provided_support_cwp_partner +
 
-    is_female:provided_support_cwp_actor +
-    is_female:provided_support_cwp_partner +
+    .is_female:.provided_support_cwp_actor +
+    .is_female:.provided_support_cwp_partner +
 
     # Accounting for non-independence between partners' means and trajectories
     # and effect sensitivities via random effects:
-    (0 + is_male + is_female +
+    (0 + .is_male + .is_female +
 
-       is_male:diaryday_c + is_female:diaryday_c +
+       .is_male:diaryday_c + .is_female:diaryday_c +
 
-       is_male:provided_support_cwp_actor +
-       is_male:provided_support_cwp_partner +
-       is_female:provided_support_cwp_actor +
-       is_female:provided_support_cwp_partner
+       .is_male:.provided_support_cwp_actor +
+       .is_male:.provided_support_cwp_partner +
+       .is_female:.provided_support_cwp_actor +
+       .is_female:.provided_support_cwp_partner
     | coupleID ) +
 
 
@@ -1573,12 +1534,12 @@ formula_dist_apim_long_complex <- bf(
 
   # No more AR1. You could also test MA or ARMA.
 
-  sigma ~ 0 + is_male + is_female   # heteroscedastic residuals
+  sigma ~ 0 + .is_male + .is_female   # heteroscedastic residuals
 )
 
 priors_dist_apim_long_complex <- c(
-  prior(normal(4, 2), class = "b", coef = "is_male"),
-  prior(normal(4, 2), class = "b", coef = "is_female"),
+  prior(normal(4, 2), class = "b", coef = ".is_male"),
+  prior(normal(4, 2), class = "b", coef = ".is_female"),
   prior(normal(0, 2), class = "b"),
   prior(exponential(1), class = "sd"),
   prior(lkj(2), class = "cor"),
@@ -1709,55 +1670,55 @@ fixed_truth_data <- panel |>
 
 fixed_truth_fit <- stats::lm(
   fixed_only ~
-    0 + is_male + is_female +
-    is_male:diaryday_c + is_female:diaryday_c +
-    is_male:provided_support_cbp_actor +
-    is_male:provided_support_cbp_partner +
-    is_female:provided_support_cbp_actor +
-    is_female:provided_support_cbp_partner +
-    is_male:provided_support_cwp_actor +
-    is_male:provided_support_cwp_partner +
-    is_female:provided_support_cwp_actor +
-    is_female:provided_support_cwp_partner,
+    0 + .is_male + .is_female +
+    .is_male:diaryday_c + .is_female:diaryday_c +
+    .is_male:.provided_support_cbp_actor +
+    .is_male:.provided_support_cbp_partner +
+    .is_female:.provided_support_cbp_actor +
+    .is_female:.provided_support_cbp_partner +
+    .is_male:.provided_support_cwp_actor +
+    .is_male:.provided_support_cwp_partner +
+    .is_female:.provided_support_cwp_actor +
+    .is_female:.provided_support_cwp_partner,
   data = fixed_truth_data
 )
 fixed_truth <- coef(fixed_truth_fit)
 
 # Random effects on the same centered-time scale used by the fitted model.
 true_re_tbl <- tibble::tibble(
-  is_male = RE$re_b0_m + RE$re_time_m * mean_day,
-  is_female = RE$re_b0_f + RE$re_time_f * mean_day,
-  `is_male:diaryday_c` = RE$re_time_m,
-  `is_female:diaryday_c` = RE$re_time_f,
-  `is_male:provided_support_cwp_actor` = RE$re_wpA_m,
-  `is_male:provided_support_cwp_partner` = RE$re_wpP_m,
-  `is_female:provided_support_cwp_actor` = RE$re_wpA_f,
-  `is_female:provided_support_cwp_partner` = RE$re_wpP_f
+  .is_male = RE$re_b0_m + RE$re_time_m * mean_day,
+  .is_female = RE$re_b0_f + RE$re_time_f * mean_day,
+  `.is_male:diaryday_c` = RE$re_time_m,
+  `.is_female:diaryday_c` = RE$re_time_f,
+  `.is_male:.provided_support_cwp_actor` = RE$re_wpA_m,
+  `.is_male:.provided_support_cwp_partner` = RE$re_wpP_m,
+  `.is_female:.provided_support_cwp_actor` = RE$re_wpA_f,
+  `.is_female:.provided_support_cwp_partner` = RE$re_wpP_f
 )
 
 re_sd_truth <- purrr::map_dbl(true_re_tbl, sd)
 re_cor_truth <- stats::cor(true_re_tbl)
 
 re_sd_labels <- c(
-  "is_male" = "Couple intercept SD (male)",
-  "is_female" = "Couple intercept SD (female)",
-  "is_male:diaryday_c" = "Time slope SD (male)",
-  "is_female:diaryday_c" = "Time slope SD (female)",
-  "is_male:provided_support_cwp_actor" = "Actor WP slope SD (male)",
-  "is_male:provided_support_cwp_partner" = "Partner WP slope SD (male)",
-  "is_female:provided_support_cwp_actor" = "Actor WP slope SD (female)",
-  "is_female:provided_support_cwp_partner" = "Partner WP slope SD (female)"
+  ".is_male" = "Couple intercept SD (male)",
+  ".is_female" = "Couple intercept SD (female)",
+  ".is_male:diaryday_c" = "Time slope SD (male)",
+  ".is_female:diaryday_c" = "Time slope SD (female)",
+  ".is_male:.provided_support_cwp_actor" = "Actor WP slope SD (male)",
+  ".is_male:.provided_support_cwp_partner" = "Partner WP slope SD (male)",
+  ".is_female:.provided_support_cwp_actor" = "Actor WP slope SD (female)",
+  ".is_female:.provided_support_cwp_partner" = "Partner WP slope SD (female)"
 )
 
 re_cor_labels <- c(
-  "is_male" = "Intercept (male)",
-  "is_female" = "Intercept (female)",
-  "is_male:diaryday_c" = "Time slope (male)",
-  "is_female:diaryday_c" = "Time slope (female)",
-  "is_male:provided_support_cwp_actor" = "Actor WP slope (male)",
-  "is_male:provided_support_cwp_partner" = "Partner WP slope (male)",
-  "is_female:provided_support_cwp_actor" = "Actor WP slope (female)",
-  "is_female:provided_support_cwp_partner" = "Partner WP slope (female)"
+  ".is_male" = "Intercept (male)",
+  ".is_female" = "Intercept (female)",
+  ".is_male:diaryday_c" = "Time slope (male)",
+  ".is_female:diaryday_c" = "Time slope (female)",
+  ".is_male:.provided_support_cwp_actor" = "Actor WP slope (male)",
+  ".is_male:.provided_support_cwp_partner" = "Partner WP slope (male)",
+  ".is_female:.provided_support_cwp_actor" = "Actor WP slope (female)",
+  ".is_female:.provided_support_cwp_partner" = "Partner WP slope (female)"
 )
 
 true_resid_tbl <- panel |>
@@ -1774,18 +1735,18 @@ true_resid_cor <- true_resid_tbl |>
 
 fixed_truth_tbl <- tibble::tribble(
   ~group, ~parameter, ~coef_name,
-  "Fixed", "Intercept (male)", "is_male",
-  "Fixed", "Intercept (female)", "is_female",
-  "Fixed", "Time slope (male)", "is_male:diaryday_c",
-  "Fixed", "Time slope (female)", "is_female:diaryday_c",
-  "Between-person", "Actor BP (male)", "is_male:provided_support_cbp_actor",
-  "Between-person", "Partner BP (male)", "is_male:provided_support_cbp_partner",
-  "Between-person", "Actor BP (female)", "is_female:provided_support_cbp_actor",
-  "Between-person", "Partner BP (female)", "is_female:provided_support_cbp_partner",
-  "Within-person", "Actor WP (male)", "is_male:provided_support_cwp_actor",
-  "Within-person", "Partner WP (male)", "is_male:provided_support_cwp_partner",
-  "Within-person", "Actor WP (female)", "is_female:provided_support_cwp_actor",
-  "Within-person", "Partner WP (female)", "is_female:provided_support_cwp_partner"
+  "Fixed", "Intercept (male)", ".is_male",
+  "Fixed", "Intercept (female)", ".is_female",
+  "Fixed", "Time slope (male)", ".is_male:diaryday_c",
+  "Fixed", "Time slope (female)", ".is_female:diaryday_c",
+  "Between-person", "Actor BP (male)", ".is_male:.provided_support_cbp_actor",
+  "Between-person", "Partner BP (male)", ".is_male:.provided_support_cbp_partner",
+  "Between-person", "Actor BP (female)", ".is_female:.provided_support_cbp_actor",
+  "Between-person", "Partner BP (female)", ".is_female:.provided_support_cbp_partner",
+  "Within-person", "Actor WP (male)", ".is_male:.provided_support_cwp_actor",
+  "Within-person", "Partner WP (male)", ".is_male:.provided_support_cwp_partner",
+  "Within-person", "Actor WP (female)", ".is_female:.provided_support_cwp_actor",
+  "Within-person", "Partner WP (female)", ".is_female:.provided_support_cwp_partner"
 ) |>
   dplyr::mutate(true = unname(fixed_truth[coef_name]), scale = "identity") |>
   dplyr::select(group, parameter, true, scale)
@@ -1841,18 +1802,18 @@ fix_all <- get_summaries(fit, pattern = "^b_")
 # Map model param names -> display labels (same as before)
 map_fixed <- tibble::tribble(
   ~param_regex,                              ~label,
-  "^b_is_male$",                             "Intercept (male)",
-  "^b_is_female$",                           "Intercept (female)",
-  "^b_is_male:diaryday_c$",                  "Time slope (male)",
-  "^b_is_female:diaryday_c$",                "Time slope (female)",
-  "^b_is_male:provided_support_cbp_actor$",  "Actor BP (male)",
-  "^b_is_male:provided_support_cbp_partner$","Partner BP (male)",
-  "^b_is_female:provided_support_cbp_actor$","Actor BP (female)",
-  "^b_is_female:provided_support_cbp_partner$","Partner BP (female)",
-  "^b_is_male:provided_support_cwp_actor$",  "Actor WP (male)",
-  "^b_is_male:provided_support_cwp_partner$","Partner WP (male)",
-  "^b_is_female:provided_support_cwp_actor$","Actor WP (female)",
-  "^b_is_female:provided_support_cwp_partner$","Partner WP (female)"
+  "^b_\\.is_male$",                                      "Intercept (male)",
+  "^b_\\.is_female$",                                    "Intercept (female)",
+  "^b_\\.is_male:diaryday_c$",                           "Time slope (male)",
+  "^b_\\.is_female:diaryday_c$",                         "Time slope (female)",
+  "^b_\\.is_male:\\.provided_support_cbp_actor$",       "Actor BP (male)",
+  "^b_\\.is_male:\\.provided_support_cbp_partner$",     "Partner BP (male)",
+  "^b_\\.is_female:\\.provided_support_cbp_actor$",     "Actor BP (female)",
+  "^b_\\.is_female:\\.provided_support_cbp_partner$",   "Partner BP (female)",
+  "^b_\\.is_male:\\.provided_support_cwp_actor$",       "Actor WP (male)",
+  "^b_\\.is_male:\\.provided_support_cwp_partner$",     "Partner WP (male)",
+  "^b_\\.is_female:\\.provided_support_cwp_actor$",     "Actor WP (female)",
+  "^b_\\.is_female:\\.provided_support_cwp_partner$",   "Partner WP (female)"
 )
 
 fix_labeled <- map_fixed |>
@@ -1896,13 +1857,13 @@ cor_labeled <- cor_all |>
   dplyr::select(parameter, Estimate, Lower, Upper, scale)
 
 # (C) Residual sigmas (distributional parameters on log scale)
-# With sigma ~ 0 + is_male + is_female, brms names population-level params:
-#   b_sigma_is_male, b_sigma_is_female  (on log scale)
+# With sigma ~ 0 + .is_male + .is_female, brms names population-level params:
+#   b_sigma_.is_male, b_sigma_.is_female  (on log scale)
 draws <- as_draws_df(fit)
 resid_map <- tribble(
   ~param_draw,            ~label,
-  "b_sigma_is_male",      "Residual SD (male) (exp)",
-  "b_sigma_is_female",    "Residual SD (female) (exp)"
+  "b_sigma_.is_male",      "Residual SD (male) (exp)",
+  "b_sigma_.is_female",    "Residual SD (female) (exp)"
 )
 
 resid_summ <- resid_map |>
@@ -2040,7 +2001,7 @@ print_apim_preview(df_exchangeable_apim)
 
 ## Exchangeable Dyads - Cross-Sectional APIM: glmmTMB
 
-- For the fixed effects, we can pool the intercepts `is_male` and `is_female` by simply
+- For the fixed effects, we can pool the intercepts `.is_male` and `.is_female` by simply
 reintroducing a single shared intercept `1`.
 
 - For the actor and partner effects, we can remove the interactions to get a pooled estimate.
@@ -2064,11 +2025,11 @@ model_exch_apim_glmmtmb <- glmmTMB(
     1 +
 
     # Pooled actor and partner effects
-    communication_gmc_actor + communication_gmc_partner +
+    .communication_gmc_actor + .communication_gmc_partner +
 
     # Independent common and member-deviation terms parameterize a homogeneous
     # two-member covariance using dyadMLM's arbitrary contrast.
-    (1 | coupleID) + (0 + idiff | coupleID)
+    (1 | coupleID) + (0 + .member_contrast_arbitrary | coupleID)
 
     # The dyadic covariance is represented by the two random-effect blocks, so
     # remove the additional independent Gaussian residual variance.
@@ -2091,8 +2052,8 @@ dyadMLM::recover_exchangeable_covariance(
   model_exch_apim_glmmtmb,
   block_pairings = list(
     shared_block = "(1 | coupleID)",
-    difference_block = "(0 + idiff | coupleID)",
-    difference_indicator = "idiff"
+    difference_block = "(0 + .member_contrast_arbitrary | coupleID)",
+    difference_indicator = ".member_contrast_arbitrary"
   )
 )
 ```
@@ -2100,7 +2061,8 @@ dyadMLM::recover_exchangeable_covariance(
 ## Exchangeable Dyads - Cross-Sectional APIM: Interpreting the Covariance {.smaller}
 
 Let $\tau_c^2$ be the variance of the common intercept and $\tau_d^2$ the
-variance of the independent `idiff` deviation. With `idiff = -1/+1`, the
+variance of the independent member deviation. With
+`.member_contrast_arbitrary = -1/+1`, the
 back-transformation is
 
 $$
@@ -2126,11 +2088,11 @@ and one pooled residual variance:
 #| code-line-numbers: "1-13|15-20|22-33"
 formula_exch_apim <- bf(
   satisfaction ~ 1 +
-    communication_actor + communication_partner +
+    .communication_actor + .communication_partner +
 
     # To achieve a homogeneous two-partner covariance structure we use an
     # unstructured residual correlation over the two member positions.
-    unstr(time = idiff, gr = coupleID)
+    unstr(time = .member_contrast_arbitrary, gr = coupleID)
 
   # ... but now, we do not allow individual variances anymore.
   # We want one pooled residual variance. So we do not specify a sigma formula.
@@ -2175,8 +2137,8 @@ communication_grand_mean <- mean(df_exchangeable_apim$communication)
 apim_centered_intercept <-
   fixef(model_exch_apim)["Intercept", "Estimate"] +
   communication_grand_mean * (
-    fixef(model_exch_apim)["communication_actor", "Estimate"] +
-    fixef(model_exch_apim)["communication_partner", "Estimate"]
+    fixef(model_exch_apim)[".communication_actor", "Estimate"] +
+    fixef(model_exch_apim)[".communication_partner", "Estimate"]
   )
 
 print_df(
@@ -2196,10 +2158,25 @@ print_df(
 likelihood-ratio comparison:
 
 ```{r compare-exch-dist-apim-glmmtmb, echo=FALSE, cache=TRUE, dependson=c('fit-dist-apim-glmmtmb', 'fit-exch-apim-glmmtmb')}
-dyadMLM::compare_nested_models(
+comparison_exch_dist <- dyadMLM::compare_nested_models(
   model_dist_apim_glmmtmb,
   model_exch_apim_glmmtmb
 )
+
+if (knitr::is_latex_output()) {
+  comparison_table <- comparison_exch_dist
+  class(comparison_table) <- c("anova", "data.frame")
+  print(comparison_table)
+  cat(
+    "\n",
+    paste(strwrap(attr(comparison_exch_dist, "conclusion"), width = 82),
+          collapse = "\n"),
+    "\n",
+    sep = ""
+  )
+} else {
+  print(comparison_exch_dist)
+}
 ```
 
 The following observation-level PSIS-LOO comparison instead evaluates
@@ -2294,17 +2271,15 @@ df_exchangeable_dim <- prepare_dyad_data(
   keep_compositions = "female-male",
   set_exchangeable_compositions = "female-male",
   seed = 123
-) %>%
-  rename_dyadmlm_for_tutorial(
-    predictor = "communication"
-  )
+)
 
 print_df(
   head(
     dplyr::select(
       df_exchangeable_dim,
       userID, coupleID, satisfaction, communication,
-      communication_dyad_mean_gmc, communication_dyad_dev, idiff
+      .communication_dyad_mean_gmc, .communication_within_dyad_dev,
+      .member_contrast_arbitrary
     )
   )
 )
@@ -2323,8 +2298,8 @@ Same assumption about exchangeability as in the APIM
 ## Exchangeable Dyads - Cross-Sectional DIM: Centering
 
 
-`communication_dyad_mean_gmc` is the grand-mean-centered dyad mean, while
-`communication_dyad_dev` is each member's deviation from that dyad mean.
+* `.communication_dyad_mean_gmc`: the grand-mean-centered dyad mean
+* `.communication_within_dyad_dev`: each member's deviation from that dyad mean
 
 ## Exchangeable Dyads - Cross-Sectional DIM: Centering
 
@@ -2334,7 +2309,8 @@ print_df(
     dplyr::select(
       df_exchangeable_dim,
       userID, coupleID, satisfaction,
-      communication_dyad_mean_gmc, communication_dyad_dev, idiff
+      .communication_dyad_mean_gmc, .communication_within_dyad_dev,
+      .member_contrast_arbitrary
     )
   )
 )
@@ -2347,8 +2323,8 @@ print_df(
 #| code-line-numbers: "1-7|9-14|16-27"
 formula_exch_dim <- bf(
   satisfaction ~ 1 +
-    communication_dyad_mean_gmc + communication_dyad_dev +
-    unstr(time = idiff, gr = coupleID)
+    .communication_dyad_mean_gmc + .communication_within_dyad_dev +
+    unstr(time = .member_contrast_arbitrary, gr = coupleID)
 
     # sigma ~ 1 is implied.
 )
@@ -2560,11 +2536,11 @@ print_df(
   <!-- Model coefficients -->
   <div id="model-coefs"
        data-apim-b0="`r if (knitr::is_html_output()) round(apim_centered_intercept, 2) else ''`"
-       data-apim-ba="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['communication_actor','Estimate'], 2) else ''`"
-       data-apim-bp="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['communication_partner','Estimate'], 2) else ''`"
+       data-apim-ba="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['.communication_actor','Estimate'], 2) else ''`"
+       data-apim-bp="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['.communication_partner','Estimate'], 2) else ''`"
        data-dim-b0 ="`r if (knitr::is_html_output()) round(fixef(model_exch_dim)['Intercept','Estimate'], 2) else ''`"
-       data-dim-cb ="`r if (knitr::is_html_output()) round(fixef(model_exch_dim)['communication_dyad_mean_gmc','Estimate'], 2) else ''`"
-       data-dim-cw ="`r if (knitr::is_html_output()) round(fixef(model_exch_dim)['communication_dyad_dev','Estimate'], 2) else ''`"></div>
+       data-dim-cb ="`r if (knitr::is_html_output()) round(fixef(model_exch_dim)['.communication_dyad_mean_gmc','Estimate'], 2) else ''`"
+       data-dim-cw ="`r if (knitr::is_html_output()) round(fixef(model_exch_dim)['.communication_within_dyad_dev','Estimate'], 2) else ''`"></div>
 
   <div class="equations">
     <div id="eq-table" class="eq-table math"></div>
@@ -3049,8 +3025,8 @@ updateOutputs(); render();
 
   <div id="sd2-coefs"
        data-b0="`r if (knitr::is_html_output()) round(apim_centered_intercept, 2) else ''`"
-       data-ba="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['communication_actor','Estimate'], 2) else ''`"
-       data-bp="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['communication_partner','Estimate'], 2) else ''`"></div>
+       data-ba="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['.communication_actor','Estimate'], 2) else ''`"
+       data-bp="`r if (knitr::is_html_output()) round(fixef(model_exch_apim)['.communication_partner','Estimate'], 2) else ''`"></div>
 
   <script>
   (function(){
@@ -3261,7 +3237,7 @@ Example: using APIM coefficients to obtain DIM coefficients and computing *Credi
 ```{r compare-exch-apim-dim-hypothesis, cache=TRUE, dependson='fit-exch-apim-brms'}
 a <- hypothesis(
   model_exch_apim,
-  "communication_actor + communication_partner = 0"
+  ".communication_actor + .communication_partner = 0"
 )
 
 round(a$hypothesis[,c(2,3,4,5)], 2)
@@ -3327,10 +3303,6 @@ df_long_dim <- prepare_dyad_data(
   model_types = c("apim", "dim"),
   seed = 123
 ) %>%
-  rename_dyadmlm_for_tutorial(
-    # Keep dyadMLM's cwp_actor/cbp_partner component ordering.
-    predictor = "provided_support"
-  ) %>%
   mutate(
     diaryday_c = diaryday - mean(diaryday)
   )
@@ -3344,11 +3316,11 @@ print_df(
   print_couple_preview_for_output(
     df_long_dim,
     couple_id = "31",
+    days = if (knitr::is_latex_output()) 0:2 else 0:3,
     pdf_cols = c(
-      "userID", "coupleID", "idiff", "diaryday", "diaryday_c",
-      "closeness", "provided_support_cwp_actor",
-      "provided_support_cwp_partner", "provided_support_cbp_actor",
-      "provided_support_cbp_partner"
+      "userID", ".member_contrast_arbitrary", "diaryday", "diaryday_c",
+      "closeness", ".provided_support_cwp_actor",
+      ".provided_support_cwp_partner"
     )
   ),
   font_size = if (knitr::is_latex_output()) 6 else 20
@@ -3364,15 +3336,15 @@ print_df(
 * We need an APIM or DIM on both the between person level and the within-person level.
 * Due to equivalence, we could have a DIM on one level and an APIM on the other.
 
-The generated `provided_support_cwp_dyad_mean` and `provided_support_cwp_dev`
+The generated `.provided_support_cwp_dyad_mean` and `.provided_support_cwp_within_dyad_dev`
 columns form the within-person DIM. The corresponding
-`provided_support_cbp_dyad_mean` and `provided_support_cbp_dev` columns form the
+`.provided_support_cbp_dyad_mean` and `.provided_support_cbp_within_dyad_dev` columns form the
 between-person DIM [@bolgerIntensiveLongitudinalMethods2013].
 
-## Exchangeable Dyads - L-DIM/L-APIM: Preparing the Mean-Deviation `idiff` Approach
+## Exchangeable Dyads - L-DIM/L-APIM: Preparing the Member Contrast
 
-The `idiff` alias refers to `dyadMLM`'s generated arbitrary `-1/+1` member
-contrast. The fixed seed makes that arbitrary assignment reproducible.
+`dyadMLM` generates `.member_contrast_arbitrary` as an arbitrary `-1/+1`
+member contrast. The fixed seed makes that assignment reproducible.
 
 ::: {.content-visible when-format="pdf"}
 
@@ -3382,9 +3354,9 @@ print_df(
     df_long_dim,
     couple_id = "31",
     pdf_cols = c(
-      "userID", "coupleID", "idiff", "diaryday", "diaryday_c",
-      "provided_support_cbp_dyad_mean", "provided_support_cbp_dev",
-      "provided_support_cwp_dyad_mean", "provided_support_cwp_dev"
+      "userID", ".member_contrast_arbitrary", "diaryday", "diaryday_c",
+      ".provided_support_cbp_dyad_mean",
+      ".provided_support_cbp_within_dyad_dev"
     )
   ),
   font_size = 6
@@ -3394,18 +3366,27 @@ print_df(
 :::
 
 
-## Exchangeable Dyads - L-DIM/L-APIM: Preparing the Mean-Deviation `idiff` Approach
+::: {.content-visible when-format="pdf"}
 
-```{r data-exch-long-idiff, echo=FALSE, cache=TRUE, dependson='data-exch-long-apim-source'}
+```{=latex}
+\Needspace{20\baselineskip}
+```
+
+:::
+
+
+## Exchangeable Dyads - L-DIM/L-APIM: Preparing the Member Contrast
+
+```{r data-exch-long-member-contrast, echo=FALSE, cache=TRUE, dependson='data-exch-long-apim-source'}
 print_df(
   print_couple_preview_for_output(
     df_long_dim,
     couple_id = "31",
     days = 0:4,
     pdf_cols = c(
-      "userID", "coupleID", "idiff", "diaryday", "diaryday_c",
-      "provided_support_cbp_dyad_mean", "provided_support_cbp_dev",
-      "provided_support_cwp_dyad_mean", "provided_support_cwp_dev"
+      "userID", ".member_contrast_arbitrary", "diaryday", "diaryday_c",
+      ".provided_support_cwp_dyad_mean",
+      ".provided_support_cwp_within_dyad_dev"
     )
   ),
   font_size = if (knitr::is_latex_output()) 6 else 20
@@ -3425,34 +3406,35 @@ model_exch_long_apim_glmmtmb <- glmmTMB(
     diaryday_c +
 
     # Within-person APIM
-    provided_support_cwp_actor +
-    provided_support_cwp_partner +
+    .provided_support_cwp_actor +
+    .provided_support_cwp_partner +
     # Equivalent to within-person DIM:
-    # provided_support_cwp_dyad_mean +
-    # provided_support_cwp_dev +
+    # .provided_support_cwp_dyad_mean +
+    # .provided_support_cwp_within_dyad_dev +
 
     # Between-person APIM
-    provided_support_cbp_actor +
-    provided_support_cbp_partner +
+    .provided_support_cbp_actor +
+    .provided_support_cbp_partner +
     # Equivalent to between-person DIM
-    # provided_support_cbp_dev +
-    # provided_support_cbp_dyad_mean +
+    # .provided_support_cbp_within_dyad_dev +
+    # .provided_support_cbp_dyad_mean +
 
     # Dyad-Level intercept and slopes for time-varying predictors
-    (1 + diaryday_c + provided_support_cwp_actor + provided_support_cwp_partner | coupleID) +
+    (1 + diaryday_c + .provided_support_cwp_actor + .provided_support_cwp_partner | coupleID) +
 
     # Both partners' deviations from these dyad-level means and slopes.
     # Note: separate random-effects block to make them uncorrelated with dyad-level REs.
-    (0 + idiff +
-         I(idiff * diaryday_c) +
-         I(idiff * provided_support_cwp_actor) +
-         I(idiff * provided_support_cwp_partner) | coupleID) +
+    (0 + .member_contrast_arbitrary +
+         I(.member_contrast_arbitrary * diaryday_c) +
+         I(.member_contrast_arbitrary * .provided_support_cwp_actor) +
+         I(.member_contrast_arbitrary * .provided_support_cwp_partner) | coupleID) +
 
     # After accounting for stable differences between partners, they may still be
     # non-independent each day due to external occurrences and daily exchange processes
     # not captured in the fixed effects. Thus, residuals are not yet independent.
     # Homogeneous same-day residual covariance between partners:
-    (1 | coupleID:diaryday) + (0 + idiff | coupleID:diaryday)
+    (1 | coupleID:diaryday) +
+      (0 + .member_contrast_arbitrary | coupleID:diaryday)
 
   # For this Gaussian model, remove the additional independent residual
   # variance because the two couple-day blocks represent it.
@@ -3477,7 +3459,7 @@ In brms, the same model can be estimated as:
 Unlike the distinguishable longitudinal model, this exchangeable specification keeps one pooled residual `sigma` (`sigma ~ 1` is implied). Its residual SD prior therefore targets `class = "sigma"` directly.
 :::
 
-```{r fit-exch-long-apim-brms, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-exch-long-idiff'}
+```{r fit-exch-long-apim-brms, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-exch-long-member-contrast'}
 #| code-line-numbers: "1-4|6-12|14-15|17-22|24-25|27-29"
 
 formula_exch_long_apim <- bf(
@@ -3486,25 +3468,25 @@ formula_exch_long_apim <- bf(
     diaryday_c +
 
     # Within-person APIM
-    provided_support_cwp_actor +
-    provided_support_cwp_partner +
+    .provided_support_cwp_actor +
+    .provided_support_cwp_partner +
 
     # Between-person APIM
-    provided_support_cbp_actor +
-    provided_support_cbp_partner +
+    .provided_support_cbp_actor +
+    .provided_support_cbp_partner +
 
     # Dyad-Level intercept and slopes for time-varying predictors
-    (1 + diaryday_c + provided_support_cwp_actor + provided_support_cwp_partner | coupleID) +
+    (1 + diaryday_c + .provided_support_cwp_actor + .provided_support_cwp_partner | coupleID) +
 
     # Both partners' deviations from these dyad-level means and slopes.
     # Note: separate random-effects block to make them uncorrelated with dyad-level REs.
-    (0 + idiff +
-         I(idiff * diaryday_c) +
-         I(idiff * provided_support_cwp_actor) +
-         I(idiff * provided_support_cwp_partner) | coupleID) +
+    (0 + .member_contrast_arbitrary +
+         I(.member_contrast_arbitrary * diaryday_c) +
+         I(.member_contrast_arbitrary * .provided_support_cwp_actor) +
+         I(.member_contrast_arbitrary * .provided_support_cwp_partner) | coupleID) +
 
     # Modelling Level 1 residuals in brms:
-    unstr(time = idiff, gr = coupleID:diaryday)
+    unstr(time = .member_contrast_arbitrary, gr = coupleID:diaryday)
 
   # Again, no need to model heterogeneous residual variances (sigma)
   # Implied: sigma = ~ 1
@@ -3539,7 +3521,7 @@ model_exch_long_apim <- brm(
 
 The equivalent DIM specification:
 
-```{r fit-exch-long-dim-brms, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-exch-long-idiff'}
+```{r fit-exch-long-dim-brms, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-exch-long-member-contrast'}
 #| code-line-numbers: "7-11|13-17| 19-20"
 
 # DIM Version
@@ -3548,19 +3530,19 @@ formula_exch_long_dim <- bf(
 
     diaryday_c +
 
-    provided_support_cwp_dyad_mean +
-    provided_support_cwp_dev +
+    .provided_support_cwp_dyad_mean +
+    .provided_support_cwp_within_dyad_dev +
 
-    provided_support_cbp_dyad_mean +
-    provided_support_cbp_dev +
+    .provided_support_cbp_dyad_mean +
+    .provided_support_cbp_within_dyad_dev +
 
-    (1 + diaryday_c + provided_support_cwp_actor + provided_support_cwp_partner | coupleID) +
-    (0 + idiff +
-         I(idiff * diaryday_c) +
-         I(idiff * provided_support_cwp_actor) +
-         I(idiff * provided_support_cwp_partner) | coupleID) +
+    (1 + diaryday_c + .provided_support_cwp_actor + .provided_support_cwp_partner | coupleID) +
+    (0 + .member_contrast_arbitrary +
+         I(.member_contrast_arbitrary * diaryday_c) +
+         I(.member_contrast_arbitrary * .provided_support_cwp_actor) +
+         I(.member_contrast_arbitrary * .provided_support_cwp_partner) | coupleID) +
 
-    unstr(time = idiff, gr = coupleID:diaryday)
+    unstr(time = .member_contrast_arbitrary, gr = coupleID:diaryday)
 )
 
 priors_exch_long_dim <- c(
@@ -3589,9 +3571,10 @@ model_exch_long_dim <- brm(
 ```
 
 
-## Exchangeable Dyads - L-DIM/L-APIM: Explanation `idiff`
+## Exchangeable Dyads - L-DIM/L-APIM: Member-Contrast Coding
 
-For appropriate exchangeable random effects, we can use mean-deviation `idiff` coding [@delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]:
+For appropriate exchangeable random effects, we can use the generated
+`.member_contrast_arbitrary` column [@delrosarioPracticalGuideSpecifying2025; @kenny_ackerman_2023]:
 
 * Randomly give one partner a constant of -1 and the other a constant of 1
 * The couple-level intercept represents the average/common intercept of the two partners. `(1 | coupleID)`
@@ -3601,14 +3584,15 @@ Exchangeability is retained: if partners are flipped, the result is the same.
 
 (@delrosarioPracticalGuideSpecifying2025 provide practical guidance on how to reduce the random effects structure in case of non-convergence.)
 
-## Exchangeable Dyads - L-DIM/L-APIM: Common and `idiff` Components
+## Exchangeable Dyads - L-DIM/L-APIM: Common and Deviation Components
 
-For two partners coded with `idiff = +1` and `idiff = -1`, the glmmTMB
-structure `(1 | coupleID:diaryday) + (0 + idiff | coupleID:diaryday)` uses
+For two partners coded with `.member_contrast_arbitrary = +1` and
+`.member_contrast_arbitrary = -1`, the glmmTMB structure
+`(1 | coupleID:diaryday) + (0 + .member_contrast_arbitrary | coupleID:diaryday)` uses
 independent common and member-deviation components to imply a homogeneous
 two-partner residual covariance.
 
-This requires exactly two rows per couple-day, independent common and `idiff`
+This requires exactly two rows per couple-day and independent common and deviation
 blocks, and `dispformula = ~ 0`. If their variances are $\tau_c^2$ and
 $\tau_d^2$, member variance is $\tau_c^2+\tau_d^2$, covariance is
 $\tau_c^2-\tau_d^2$, and their ratio is the correlation. No manual partner
@@ -3661,6 +3645,14 @@ print_df(
 - Equivalence holds on both levels. Numeric deviations arise due to priors, sampling noise, and rounding.
   
 
+::: {.content-visible when-format="pdf"}
+
+```{=latex}
+\begin{landscape}
+```
+
+:::
+
 ## Exchangeable Dyads - L-DIM/L-APIM: Results
 
 APIM Results in Detail:
@@ -3683,6 +3675,13 @@ print_df(
 
 ```
 
+::: {.content-visible when-format="pdf"}
+
+```{=latex}
+\end{landscape}
+```
+
+:::
 
 
 ## Extract Full APIM Random Effects Variance-Covariance Matrix
@@ -3695,18 +3694,20 @@ For example, the within-partner variance of the random intercept is:
 
 $$
 \operatorname{Var}(u_{\text{common intercept}}) +
-\operatorname{Var}(u_{\text{idiff intercept}})
+\operatorname{Var}(u_{\text{deviation intercept}})
 $$
 
 and the cross-partner covariance of both partners' random intercepts is:
 
 $$
 \operatorname{Var}(u_{\text{common intercept}}) -
-\operatorname{Var}(u_{\text{idiff intercept}})
+\operatorname{Var}(u_{\text{deviation intercept}})
 $$
 
-In the model output, the common-intercept variance is labelled `Intercept`, and the deviation-intercept variance is labelled `idiff`.
-This rotation only holds when the common/couple-mean and `idiff` deviation random effects are uncorrelated. This is why we put them in separate random-effects blocks.
+In the model output, the common-intercept variance is labelled `Intercept`, and
+the deviation-intercept variance is labelled `.member_contrast_arbitrary`.
+This rotation only holds when the common/couple-mean and member-deviation random
+effects are uncorrelated. This is why we put them in separate random-effects blocks.
 
 ## Extract Full APIM Random Effects Variance-Covariance Matrix
 
@@ -3714,7 +3715,7 @@ This rotation only holds when the common/couple-mean and `idiff` deviation rando
 a <- summarize_exchangeable_apim_brms(
   model_exch_long_apim,
   gr = "coupleID",
-  idiff = "idiff",
+  deviation_term = ".member_contrast_arbitrary",
   partner_labels = c("PartnerA", "PartnerB")
 )
 

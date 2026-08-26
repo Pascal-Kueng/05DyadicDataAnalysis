@@ -13,8 +13,8 @@ identifiers:
     description: "All-versions DOI"
 url: "https://pascal-kueng.github.io/05DyadicDataAnalysis/"
 repository-code: "https://github.com/Pascal-Kueng/05DyadicDataAnalysis"
-version: "v2.0.11"
-date-released: "2026-08-14"
+version: "v2.0.12"
+date-released: "2026-08-26"
 abstract: "Applied Bayesian multilevel modelling tutorial for distinguishable and exchangeable dyads, covering cross-sectional and intensive longitudinal APIM and DIM models."
 keywords:
   - dyadic data

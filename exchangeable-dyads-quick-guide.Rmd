@@ -38,7 +38,6 @@ library(tibble)
 library(knitr)
 library(kableExtra)
 source(file.path("00_R_Functions", "ReportModels.R"))
-source(file.path("00_R_Functions", "PrepareData.R"))
 
 options(
   brms.backend = "cmdstanr",
@@ -107,36 +106,28 @@ df_long_dim <- prepare_dyad_data(
   model_types = c("apim", "dim"),
   seed = 123
 ) |>
-  rename_dyadmlm_for_tutorial(
-    predictor = "provided_support"
-  ) |>
   mutate(
     diaryday_c = diaryday - mean(diaryday)
   )
 ```
 
-```{r idiff-data-structure-table, echo=FALSE}
-idiff_example <- df_long_dim |>
+```{r member-contrast-data-structure-table, echo=FALSE}
+member_contrast_example <- df_long_dim |>
   select(
-    coupleID, userID, diaryday, idiff,
-    cwp_actor = provided_support_cwp_actor,
-    cwp_partner = provided_support_cwp_partner,
-    cwp_dyad_mean = provided_support_cwp_dyad_mean,
-    cwp_dev = provided_support_cwp_dev
+    userID, diaryday, .member_contrast_arbitrary,
+    .provided_support_cwp_actor, .provided_support_cwp_partner
   )
 
 kable(
-  idiff_example,
-  caption = "Example person-day structure for an exchangeable dyad",
+  member_contrast_example,
+  caption = "Prepared rows for an exchangeable dyad",
   booktabs = TRUE
 ) |>
   kable_styling(latex_options = "scale_down", font_size = 7)
 ```
 
-`idiff` is constant within person and opposite within dyad. Its sign has no
-substantive meaning. The tutorial helper removes the leading dot while retaining
-the package's `cwp_actor`, `cbp_partner`, and `cwp_dyad_mean` ordering, and
-shortens `within_dyad_dev` to `cwp_dev`.
+`.member_contrast_arbitrary` is constant within person and opposite within
+dyad. Its sign has no substantive meaning.
 
 # glmmTMB model
 
@@ -146,28 +137,29 @@ model_exch_long_apim_glmmtmb <- glmmTMB(
 
     # Pooled fixed effects: no gender-specific intercepts or slopes.
     diaryday_c +
-    provided_support_cwp_actor +
-    provided_support_cwp_partner +
-    provided_support_cbp_actor +
-    provided_support_cbp_partner +
+    .provided_support_cwp_actor +
+    .provided_support_cwp_partner +
+    .provided_support_cbp_actor +
+    .provided_support_cbp_partner +
 
     # Dyad-level means and slopes.
     (1 + diaryday_c +
-       provided_support_cwp_actor +
-       provided_support_cwp_partner | coupleID) +
+       .provided_support_cwp_actor +
+       .provided_support_cwp_partner | coupleID) +
 
     # Partner deviations from the dyad-level effects.
     # This block is kept separate from the dyad-level block so that the
     # common/couple-mean and deviation components are independent.
-    (0 + idiff +
-       I(idiff * diaryday_c) +
-       I(idiff * provided_support_cwp_actor) +
-       I(idiff * provided_support_cwp_partner) | coupleID) +
+    (0 + .member_contrast_arbitrary +
+       I(.member_contrast_arbitrary * diaryday_c) +
+       I(.member_contrast_arbitrary * .provided_support_cwp_actor) +
+       I(.member_contrast_arbitrary * .provided_support_cwp_partner) | coupleID) +
 
     # Same-day residual interdependence:
     # Independent common and member-deviation components imply homogeneous
     # residual variance and covariance.
-    (1 | coupleID:diaryday) + (0 + idiff | coupleID:diaryday),
+    (1 | coupleID:diaryday) +
+      (0 + .member_contrast_arbitrary | coupleID:diaryday),
 
   # The Gaussian residual covariance is represented by the two blocks above.
   # Without dispformula = ~ 0, glmmTMB would add a second independent
@@ -180,7 +172,7 @@ model_exch_long_apim_glmmtmb <- glmmTMB(
 )
 ```
 
-The common and `idiff` components are rotated to member-level quantities in the
+The common and member-deviation components are rotated to member-level quantities in the
 Back-transformation section.
 
 # brms model
@@ -191,27 +183,27 @@ formula_exch_long_apim <- bf(
 
     # Pooled fixed effects.
     diaryday_c +
-    provided_support_cwp_actor +
-    provided_support_cwp_partner +
-    provided_support_cbp_actor +
-    provided_support_cbp_partner +
+    .provided_support_cwp_actor +
+    .provided_support_cwp_partner +
+    .provided_support_cbp_actor +
+    .provided_support_cbp_partner +
 
     # Dyad-level means and slopes.
     (1 + diaryday_c +
-       provided_support_cwp_actor +
-       provided_support_cwp_partner | coupleID) +
+       .provided_support_cwp_actor +
+       .provided_support_cwp_partner | coupleID) +
 
     # Partner deviations from the dyad-level effects.
-    (0 + idiff +
-       I(idiff * diaryday_c) +
-       I(idiff * provided_support_cwp_actor) +
-       I(idiff * provided_support_cwp_partner) | coupleID) +
+    (0 + .member_contrast_arbitrary +
+       I(.member_contrast_arbitrary * diaryday_c) +
+       I(.member_contrast_arbitrary * .provided_support_cwp_actor) +
+       I(.member_contrast_arbitrary * .provided_support_cwp_partner) | coupleID) +
 
     # Native same-day residual correlation, allowed to be positive or negative.
     # With exactly two members per group, unstr() estimates the single pairwise
     # correlation. For triads or larger groups it estimates a fully
     # unstructured correlation matrix.
-    unstr(time = idiff, gr = coupleID:diaryday)
+    unstr(time = .member_contrast_arbitrary, gr = coupleID:diaryday)
 
   # No sigma formula is specified here. Thus, sigma ~ 1 is implied,
   # meaning one homogeneous residual variance for both partners.
@@ -260,24 +252,24 @@ inference.
 
 # Back-transformation
 
-The model estimates a common/couple-mean block and an `idiff` deviation block. For exchangeable dyads,
+The model estimates a common/couple-mean block and a member-deviation block. For exchangeable dyads,
 the full APIM random-effects matrix is recovered by rotating these two blocks:
 
 $$
 \operatorname{Var}(A) = \operatorname{Var}(B) =
-\Sigma_{\text{common}} + \Sigma_{\text{idiff}}
+\Sigma_{\text{common}} + \Sigma_{\text{deviation}}
 $$
 
 $$
 \operatorname{Cov}(A, B) =
-\Sigma_{\text{common}} - \Sigma_{\text{idiff}}
+\Sigma_{\text{common}} - \Sigma_{\text{deviation}}
 $$
 
-This exact rotation assumes that the common/couple-mean and `idiff` deviation random-effect blocks are
+This exact rotation assumes that the common/couple-mean and member-deviation random-effect blocks are
 independent.
 
 The helper function `summarize_exchangeable_apim_brms()` used below is defined in
-`00_R_Functions/ReportModels.R` on GitHub. It reconstructs the common/couple-mean and `idiff` covariance
+`00_R_Functions/ReportModels.R` on GitHub. It reconstructs the common/couple-mean and member-deviation covariance
 matrices for every posterior draw, rotates each draw into the full APIM
 partner-level matrix, and then summarizes the transformed covariance, SD,
 correlation, fixed-effect, and residual quantities.
@@ -287,14 +279,10 @@ algebraic point back-transformation. Interval estimates require a separate
 parametric bootstrap or transformation of asymptotic parameter draws.
 
 ```{r backtransform-code}
-idiff_term <- if (
-  "sd_coupleID__idiff" %in% posterior::variables(model_exch_long_apim)
-) "idiff" else "Idiff"
-
 apim_results <- summarize_exchangeable_apim_brms(
   model_exch_long_apim,
   gr = "coupleID",
-  idiff = idiff_term,
+  deviation_term = ".member_contrast_arbitrary",
   term_labels = c("int", "day", "actor_wp", "partner_wp"),
   partner_labels = c("A", "B")
 )
