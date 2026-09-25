@@ -240,14 +240,14 @@ cached_fit <- file.path("brms_cache", "model_apim_ind_long_apim.rds")
 if (!file.exists(cached_fit)) {
   stop(
     "Cached brms fit not found: ", cached_fit,
-    ". Run the brms model chunk first, then render this file again."
+    ". Render DyadicDataAnalysis.Rmd first, then render this file again."
   )
 }
 model_exch_long_apim <- readRDS(cached_fit)
 ```
 
-The cached illustrative fit has no HMC warnings, but a few variance parameters
-mix slowly (maximum $\widehat{R} = 1.049$); refit longer before substantive
+The cached illustrative fit has no HMC warnings, but a few parameters, including the
+intercept, mix slowly (maximum $\widehat{R} = 1.049$); refit longer before substantive
 inference.
 
 # Back-transformation

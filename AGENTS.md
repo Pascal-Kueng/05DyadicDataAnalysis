@@ -4,7 +4,7 @@ This repository contains an R Markdown slide deck and supporting R functions for
 
 ## Project Structure & Module Organization
 - `DyadicDataAnalysis.Rmd` is the single format-aware source for both the interactive HTML slides and archival PDF.
-- `00_R_Functions/` holds reusable R helpers (e.g., `PrepareData.R`, `PrettyTables.R`, `ReportModels.R`).
+- `00_R_Functions/` holds reusable R helpers (`PrettyTables.R`, `ReportModels.R`).
 - `Embed/` stores bibliography/assets used by the slides.
 - Rendered artifacts live in `DyadicDataAnalysis.html`, `dyadic-data-analysis-tutorial.pdf`, and their `*_files/` directories.
 - `renv/` and `renv.lock` pin package versions; `brms_cache/` keeps model cache files used by the slides.
@@ -18,10 +18,10 @@ This repository contains an R Markdown slide deck and supporting R functions for
 ## Coding Style & Naming Conventions
 - Follow tidyverse-style R conventions: 2-space indentation, `<-` for assignment, and `snake_case` for objects and functions.
 - Keep roxygen2 headers on exported helpers in `00_R_Functions/`.
-- Prefer explicit names (`is_` prefix for dummy variables) and keep data preparation logic in the helper scripts, not embedded in long chunks.
+- Prefer explicit names (`is_` prefix for dummy variables) and use `dyadMLM` for data preparation instead of long custom chunks.
 
 ## Testing Guidelines
-- There is no automated test suite; validate changes by rendering the slides and checking key figures/tables.
+- Run `Rscript scripts/check-rmd.R` (CI runs it on every push), then render the slides and check key figures/tables.
 - If you add tests, place them under `tests/testthat/` with `test-*.R` names and document how to run them.
 
 ## Commit & Pull Request Guidelines

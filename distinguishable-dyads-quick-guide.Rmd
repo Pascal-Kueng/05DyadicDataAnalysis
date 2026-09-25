@@ -55,12 +55,12 @@ Distinguishable dyads have partner roles that are meaningful for the model. In
 this tutorial example, the partners are distinguished by gender and represented
 with `.is_male` and `.is_female`.
 
-The full intensive-longitudinal specification used here models
+The simplified intensive-longitudinal specification used here models
 [@bolgerIntensiveLongitudinalMethods2013; @kenny2006dyadic]:
 
 - role-specific fixed effects, because the two partners have meaningful labels;
 - role-specific average time trends and actor/partner effects;
-- stable between-dyad differences in each role's average level and slopes;
+- stable between-dyad differences in each role's average level and time trend;
 - correlations among the role-specific random effects;
 - role-specific residual variances, when the two roles may differ in
   unexplained variability;
@@ -228,7 +228,7 @@ cached_fit <- file.path("brms_cache", "example1_dist_apim_long_simpel.rds")
 if (!file.exists(cached_fit)) {
   stop(
     "Cached brms fit not found: ", cached_fit,
-    ". Run the brms model chunk first, then render this file again."
+    ". Render DyadicDataAnalysis.Rmd first, then render this file again."
   )
 }
 model_dist_apim_long_simple <- readRDS(cached_fit)

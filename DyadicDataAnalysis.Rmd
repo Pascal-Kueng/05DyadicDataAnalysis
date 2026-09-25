@@ -11,8 +11,8 @@ abstract: >
   equivalence, and discuss implications for interpretation. Using simulated data,
   we provide fully reproducible code to rebuild the models and assess parameter
   recovery. The tutorial offers comprehensive {brms} implementations, including
-  random-effects structures, heterogeneous residual variances, compound-symmetry
-  residuals, and optional AR(1) processes. We illustrate diagnostics and model
+  random-effects structures, heterogeneous residual variances, and compound-symmetry
+  residuals. We illustrate diagnostics and model
   comparison and show how to extract dyad-level variance–covariance components.
 keywords:
   - dyadic data
@@ -63,6 +63,7 @@ format:
         \emergencystretch=2em
         \usepackage{pdflscape}
         \usepackage{needspace}
+        \preto\subsection{\needspace{8\baselineskip}}
     include-before-body:
       text: |
         \RecustomVerbatimEnvironment{Highlighting}{Verbatim}{fontsize=\scriptsize,breaklines,breakanywhere,commandchars=\\\{\}}
@@ -79,7 +80,7 @@ bibliography:
   - Embed/Rpackages.bib
 csl: Embed/apa.csl
 nocite: |
-  @R-brms, @R-bmlm, @R-easystats, @R-DHARMa, @R-tidyverse, @R-cmdstanr, @R-loo, @R-rstan, @R-MASS, @R-nlme
+  @R-brms, @R-easystats, @R-DHARMa, @R-tidyverse, @R-cmdstanr, @R-loo, @R-rstan, @R-MASS, @R-nlme
 
 ---
 
@@ -103,6 +104,7 @@ knitr::knit_hooks$set(output = function(x, options) {
   out
 })
 library(glue)
+library(cmdstanr) # brms backend
 options(knitr.kable.NA = "", width = 120)
 if (knitr::is_html_output()) {
   # kableExtra's HTML table helper initializes tooltips with jQuery.
@@ -118,7 +120,7 @@ if (knitr::is_html_output()) {
 
 **DOI:** [10.5281/zenodo.17400655](https://doi.org/10.5281/zenodo.17400655)
 
-**Suggested citation:** Küng, P. M. (2026). *Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling* (Version 2.0.12) [Report]. Zenodo. [https://doi.org/10.5281/zenodo.17400655](https://doi.org/10.5281/zenodo.17400655)
+**Suggested citation:** Küng, P. M. (2026). *Distinguishable and Exchangeable Dyads: Bayesian Multilevel Modelling* (Version 2.0.13) [Report]. Zenodo. [https://doi.org/10.5281/zenodo.17400655](https://doi.org/10.5281/zenodo.17400655)
 
 The [GitHub repository](https://github.com/Pascal-Kueng/05DyadicDataAnalysis) contains the source, helpers, model code, and quick guides.
 
@@ -211,13 +213,13 @@ n_het <- 550 # Number of heterosexual couples
 n_ss  <- 400 # Number of same-sex couples
 n_total <- n_het + n_ss
 
-# Residual SDs by gender / dyad type (unchanged)
+# Residual SDs by gender / dyad type
 sd_e_het_female <- 1.1
 sd_e_het_male   <- 1.4
 sd_e_ss_female  <- 0.9   # (SS individuals coded female in this example)
 # sd_e_ss_male <- ...    # if you add male–male couples
 
-# --- NEW: Residual correlations by dyad type (compound symmetry) ---
+# --- Residual correlations by dyad type (compound symmetry) ---
 rho_e_het <- 0.30
 rho_e_ss  <- 0.40
 
@@ -238,33 +240,23 @@ gamma_p_ss_person  <- 0.25
 sd_x <- 1.5      # SD of the predictor (communication)
 r_x  <- 0.4      # Correlation between partners' communication
 
-# --- UPDATED: smaller, more realistic random slope SDs ---
-# (Feel free to tweak; these are modest to reflect heterogeneity without dominating)
-sd_u0j <- 0.8    # baseline random intercept SD (unused directly below; see group-specific)
-sd_uaj <- 0.15   # (legacy overall; using group-specific below)
-sd_upj <- 0.12
-cor_u0a <- 0.20
-cor_u0p <- 0.15
-cor_uap <- -0.10
-sd_e    <- 1.2   # legacy scalar residual SD (not used now that we do sex-specific)
-
 # --- 2. Simulate Dyad-Level Variables ---
 dyad_data <- tibble::tibble(coupleID = 1:n_total)
 
-# -- 2a: SEPARATE variance components for each group (UPDATED slopes) --
+# -- 2a: SEPARATE variance components for each group --
 
 # Heterosexual couples
 sd_u0j_het <- 0.8
-sd_uaj_het <- 0.15   # was 0.3
-sd_upj_het <- 0.12   # was 0.2
-cor_u0a_het <- 0.20  # was 0.25
-cor_u0p_het <- 0.15  # same
-cor_uap_het <- -0.10 # same
+sd_uaj_het <- 0.15
+sd_upj_het <- 0.12
+cor_u0a_het <- 0.20
+cor_u0p_het <- 0.15
+cor_uap_het <- -0.10
 
 # Same-sex couples
 sd_u0j_ss <- 1.0
-sd_uaj_ss <- 0.12   # was 0.2
-sd_upj_ss <- 0.15   # was 0.25
+sd_uaj_ss <- 0.12
+sd_upj_ss <- 0.15
 cor_u0a_ss <- 0.10
 cor_u0p_ss <- -0.05
 cor_uap_ss <- 0.00
@@ -358,7 +350,7 @@ temp_df_for_outcome <- df %>%
     )
   )
 
-# --- NEW: Residuals with compound symmetry (per dyad) & sex-specific SDs -------
+# --- Residuals with compound symmetry (per dyad) & sex-specific SDs -------
 resid_pairs <- tibble::tibble(coupleID = 1:n_total) %>%
   dplyr::mutate(
     sd1 = ifelse(coupleID <= n_het, sd_e_het_female, sd_e_ss_female),  # p1: het=female, ss=female
@@ -444,8 +436,8 @@ print_apim_preview(df_apim)
 
 For the likelihood-based constraint comparison, the glmmTMB models below use
 `.communication_gmc_actor` and `.communication_gmc_partner`. The Bayesian models
-retain the raw actor and partner scores because centering also changes the
-intercept's prior interpretation.
+retain the raw actor and partner scores, so their intercepts refer to a
+communication score of 0 rather than the sample mean.
 
 
 ## Distinguishable Dyads - Fitting the Model in glmmTMB
@@ -534,7 +526,7 @@ summary(model_dist_apim_glmmtmb)
 
 With `dispformula = ~ 0`, `glmmTMB` fixes the Gaussian observation-level
 residual SD near zero because the dyadic variance and covariance are represented
-by the random-effect block [@R-glmmTMB]. DHARMa's default conditional simulation
+by the random-effect block [@glmmTMB2017]. DHARMa's default conditional simulation
 therefore contains almost no observation-level variation. For a marginal check,
 resimulate the random effects and interpret the result for that target
 [@R-DHARMa]:
@@ -553,7 +545,7 @@ dharma_glmmtmb <- DHARMa::simulateResiduals(
 In brms, we can use brms-provided residual covariance structures directly. We do not have to set residuals internally to zero.
 
 ```{r fit-dist-apim-brms, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-dist-apim-prepare'}
-#| code-line-numbers: "1-13|15-21|23-28|30-41"
+#| code-line-numbers: "1-13|15-21|23-27|29-40"
 formula_dist_apim_b <- bf(
   satisfaction ~
 
@@ -577,7 +569,6 @@ formula_dist_apim_b <- bf(
 )
 
 priors_dist_apim_b <- c(
-  # prior(normal(2, 3), class = "Intercept"),
   prior(normal(0, 5), class = "b"),
   prior(student_t(3, 0, 1.5), class = "b", dpar = "sigma"),
   prior(lkj(2), class = "cortime")
@@ -659,7 +650,7 @@ df_apim_count <- df_apim |>
 ```
 
 ```{r fit-dist-apim-brms-poisson, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='simulate-dist-apim-poisson-data'}
-#| code-line-numbers: "1-13|15-21|23-28|29-41"
+#| code-line-numbers: "1-13|15-19|21-26|27-39"
 formula_dist_apim_c <- bf(
   satisfaction_count ~
 
@@ -678,8 +669,6 @@ formula_dist_apim_c <- bf(
     # Poisson has no separately estimated residual-dispersion parameter.
 
     (0 + .is_male + .is_female | coupleID)
-
-    # sigma ~ 0 + .is_male + .is_female
 )
 
 priors_dist_apim_c <- c(
@@ -743,7 +732,7 @@ summary(model_glmmTMB_dist_apim_c)
 
 ## Distinguishable Dyads - Check Model Convergence and Fit
 
-Check Rhats and Effective Sample Sizes (ESS_tail and ESS_bulk) directly from the brms summary. Additionally you can (using Model B as an example):
+Check Rhats and Effective Sample Sizes (ESS_tail and ESS_bulk) directly from the brms summary: Rhat should be below 1.01 and both ESS above 400. Some longitudinal example fits below fall short of this (Rhat up to 1.05); for real analyses, run more iterations. Additionally you can (using Model B as an example):
 
 ```{r diag-dist-apim-hmc, cache = TRUE, message=TRUE, dependson='fit-dist-apim-brms'}
 # In brms 2.23, draws from either Stan backend are stored as a stanfit here.
@@ -1284,7 +1273,7 @@ model_dist_apim_long_glmmtmb <- glmmTMB(
     .is_female:.provided_support_cwp_partner +
 
   # Accounting for non-independence between partners' means and trajectories
-  # and effect sensitivities via random effects:
+  # via random effects:
   (0 + .is_male + .is_female
     + .is_male:diaryday_c + .is_female:diaryday_c
   | coupleID) +
@@ -1292,7 +1281,7 @@ model_dist_apim_long_glmmtmb <- glmmTMB(
   # Accounting for daily non-independence
   us(0 + .is_male + .is_female | coupleID:diaryday)
 
-  # heteroscedastic residuals
+  # no separate residual term: the us() block above models the residuals
   , dispformula = ~ 0
   , data = df_long_apim
 )
@@ -1313,6 +1302,7 @@ Let's compare the random effects outputs to see if the models are truly equivale
 Residual variance in `nlme` must first be constructed from the output by taking the residual SD and multiplying it by the parameter estimate under the variance function for each partner.
 :::
 
+::: {.content-visible when-format="html"}
 ::: {.model-compare-grid}
 ::: {.model-compare-panel}
 **nlme:**
@@ -1356,6 +1346,56 @@ Conditional model:
                    .is_female            0.5206608 0.72157  0.04</code></pre>
 :::
 :::
+:::
+
+::: {.content-visible when-format="pdf"}
+\needspace{12\baselineskip}
+**nlme:**
+
+```text
+                     StdDev     Corr
+.is_male              0.83645552 is_mal is_fml is_m:_
+.is_female            0.90199634  0.189
+.is_male:diaryday_c   0.01634796  0.544  0.033
+.is_female:diaryday_c 0.01612665  0.204  0.534 -0.012
+Residual             0.72170702
+
+Correlation Structure: Compound symmetry
+ Formula: ~1 | coupleID/diaryday
+ Parameter estimate(s):
+       Rho
+0.04094751
+Variance function:
+ Structure: Different standard deviations per stratum
+ Formula: ~1 | gender
+ Parameter estimates:
+       1        2
+1.000000 1.554608
+
+
+
+Manually computed by multiplying the residual SD by the multipliers:
+
+Residual SDs by partner:
+  Partner 1: 0.721707
+  Partner 2: 1.121972
+```
+
+\needspace{12\baselineskip}
+**glmmTMB:**
+
+```text
+Random effects:
+Conditional model:
+ Groups            Name                 Variance  Std.Dev. Corr
+ coupleID          .is_male              0.6814498 0.82550
+                   .is_female            0.7930407 0.89053   0.19
+                   .is_male:diaryday_c   0.0002637 0.01624   0.55  0.03
+                   .is_female:diaryday_c 0.0002571 0.01603   0.21  0.54 -0.01
+ coupleID:diaryday .is_male              1.2583552 1.12176
+                   .is_female            0.5206608 0.72157  0.04
+```
+:::
 
 ## Distinguishable Dyads - L-APIM - Model brms
 
@@ -1387,7 +1427,7 @@ formula_dist_apim_long_simple <- bf(
     .is_female:.provided_support_cwp_partner +
 
   # Accounting for non-independence between partners' means and trajectories
-  # and effect sensitivities via random effects:
+  # via random effects:
   (0 + .is_male + .is_female
     + .is_male:diaryday_c + .is_female:diaryday_c
   | coupleID) +
@@ -1428,6 +1468,10 @@ model_dist_apim_long_simple <- brm(
 
 ```
 
+::: {.content-visible when-format="pdf"}
+\newpage
+:::
+
 ## Distinguishable Dyads - L-APIM - Results (scrollable)
 
 ```{r results-dist-apim-long-simple-brms, echo=FALSE, cache=TRUE, dependson='fit-dist-apim-long-simple-brms'}
@@ -1442,8 +1486,8 @@ print_df(
   summary_dist_apim_long_simple,
   rows_to_pack = list(
     'Fixed Effects' = c(1,12),
-    'Random Effects' = c(13, 23),
-    'Residual Structure' = c(24, 25)
+    'Random Effects' = c(13, 22),
+    'Residual Structure' = c(23, 25)
     ),
   scroll_height = '55vh'
   )
@@ -1470,7 +1514,7 @@ This additive model represents same-day dyadic shocks plus person-specific
 persistence. It splits lag-zero variance across the two blocks. These residual
 blocks contribute zero cross-partner covariance across different days, although
 dyad-level random effects can still induce cross-day covariance; this is not one
-separable partner-by-time residual process [@R-glmmTMB].
+separable partner-by-time residual process [@glmmTMB2017].
 
 ## Excursion: Dynamic Workaround
 
@@ -1490,7 +1534,7 @@ We add all random slopes and their correlations. This is neither converging in `
 
 ```{r fit-dist-apim-long-complex-brms, results='hide', message=FALSE, warning=FALSE, cache=TRUE, dependson='data-dist-long-apim-reshape'}
 #| classes: code-50vh
-#| code-line-numbers: "27-35|37-43"
+#| code-line-numbers: "27-35|37-41"
 
 formula_dist_apim_long_complex <- bf(
   closeness ~
@@ -1531,8 +1575,6 @@ formula_dist_apim_long_complex <- bf(
 
     # Accounting for daily non-independence
     unstr(time = gender, gr = coupleID:diaryday),
-
-  # No more AR1. You could also test MA or ARMA.
 
   sigma ~ 0 + .is_male + .is_female   # heteroscedastic residuals
 )
@@ -1577,8 +1619,8 @@ print_df(
   summary_dist_apim_long_complex,
   rows_to_pack = list(
     'Fixed Effects' = c(1,12),
-    'Random Effects' = c(13, 49),
-    'Residual Structure' = c(50, 51)
+    'Random Effects' = c(13, 48),
+    'Residual Structure' = c(49, 51)
     ),
   scroll_height = '55vh'
   )
@@ -1614,6 +1656,14 @@ loo::pareto_k_table(loo2)
 All Pareto k estimates are good (k &lt; 0.7).</code></pre>
 ```
 
+::: {.content-visible when-format="pdf"}
+```text
+All Pareto k estimates are good (k < 0.7).
+
+All Pareto k estimates are good (k < 0.7).
+```
+:::
+
 Pareto $k$ diagnoses the importance-sampling approximation; high values are
 not themselves evidence of overfitting [@loo2017a].
 
@@ -1630,11 +1680,19 @@ model_dist_apim_long_complex   0.0       0.0
 model_dist_apim_long_simple  -15.4       6.7</code></pre>
 ```
 
+::: {.content-visible when-format="pdf"}
+```text
+                             elpd_diff se_diff
+model_dist_apim_long_complex   0.0       0.0
+model_dist_apim_long_simple  -15.4       6.7
+```
+:::
+
 The complex model predicts the held-out observations better by 15.4 ELPD
 units (SE 6.7). This supports its additional structure for this prediction
 target, but does not prove that every variance or correlation is necessary;
 ELPD differences should be interpreted with their uncertainty
-[@loo2025a]. If performance were similar, theory, identifiability, and
+[@sivula2025]. If performance were similar, theory, identifiability, and
 parsimony should guide simplification
 [@barrRandomEffectsStructure2013; @delrosarioPracticalGuideSpecifying2025].
 
@@ -2192,7 +2250,7 @@ not a formal test of distinguishability or prediction of a new dyad.
 
 For this observation-level target, the distinguishable model predicts better.
 The ELPD difference is descriptive predictive evidence; `se_diff` summarizes
-its uncertainty [@loo2017a; @loo2025a].
+its uncertainty [@loo2017a; @sivula2025].
 
 ## Exchangeable Dyads - Cross-Sectional DIM
 
@@ -2598,7 +2656,7 @@ print_df(
   }
 
   function render(){
-    const A=+actor.value, P=+partner.value, M=+mean.value, W=+within.value;
+    const A=+actor.value, P=+partner.value, M=(A+P)/2, W=(A-P)/2;
     const yAPIM = C.apim.b0 + C.apim.b_actor_gmc*A + C.apim.b_partner_gmc*P;
     const yDIM  = C.dim.b0  + C.dim.b_cbc*M        + C.dim.b_cwc*W;
     table.innerHTML =
@@ -2623,8 +2681,8 @@ print_df(
   function updateOutputs(){
     outA.value=(+actor.value).toFixed(2);
     outP.value=(+partner.value).toFixed(2);
-    outM.value=(+mean.value).toFixed(2);
-    outW.value=(+within.value).toFixed(2);
+    outM.value=((+actor.value + +partner.value)/2).toFixed(2);
+    outW.value=((+actor.value - +partner.value)/2).toFixed(2);
   }
 
   /* =======================
@@ -3119,7 +3177,7 @@ updateOutputs(); render();
     }
 
     function render(){
-      const a = Number(actor.value), p = Number(partner.value), m = Number(cbc.value), w = Number(cwc.value);
+      const a = Number(actor.value), p = Number(partner.value), m = (a + p) / 2, w = (a - p) / 2;
       outA.value = a.toFixed(1); outP.value = p.toFixed(1); outCbc.value = m.toFixed(2); outCwc.value = w.toFixed(2);
       const yA = b0 + bA * a + bP * p;
       const yD = b0 + bCbc * m + bCwc * w;
@@ -3340,6 +3398,11 @@ The generated `.provided_support_cwp_dyad_mean` and `.provided_support_cwp_withi
 columns form the within-person DIM. The corresponding
 `.provided_support_cbp_dyad_mean` and `.provided_support_cbp_within_dyad_dev` columns form the
 between-person DIM [@bolgerIntensiveLongitudinalMethods2013].
+
+Caveat: these simulated data contain gender differences, which exchangeable
+models ignore. The member-level variances and correlations reported below
+absorb these differences, so they do not match the simulated values. The
+example only illustrates the workflow.
 
 ## Exchangeable Dyads - L-DIM/L-APIM: Preparing the Member Contrast
 
@@ -3598,7 +3661,7 @@ $\tau_d^2$, member variance is $\tau_c^2+\tau_d^2$, covariance is
 $\tau_c^2-\tau_d^2$, and their ratio is the correlation. No manual partner
 indicators are needed [@delrosarioPracticalGuideSpecifying2025].
 
-## Exchangeable Dyads - L-DIM/L-APIM: Results
+## Exchangeable Dyads - L-DIM/L-APIM: Results {.smaller}
 
 Comparing APIM (left) and DIM (right) output of fixed effects.
 
@@ -3667,8 +3730,8 @@ print_df(
   summary_exch_long_apim,
   rows_to_pack = list(
     'Fixed Effects' = c(1,6),
-    'Random Effects' = c(7, 27),
-    'Residual Structure' = c(28, 28)
+    'Random Effects' = c(7, 26),
+    'Residual Structure' = c(27, 28)
     ),
   scroll_height = '50vh'
 )
@@ -3790,7 +3853,7 @@ print_df(
 ```{r write-package-bibliography, echo=FALSE, results='hide'}
 
 pkgs <- c(
-  "brms", "bmlm", "easystats", "DHARMa", "tidyverse", "cmdstanr",
+  "brms", "easystats", "DHARMa", "tidyverse", "cmdstanr",
   "loo", "rstan", "MASS", "nlme", "glmmTMB"
 )
 
